@@ -31,6 +31,7 @@ void TimeStep::SetMonthly( const unsigned& monthlyTimeStep ) {
 
     if( monthlyTimeStep != 0 && Maths::Get( )->Mod( mMonthlyTimeStep, 12 ) == 0 )
         mAnnualTimeStep += 1;
+    mMonthlyTimeStep =Maths::Get( )->Mod( mMonthlyTimeStep, 12 );
 }
 
 void TimeStep::SetAnnual( const unsigned& annualTimeStep ) {

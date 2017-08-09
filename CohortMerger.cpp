@@ -19,19 +19,21 @@ int CohortMerger::MergeToReachThresholdFast( Environment* e ) {
     repast::relogo::AgentSet<Cohort> cohorts= e->turtlesHere<Cohort>();
     //std:: vector<Cohort*> cohorts;
     
-    //this assumes we are just looking at a total over all cohorts, rather than a limit within each functional group
-    int NumberToRemove = cohorts.size() - maxCohorts;
+
     
     //break down cell contents into functional groups
     std::map <int, std::vector <Cohort*> > CohortsByFunctionalGroup;
-    for (auto c: cohorts)CohortsByFunctionalGroup[c->_FunctionalGroupIndex].push_back(c);
-
+    unsigned count=0;
+    for (auto c: cohorts) if (c->_alive){CohortsByFunctionalGroup[c->_FunctionalGroupIndex].push_back(c);count++;}
+    //this assumes we are just looking at a total over all cohorts, rather than a limit within each functional group
+    unsigned NumberToRemove = count - maxCohorts;
+    
     if( NumberToRemove > 0 ) {
         //Loop through functional groups
         for( auto FunctionalGroup: CohortsByFunctionalGroup ) {
 
                 // Loop through cohorts within functional groups
-                for( int cc = 0; FunctionalGroup.second.size( ) - 1; cc++ ) {
+                for( int cc = 0; cc< FunctionalGroup.second.size( ) - 1; cc++ ) {
                     // Loop through comparison cohorts
                     for( int dd = cc + 1; dd < FunctionalGroup.second.size( ); dd++ ) {
                         CohortPair PairwiseDistance( FunctionalGroup.second[cc], FunctionalGroup.second[dd], repast::Random::instance()->nextDouble() );
@@ -62,5 +64,6 @@ int CohortMerger::MergeToReachThresholdFast( Environment* e ) {
             ++I;
         }
     }
+    
     return MergeCounter;
 }

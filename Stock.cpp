@@ -74,6 +74,7 @@ void Stock::setup(unsigned functionalGroup){
 
             // Calculate predicted leaf mass at equilibrium for this stock
             _TotalBiomass = PlantModel.CalculateEquilibriumLeafMass(patchHere<Environment> () , _Deciduous );
+
             
     } else if( _Marine && patchHere<Environment> ()->NPP()!= Constants::cMissingValue ) {
             _TotalBiomass = 1.e12;
@@ -83,7 +84,7 @@ void Stock::setup(unsigned functionalGroup){
 //-------------------------------------------------------------------------------------------------------------------
 void Stock::step() {
 
-   /* unsigned CurrentTimeStep=RepastProcess :: instance ()->getScheduleRunner ().currentTick ();
+    unsigned CurrentTimeStep=RepastProcess :: instance ()->getScheduleRunner ().currentTick ();
     Environment* LocalEnvironment=patchHere<Environment> ();
 
     if( _Marine ) {
@@ -94,19 +95,22 @@ void Stock::step() {
 
         // If the biomass of the autotroph stock has been made less than zero (i.e. because of negative NPP) then reset to zero
         if( _TotalBiomass < 0.0 ) _TotalBiomass = 0.0;
+
+        
     } else {
         TerrestrialCarbon PlantModel;
         HumanAutotrophMatterAppropriation HumanRemoval;
         // Run the dynamic plant model to update the leaf stock for this time step
-        double NPPWetMatter = PlantModel.UpdateLeafStock( patchHere<Environment> () ,this, _Deciduous );//??could pass TotalBiomass by reference?
+        double NPPWetMatter = PlantModel.UpdateLeafStock( LocalEnvironment ,this, _Deciduous );//??could pass TotalBiomass by reference?
 
         // Apply human appropriation of NPP - note in the latest C# version this is changed to include the NPPWetMatter calculated above
         AgentSet<Stock> stocks = turtlesHere<Stock>();
         double AllBiomass=0;
         for (auto s:stocks)AllBiomass+=s->_TotalBiomass;
         double FracBiomass=_TotalBiomass/AllBiomass;
-        double fhanpp = HumanRemoval.RemoveHumanAppropriatedMatter(patchHere<Environment> (), NPPWetMatter, FracBiomass, CurrentTimeStep);
+        double fhanpp = HumanRemoval.RemoveHumanAppropriatedMatter(LocalEnvironment, NPPWetMatter, FracBiomass, CurrentTimeStep);
         _TotalBiomass += NPPWetMatter * ( 1 - fhanpp );
-    }*/
+        if (std::isnan(_TotalBiomass)){cout<<"blerrrrrrrrrrg "<<_TotalBiomass<<" "<<getId()<<" "<<AllBiomass<<" "<<NPPWetMatter<<endl;exit(1);}
+    }
 
 }

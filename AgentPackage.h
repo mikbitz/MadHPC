@@ -53,14 +53,92 @@ struct AgentPackage {
 		ar & type;
 		ar & currentProc;
 
-//		ar & infectionTime;
-//		ar & infected;
+		ar & _FunctionalGroupIndex;   
+
+		ar & _JuvenileMass;     
+		ar & _AdultMass;               
+		ar & _IndividualBodyMass;
+		ar & _MaximumAchievedBodyMass;
+		ar & _IndividualReproductivePotentialMass;
+		ar & _MinimumMass;
+		ar & _MaximumMass;
+    
+		ar & _CohortAbundance;
+		ar & _BirthTimeStep;            
+		ar & _MaturityTimeStep;            
+		ar & _LogOptimalPreyBodySizeRatio; 
+     
+		ar & _Merged;
+		ar & _alive;                     
+
+  
+		ar & _Heterotroph;   
+		ar & _Autotroph; 
+		ar & _Endotherm; 
+		ar & _Ectotherm;
+    
+		ar & _Realm;      
+
+		ar & _Iteroparous;
+		ar & _Semelparous;
+		ar & _Herbivore;
+		ar & _Carnivore;
+		ar & _Omnivore;
+		ar & _IsPlanktonic;
+		ar & _IsFilterFeeder;
+
+    
+		ar & _ProportionSuitableTimeActive;
+		ar & _IsMature;
+    
+		ar & _AssimilationEfficiency_H;
+		ar & _AssimilationEfficiency_C;
 	}
 
 	int id, proc, type, currentProc;
 
-	int infectionTime;
-	bool infected;
+
+    unsigned _FunctionalGroupIndex;   
+
+    double _JuvenileMass;     
+    double _AdultMass;               
+    double _IndividualBodyMass;
+    double _MaximumAchievedBodyMass;
+    double _IndividualReproductivePotentialMass;
+    double _MinimumMass;
+    double _MaximumMass;
+    
+    unsigned _CohortAbundance;
+    unsigned _BirthTimeStep;            
+    unsigned _MaturityTimeStep;            
+    double _LogOptimalPreyBodySizeRatio; 
+     
+    bool _Merged;
+    bool _alive;                     
+
+  
+	bool _Heterotroph;   
+    bool _Autotroph; 
+    bool _Endotherm; 
+    bool _Ectotherm;
+    
+    std::string _Realm;      
+
+    bool _Iteroparous;
+    bool _Semelparous;
+    bool _Herbivore;
+    bool _Carnivore;
+    bool _Omnivore;
+    bool _IsPlanktonic;
+    bool _IsFilterFeeder;
+
+    
+    double _ProportionSuitableTimeActive;
+    
+    bool _IsMature;
+    
+    double _AssimilationEfficiency_H;
+    double _AssimilationEfficiency_C;
 
 	repast::AgentId getId() const {
 		return repast::AgentId(id, proc, type, currentProc);

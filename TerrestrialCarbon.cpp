@@ -114,7 +114,6 @@ double TerrestrialCarbon::UpdateLeafStock( Environment* LocalEnvironment, Stock*
 
     // ESTIMATE ANNUAL LEAF CARBON FIXATION ASSUMING ENVIRONMENT THROUGHOUT THE YEAR IS THE SAME AS IN THIS MONTH
     // Get annual average temperature
-
     double MeanTemp = LocalEnvironment->AnnualTemperature();
     //Calculate total annual precipitation
     double TotalPrecip = LocalEnvironment->TotalPrecip();
@@ -140,6 +139,7 @@ double TerrestrialCarbon::UpdateLeafStock( Environment* LocalEnvironment, Stock*
         double Weight = LocalEnvironment->ExpTDevWeight();
         MonthlyLeafMortRate = AnnualLeafMortRate * Weight;
         TimeStepLeafMortRate = MonthlyLeafMortRate * Constants::cMonth;
+
     } else {
         // Calculate annual evergreen leaf mortality
         AnnualLeafMortRate = CalculateEvergreenAnnualLeafMortality( MeanTemp );
@@ -193,6 +193,7 @@ double TerrestrialCarbon::UpdateLeafStock( Environment* LocalEnvironment, Stock*
     // Update the leaf stock biomass owing to the leaf mortality
     z->_TotalBiomass *= ( 1 - LeafMortFrac );
     NPPWetMatter *= ( 1 - LeafMortFrac );
+
 
     return NPPWetMatter;
 

@@ -81,17 +81,18 @@ void MadObserver::go() {
 
   AgentSet<Cohort> cohorts;
   get(cohorts);
-
+//to randomise maybe do this a cell at a time (using     repast::relogo::AgentSet<Cohort> cohorts= e->turtlesHere<Cohort>();)?
   cohorts.ask(&Cohort::step);
-  //cohorts.ask(&Cohort::expire);
+  cohorts.ask(&Cohort::markForDeath);
   AgentSet<Environment> Env=patches<Environment>();
 
   // Merge cohorts, if necessary
-  //Env.ask(&Environment::merge);
-  //cohorts.ask(&Cohort::expire);
+  Env.ask(&Environment::merge);
+  cohorts.ask(&Cohort::markForDeath);
 
-  //cohorts.ask(&Cohort::moveIt);
-  
+  cohorts.ask(&Cohort::moveIt);
+  cohorts.ask(&Cohort::expire);
+ cout<<cohorts.size()<<endl;
   if (_rank == 0) {
     Log4CL::instance()->get_logger("root").log(INFO, "TICK ENDS: " + boost::lexical_cast<string>(RepastProcess::instance()->getScheduleRunner().currentTick()));
   }
@@ -114,7 +115,7 @@ void MadObserver::setup(Properties& props) {
   CohortDefinitions::Initialise(Constants::cCohortDefinitionsFileName);
   
   unsigned numCohortGroups=CohortDefinitions::Get()->size();
-  
+
   unsigned cohortCount = strToInt(props.getProperty("cohort.count"));
 
   unsigned numStockGroups = StockDefinitions::Get()->size();;
@@ -122,13 +123,14 @@ void MadObserver::setup(Properties& props) {
   unsigned totalCohorts=0,totalStocks=0;
   for (auto E : Env){
     for (unsigned i=0;i<numCohortGroups;i++){
-          if (E->_Realm==CohortDefinitions::Get()->Trait(i,"Realm"))totalCohorts+=cohortCount;//one per functional group per cell
+
+          if (E->_Realm==CohortDefinitions::Get()->Trait(i,"realm"))totalCohorts+=cohortCount;//one per functional group per cell
     }
     for (unsigned i=0;i<numStockGroups;i++){
-          if (E->_Realm==StockDefinitions::Get()->Trait(i,"Realm"))totalStocks+=1;//one stock per functional group
+          if (E->_Realm==StockDefinitions::Get()->Trait(i,"realm"))totalStocks+=1;//one stock per functional group
     }
   }
-
+  cout<<Env.size()<<" "<<totalCohorts<<endl;
   cohortType = create<Cohort> (totalCohorts);
   stockType  = create<Stock> (totalStocks);
 
@@ -136,29 +138,28 @@ void MadObserver::setup(Properties& props) {
   get(cohorts);
   AgentSet<Stock> stocks;
   get(stocks);
-  unsigned cOffset=0,sOffset=0;
-  
+
+  unsigned cNum=0,sNum=0;
   for (auto E : Env){
   
     unsigned totalCohortsThisCell=0;
-    for (unsigned i=0;i<numCohortGroups;i++) if (E->_Realm==CohortDefinitions::Get()->Trait(i,"Realm"))totalCohortsThisCell+=cohortCount;
+    for (unsigned i=0;i<numCohortGroups;i++) if (E->_Realm==CohortDefinitions::Get()->Trait(i,"realm"))totalCohortsThisCell+=cohortCount;
     
     for (unsigned i=0;i<numCohortGroups;i++){
-      if (E->_Realm==CohortDefinitions::Get()->Trait(i,"Realm")){
+      if (E->_Realm==CohortDefinitions::Get()->Trait(i,"realm")){
         for (unsigned j=0;j<cohortCount;j++){
-            cohorts[i*cohortCount+j+cOffset]->moveTo(E);
-            cohorts[i*cohortCount+j+cOffset]->setup(i,totalCohortsThisCell);
+            cohorts[cNum]->moveTo(E);
+            cohorts[cNum]->setup(i,totalCohortsThisCell);cNum++;
         }
       }
     }
-    cOffset+=totalCohortsThisCell;
 
     unsigned totalStocksThisCell=0;
     for (unsigned i=0;i<numStockGroups;i++){
-      if (E->_Realm==StockDefinitions::Get()->Trait(i,"Realm")){stocks[i+sOffset]->moveTo(E);stocks[i+sOffset]->setup(i);totalStocksThisCell++;}//one stock per functional group
+      if (E->_Realm==StockDefinitions::Get()->Trait(i,"realm")){stocks[sNum]->moveTo(E);stocks[sNum]->setup(i);totalStocksThisCell++;sNum++;}//one stock per functional group
     }
-    sOffset+=totalStocksThisCell;
   }
+
 //	SVDataSetBuilder svbuilder("./output/data.csv", ",", repast::RepastProcess::instance()->getScheduleRunner().schedule());
 //	InfectionSum* iSum = new InfectionSum(this);
 //	svbuilder.addDataSource(repast::createSVDataSource("number_infected", iSum, std::plus<int>()));
@@ -181,7 +182,7 @@ void MadObserver::setup(Properties& props) {
 
 
 //----------------------------------------------------------------------------------------------------------
-
+//These methods are used in communication across processes
 //----------------------------------------------------------------------------------------------------------
 RelogoAgent* MadObserver::createAgent(const AgentPackage& content) {
 	if (content.type == stockType) {
@@ -192,51 +193,56 @@ RelogoAgent* MadObserver::createAgent(const AgentPackage& content) {
 		// it's a patch.
 		return new Environment(content.getId(), this);
 	}
+
 }
 //----------------------------------------------------------------------------------------------------------
 void MadObserver::provideContent(const repast::AgentRequest& request, std::vector<AgentPackage>& out) {
 	const vector<AgentId>& ids = request.requestedAgents();
 	for (int i = 0, n = ids.size(); i < n; i++) {
 		AgentId id = ids[i];
-		AgentPackage content = { id.id(), id.startingRank(), id.agentType(), id.currentRank(), 0, false };
+        AgentPackage content = { id.id(), id.startingRank(), id.agentType(), id.currentRank()};
 		if (id.agentType() == cohortType) {
 			Cohort* cohort = who<Cohort> (id);
-//			content.infected = cohort->infected();
-//			content.infectionTime = cohort->infectionTime();
+            cohort->SqodgeThingsIntoPackage(content);
 		}
 		out.push_back(content);
 	}
+
 }
+
 //----------------------------------------------------------------------------------------------------------
-void MadObserver::provideContent(RelogoAgent* agent, std::vector<AgentPackage>& out) {
-	AgentId id = agent->getId();
-	AgentPackage content = { id.id(), id.startingRank(), id.agentType(), id.currentRank(), 0, false };
-	if (id.agentType() == cohortType) {
-		Cohort* cohort = static_cast<Cohort*> (agent);
-//		content.infected = cohort->infected();
-//		content.infectionTime = cohort->infectionTime();
-	}
-	out.push_back(content);
-}
-//----------------------------------------------------------------------------------------------------------
-void MadObserver::createAgents(std::vector<AgentPackage>& contents, std::vector<RelogoAgent*>& out) {
-	for (size_t i = 0, n = contents.size(); i < n; ++i) {
-		AgentPackage content = contents[i];
-		if (content.type == stockType) {
-			out.push_back(new Stock(content.getId(), this));
-		} else if (content.type == cohortType) {
-			out.push_back(new Cohort(content.getId(), this, content));
-		} else {
-			// it's a patch.
-			out.push_back(new Environment(content.getId(), this));
-		}
-	}
-}
-//----------------------------------------------------------------------------------------------------------
-void MadObserver::updateAgent(AgentPackage package){
-  repast::AgentId id(package.id, package.proc, package.type);
+void MadObserver::updateAgent(AgentPackage content){
+  repast::AgentId id(content.id, content.proc, content.type);
   if (id.agentType() == cohortType) {
     Cohort * cohort = who<Cohort> (id);
-//    cohort->set(package.infected, package.infectionTime);
+    cohort->SuckThingsOutofPackage(content);
   }
 }
+
+//this never seems to get used?
+//----------------------------------------------------------------------------------------------------------
+//void MadObserver::provideContent(RelogoAgent* agent, std::vector<AgentPackage>& out) {
+//	AgentId id = agent->getId();
+//	AgentPackage content = { id.id(), id.startingRank(), id.agentType(), id.currentRank(), 0, false };
+//	if (id.agentType() == cohortType) {
+//		Cohort* cohort = static_cast<Cohort*> (agent);
+//		content.infected = cohort->infected();
+//		content.infectionTime = cohort->infectionTime();
+//	}
+//	out.push_back(content);
+//}
+//this never seems to get used?
+//----------------------------------------------------------------------------------------------------------
+//void MadObserver::createAgents(std::vector<AgentPackage>& contents, std::vector<RelogoAgent*>& out) {
+//	for (size_t i = 0, n = contents.size(); i < n; ++i) {
+//		AgentPackage content = contents[i];
+//		if (content.type == stockType) {
+//			out.push_back(new Stock(content.getId(), this));
+//		} else if (content.type == cohortType) {
+//			out.push_back(new Cohort(content.getId(), this, content));
+//		} else {
+//			// it's a patch.
+//			out.push_back(new Environment(content.getId(), this));
+//		}
+//	}
+//}

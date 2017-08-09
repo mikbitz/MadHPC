@@ -1,0 +1,23 @@
+#random.seed = 1284067381
+stop.at = 120
+
+# per functional group per cell 
+cohort.count = 10;
+# per cell 
+stock.count = 3;
+
+# world definition props
+min.x = 0
+min.y = 0
+max.x = 12
+max.y = 12
+grid.buffer = 1
+
+# these must multiply to total number of processes
+proc.per.x = 2
+proc.per.y = 2 
+
+# named random number distributions
+distribution.move = int_uniform, 0, 2
+
+

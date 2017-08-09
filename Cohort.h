@@ -43,26 +43,60 @@
 
 #include "relogo/Turtle.h"
 #include "AgentPackage.h"
+#include "Environment.h"
 
 class Cohort : public repast::relogo::Turtle {
 
 public:
-    bool _alive;
-    std::string _Realm;
-    bool _Merged;
-    unsigned _FunctionalGroupIndex;
-	bool  _Heterotroph, _Autotroph,_Endotherm,_Ectotherm, _Iteroparous,_Semelparous;
-    bool _Herbivore,_Carnivore,_Omnivore;
-    bool _IsMature,_IsPlanktonic,_IsFilterFeeder;
+    unsigned _FunctionalGroupIndex;   
 
-    double _ProportionTimeActive,_ProportionSuitableTimeActive;
-    double _MinimumMass,_MaximumMass;
-    double _IndividualBodyMass,_CohortAbundance,_AdultMass,_JuvenileMass,_IndividualReproductivePotentialMass,_MaximumAchievedBodyMass;
-    double _LogOptimalPreyBodySizeRatio;
-    double _PotentialAbundanceEaten;
-    unsigned _MaturityTimeStep,_BirthTimeStep,_CurrentTimeStep;
-    //herbivores
+    double _JuvenileMass;     
+    double _AdultMass;               
+    double _IndividualBodyMass;
+    double _MaximumAchievedBodyMass;
+    double _IndividualReproductivePotentialMass;
+    double _MinimumMass;
+    double _MaximumMass;
+    
+    unsigned _CohortAbundance;
+    unsigned _BirthTimeStep;            
+    unsigned _MaturityTimeStep;            
+    double _LogOptimalPreyBodySizeRatio; 
+     
+    bool _Merged;
+    bool _alive;                     
+
+  
+	bool _Heterotroph;   
+    bool _Autotroph; 
+    bool _Endotherm; 
+    bool _Ectotherm;
+    
+    std::string _Realm;      
+
+    bool _Iteroparous;
+    bool _Semelparous;
+    bool _Herbivore;
+    bool _Carnivore;
+    bool _Omnivore;
+    bool _IsPlanktonic;
+    bool _IsFilterFeeder;
+
+    
+    double _ProportionSuitableTimeActive;
+    
+    bool _IsMature;
+    
     double _AssimilationEfficiency_H;
+    double _AssimilationEfficiency_C;
+
+    double _ProportionTimeActive;
+
+    double _PotentialAbundanceEaten;
+    unsigned _CurrentTimeStep;
+    
+    //herbivores
+
     const double _edibleFractionMarine            =1.0;
     const double _AttackRateExponentMarine        =2.0;
     const double _HandlingTimeExponentMarine      =0.7;
@@ -76,7 +110,7 @@ public:
     const double _ReferenceMass                   =1.0;
  
     //Carnivores
-    double _AssimilationEfficiency_C;
+
     const double _HandlingTimeScalar_C = 0.5;
     const double _HandlingTimeExponent_C = 0.7;
     const double _SearchRateConstant = 1E-6;
@@ -90,7 +124,7 @@ public:
 //	Cohort(repast::AgentId id, repast::relogo::Observer* obs, const AgentPackage& package): repast::relogo::Turtle(id, obs), _infected(package.infected),
 //			_infectionTime(package.infectionTime) {}
     Cohort(repast::AgentId id, repast::relogo::Observer* obs): repast::relogo::Turtle(id, obs),_alive(true),_Merged(false){}
-	Cohort(repast::AgentId id, repast::relogo::Observer* obs, const AgentPackage& package): repast::relogo::Turtle(id, obs){}
+	Cohort(repast::AgentId id, repast::relogo::Observer* obs, const AgentPackage& package): repast::relogo::Turtle(id, obs){SuckThingsOutofPackage(package);}
 
 	void setup(unsigned,unsigned);
 
@@ -104,13 +138,15 @@ public:
     void eat();
     void moveIt();
     void mort();
+    void markForDeath();
     void expire();
     void applyEcology();
     void setupOffspring( Cohort* , double , double , double , double , unsigned  );
-    void TryToDisperse(double);
-    void TryToDisperse(double,double);
+    void TryToDisperse(double,Environment*);
+    void TryToDisperse(double,double,Environment*);
 
-
+void SqodgeThingsIntoPackage( AgentPackage& );
+void SuckThingsOutofPackage( const AgentPackage& );
 };
 
 #endif /* COHORT_H_ */

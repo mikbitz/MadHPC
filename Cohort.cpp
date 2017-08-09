@@ -48,21 +48,17 @@
 #include "Groups.h"
 #include "Cohort.h"
 #include "Stock.h"
-#include "Environment.h"
 #include "Parameters.h"
 
 using namespace repast::relogo;
 using namespace repast;
 
-struct CountStocksOnPatch {
-	double operator()(const Patch* patch) const {
-		AgentSet<Stock> set;
-		patch->turtlesOn(set);
-		return set.size();
-	}
-};
+
+//used to create an initial set of cohorts at the start of a run
 void Cohort::setup(unsigned functionalGroup,unsigned numCohortsThisCell){
     _FunctionalGroupIndex=functionalGroup;
+
+
 	_Heterotroph=(CohortDefinitions::Get()->Trait(functionalGroup     , "heterotroph/autotroph")  =="heterotroph");   
     _Autotroph  =!_Heterotroph;
     _Endotherm  =(CohortDefinitions::Get()->Trait(functionalGroup     , "endo/ectotherm")         =="endotherm");
@@ -116,6 +112,83 @@ void Cohort::setup(unsigned functionalGroup,unsigned numCohortsThisCell){
     
 }
 //------------------------------------------------------------------------------------------------------------
+void Cohort::SuckThingsOutofPackage( const AgentPackage& package ) {
+    _FunctionalGroupIndex        = package._FunctionalGroupIndex;
+    _JuvenileMass                = package._JuvenileMass;
+    _AdultMass                   = package._AdultMass;
+    _IndividualBodyMass          = package._IndividualBodyMass;
+    _CohortAbundance             = package._CohortAbundance;
+    _BirthTimeStep               = package._BirthTimeStep;
+    _MaturityTimeStep            = package._MaturityTimeStep;
+    _LogOptimalPreyBodySizeRatio = package._LogOptimalPreyBodySizeRatio;
+    _MaximumAchievedBodyMass     = package._MaximumAchievedBodyMass;
+    _Merged                      = package._Merged;
+    _alive                       = package._alive;
+    _IndividualReproductivePotentialMass = package._IndividualReproductivePotentialMass ;
+  
+	_Heterotroph=    package._Heterotroph;   
+    _Autotroph  =    !_Heterotroph;
+    _Endotherm  =    package._Endotherm;
+    _Ectotherm  =    !_Endotherm;
+    _Realm      =    package._Realm;
+
+    _Iteroparous=    package._Iteroparous;
+    _Semelparous=    !_Iteroparous;
+    _Herbivore=      package._Herbivore;
+    _Carnivore=      package._Carnivore;
+    _Omnivore=       package._Omnivore;
+    _IsPlanktonic=   package._IsPlanktonic;
+    _IsFilterFeeder= package._IsFilterFeeder;
+    _MinimumMass=    package._MinimumMass;
+    _MaximumMass=    package._MaximumMass;
+    
+    _ProportionSuitableTimeActive= package._ProportionSuitableTimeActive;
+    
+    _IsMature=package._IsMature;
+    
+    _AssimilationEfficiency_H=package._AssimilationEfficiency_H;
+    _AssimilationEfficiency_C=package._AssimilationEfficiency_C;
+}
+//------------------------------------------------------------------------------------------------------------
+void Cohort::SqodgeThingsIntoPackage( AgentPackage& package ) {
+    package._FunctionalGroupIndex        =  _FunctionalGroupIndex;
+    package._JuvenileMass                =  _JuvenileMass;
+    package._AdultMass                   =  _AdultMass;
+    package._IndividualBodyMass          =  _IndividualBodyMass;
+    package._CohortAbundance             =  _CohortAbundance;
+    package._BirthTimeStep               =  _BirthTimeStep;
+    package._MaturityTimeStep            =  _MaturityTimeStep;
+    package._LogOptimalPreyBodySizeRatio =  _LogOptimalPreyBodySizeRatio;
+    package._MaximumAchievedBodyMass     =  _MaximumAchievedBodyMass;
+    package._Merged                      =  _Merged;
+    package._alive                       =  _alive;
+    package._IndividualReproductivePotentialMass =  _IndividualReproductivePotentialMass ;
+  
+	package._Heterotroph=     _Heterotroph;   
+    package._Autotroph  =    !_Heterotroph;
+    package._Endotherm  =     _Endotherm;
+    package._Ectotherm  =    !_Endotherm;
+    package._Realm      =     _Realm;
+
+    package._Iteroparous=     _Iteroparous;
+    package._Semelparous=    !_Iteroparous;
+    package._Herbivore=       _Herbivore;
+    package._Carnivore=       _Carnivore;
+    package._Omnivore=        _Omnivore;
+    package._IsPlanktonic=    _IsPlanktonic;
+    package._IsFilterFeeder=  _IsFilterFeeder;
+    package._MinimumMass=     _MinimumMass;
+    package._MaximumMass=     _MaximumMass;
+    
+    package._ProportionSuitableTimeActive=  _ProportionSuitableTimeActive;
+    
+    package._IsMature= _IsMature;
+    
+    package._AssimilationEfficiency_H= _AssimilationEfficiency_H;
+    package._AssimilationEfficiency_C= _AssimilationEfficiency_C;
+}
+
+//------------------------------------------------------------------------------------------------------------
 void Cohort::setupOffspring( Cohort* actingCohort, double juvenileBodyMass, double adultBodyMass, double initialBodyMass, double initialAbundance, unsigned birthTimeStep ) {
     _FunctionalGroupIndex        = actingCohort->_FunctionalGroupIndex;
     _JuvenileMass                = juvenileBodyMass;
@@ -130,21 +203,21 @@ void Cohort::setupOffspring( Cohort* actingCohort, double juvenileBodyMass, doub
     _alive                       = true;
     _IndividualReproductivePotentialMass = 0;
   
-	_Heterotroph=actingCohort->_Heterotroph;   
-    _Autotroph  =!_Heterotroph;
-    _Endotherm  =actingCohort->_Endotherm;
-    _Ectotherm  =!_Endotherm;
-    _Realm      =actingCohort->_Realm;
+	_Heterotroph=    actingCohort->_Heterotroph;   
+    _Autotroph  =    !_Heterotroph;
+    _Endotherm  =    actingCohort->_Endotherm;
+    _Ectotherm  =    !_Endotherm;
+    _Realm      =    actingCohort->_Realm;
 
-    _Iteroparous=actingCohort->_Iteroparous;
-    _Semelparous=!_Iteroparous;
-    _Herbivore=actingCohort->_Herbivore;
-    _Carnivore=actingCohort->_Carnivore;
-    _Omnivore= actingCohort->_Omnivore;
-    _IsPlanktonic= actingCohort->_IsPlanktonic;
-    _IsFilterFeeder=actingCohort->_IsFilterFeeder;
-    _MinimumMass=actingCohort->_MinimumMass;
-    _MaximumMass=actingCohort->_MaximumMass;
+    _Iteroparous=    actingCohort->_Iteroparous;
+    _Semelparous=    !_Iteroparous;
+    _Herbivore=      actingCohort->_Herbivore;
+    _Carnivore=      actingCohort->_Carnivore;
+    _Omnivore=       actingCohort->_Omnivore;
+    _IsPlanktonic=   actingCohort->_IsPlanktonic;
+    _IsFilterFeeder= actingCohort->_IsFilterFeeder;
+    _MinimumMass=    actingCohort->_MinimumMass;
+    _MaximumMass=    actingCohort->_MaximumMass;
     
     _ProportionSuitableTimeActive= actingCohort->_ProportionSuitableTimeActive;
     
@@ -158,35 +231,42 @@ void Cohort::setupOffspring( Cohort* actingCohort, double juvenileBodyMass, doub
 void Cohort::step() {
     _CurrentTimeStep=RepastProcess :: instance ()->getScheduleRunner ().currentTick ();
 
+
 	for (auto M : _MassAccounting)
         for (auto d : M.second ) d.second=0;
-    /*assignTimeActive();
+    assignTimeActive();
     eat();
     metabolize();
     reproduce();
     mort();
-    applyEcology();*/
+    applyEcology();
 
 }
 //------------------------------------------------------------------------------------------------------------
-void Cohort::expire(){
+void Cohort::markForDeath(){
     if (_CohortAbundance - Parameters::Get( )->GetExtinctionThreshold( ) <= 0 || _IndividualBodyMass <= 0){ 
-      die();
+      //markt he cohort but don't kill it yet to avoid any problems with movement code in parallel
       _alive=false;
     }
+}
+//------------------------------------------------------------------------------------------------------------
+void Cohort::expire(){
+    //now really kill the cohort.
+    if (!_alive)die();
 }
 //------------------------------------------------------------------------------------------------------------
 void Cohort::moveIt(){
     	// if cohort is now dead we can't move it because
 	    // it will be removed from the sim and the synchronization
 	    // mechanism cannot move it.
-        if (!_alive)return;
 
+        if (!_alive)return;
+        Environment* e=patchHere<Environment>();//NB call to this are very expensive - reduce to the minimum possible.
         // Calculate the scalar to convert from the time step units used by this implementation of dispersal to the global model time step units
         double DeltaT = Constants::cMonth;
-        double latCellLength = patchHere<Environment>()->Height();
-        double lonCellLength = patchHere<Environment>()->Width();
-        double CellArea      = patchHere<Environment>()->Area();
+        double latCellLength = e->Height();
+        double lonCellLength = e->Width();
+        double CellArea      = e->Area();
 
         double DispersalSpeedBodyMassScalar = 0.0278;
         double DispersalSpeedBodyMassExponent = 0.48;
@@ -209,10 +289,10 @@ void Cohort::moveIt(){
           
           for( int mm = 0; mm < AdvectionTimeStepsPerModelTimeStep; mm++ ) {
             // Get the u speed and the v speed from the cell data
-            double uAdvectiveSpeed = patchHere<Environment>()->uVel();
+            double uAdvectiveSpeed = e->uVel();
             assert( uAdvectiveSpeed > -9999 );
 
-            double vAdvectiveSpeed = patchHere<Environment>()->vVel();
+            double vAdvectiveSpeed = e->vVel();
             assert( vAdvectiveSpeed > -9999 );
 
             // Note that this formulation drops the delta t because we set the horizontal diffusivity to be at the same temporal
@@ -222,7 +302,7 @@ void Cohort::moveIt(){
             double uSpeed = uAdvectiveSpeed * VelocityUnitConversion / AdvectionTimeStepsPerModelTimeStep + NJ.next() * sqrt( ( 2.0 * HorizontalDiffusivityKmSqPerADTimeStep ) );
             double vSpeed = vAdvectiveSpeed * VelocityUnitConversion / AdvectionTimeStepsPerModelTimeStep + NJ.next() * sqrt( ( 2.0 * HorizontalDiffusivityKmSqPerADTimeStep ) );
 
-             TryToDisperse( uSpeed,vSpeed );
+             TryToDisperse( uSpeed,vSpeed,e );
           }
         }// Otherwise, if mature do responsive dispersal
         else if( _IsMature ) {
@@ -242,14 +322,14 @@ void Cohort::moveIt(){
              // If the body mass loss is greater than the starvation dispersal body mass threshold, then the cohort tries to disperse
              if( _IndividualBodyMass / _AdultMass < StarvationDispersalBodyMassThreshold ) {
                 // Cohort tries to disperse
-                TryToDisperse( dispersalSpeed );
+                TryToDisperse( dispersalSpeed,e );
                 // Note that regardless of whether or not it succeeds,  it is counted as having dispersed for the purposes of not then allowing it to disperse based on its density.
                 cohortHasDispersed = true;
                 // Otherwise, the cohort has a chance of trying to disperse proportional to its mass lass
              } else {
                // Cohort tries to disperse with a particular probability
                if( ( ( 1.0 - _IndividualBodyMass / _AdultMass ) / ( 1.0 - StarvationDispersalBodyMassThreshold ) ) > repast::Random::instance()->nextDouble() ) {
-                 TryToDisperse( dispersalSpeed );
+                 TryToDisperse( dispersalSpeed,e );
                  cohortHasDispersed = true;
                }
              }
@@ -258,31 +338,31 @@ void Cohort::moveIt(){
           if( !cohortHasDispersed ) {
             // If below the density threshold
             if( ( _CohortAbundance / CellArea ) < DensityThresholdScaling / _AdultMass ) {
-                TryToDisperse( dispersalSpeed );
+                TryToDisperse( dispersalSpeed,e );
            }
           }
         }// If the cohort is immature, run diffusive dispersal
         else {
            dispersalSpeed=DispersalSpeedBodyMassScalar * pow( _IndividualBodyMass, DispersalSpeedBodyMassExponent);
 
-           TryToDisperse( dispersalSpeed );
+           TryToDisperse( dispersalSpeed,e );
         }
 }
 //------------------------------------------------------------------------------------------------------------
- void Cohort::TryToDisperse(double dispersalSpeed){
+ void Cohort::TryToDisperse(double dispersalSpeed, Environment* e){
     double randomDirection = repast::Random::instance()->nextDouble()* 2 * acos( -1. );
 
     // Calculate the u and v components given the dispersal speed
     double uSpeed = dispersalSpeed * cos( randomDirection );
     double vSpeed = dispersalSpeed * sin( randomDirection );
-    TryToDisperse(uSpeed, vSpeed);
+    TryToDisperse(uSpeed, vSpeed,e);
  }
  //------------------------------------------------------------------------------------------------------------
- void Cohort::TryToDisperse(double uSpeed, double vSpeed){
+ void Cohort::TryToDisperse(double uSpeed, double vSpeed,Environment* e){
  // Pick a direction at random
-    double latCellLength = patchHere<Environment>()->Height();
-    double lonCellLength = patchHere<Environment>()->Width();
-    double CellArea      = patchHere<Environment>()->Area();
+    double latCellLength = e->Height();
+    double lonCellLength = e->Width();
+    double CellArea      = e->Area();
 
   
     double AreaOutsideBoth = abs( uSpeed * vSpeed );
@@ -317,10 +397,15 @@ void Cohort::moveIt(){
        }
      }
      facexy(signu,signv);
-     if (patchRightAndAhead<Environment>(0,1)->_Realm==_Realm)
-        moveTo(patchRightAndAhead<Environment>(0,1));
+     Environment* er=patchRightAndAhead<Environment>(0,1);//expensive call
+     if (e!=0) {
+
+     if (e->_Realm==_Realm);
+        moveTo(e);
+
+    }
    }
-     
+
 }
 //------------------------------------------------------------------------------------------------------------
 void Cohort::assignTimeActive(){
@@ -352,15 +437,16 @@ void Cohort::assignTimeActive(){
                  double ProportionTimeSuitableMarine = 1.0;
                 _ProportionTimeActive = ProportionTimeSuitableMarine * _ProportionSuitableTimeActive;
             } else {
-               AmbientTemp = patchHere<Environment> ()->Temperature();
-               DTR         = patchHere<Environment> ()->DiurnalTemperatureRange();
+               Environment* e=patchHere<Environment> ();
+               AmbientTemp = e->Temperature();
+               DTR         = e->DiurnalTemperatureRange();
 
                //Calculate the Warming tolerance and thermal safety margin given standard deviation of monthly temperature
-               WarmingTolerance =    TerrestrialWarmingToleranceSlope * patchHere<Environment> ()->SDTemperature() + TerrestrialWarmingToleranceIntercept;
-               ThermalSafetyMargin = TerrestrialTSMSlope *              patchHere<Environment> ()->SDTemperature() + TerrestrialTSMIntercept;
+               WarmingTolerance =    TerrestrialWarmingToleranceSlope * e->SDTemperature() + TerrestrialWarmingToleranceIntercept;
+               ThermalSafetyMargin = TerrestrialTSMSlope *              e->SDTemperature() + TerrestrialTSMIntercept;
 
-               Topt  = ThermalSafetyMargin + patchHere<Environment> ()->AnnualTemperature();
-               CTmax = WarmingTolerance    + patchHere<Environment> ()->AnnualTemperature();
+               Topt  = ThermalSafetyMargin + e->AnnualTemperature();
+               CTmax = WarmingTolerance    + e->AnnualTemperature();
 
                double PerformanceStandardDeviation = ( CTmax - Topt ) / 12;
 
@@ -889,14 +975,15 @@ void Cohort::applyEcology(){
     double BiomassCheck = 0.0;
     bool NetToBeApplied = true;
     // If cohort abundance is greater than zero, then check that the calculated net biomass will not make individual body mass become negative
-    if( _CohortAbundance > 0 ) {
+    //if( _CohortAbundance > 0 ) {
 
         BiomassCheck = _IndividualBodyMass + NetBiomass;
+
         if( BiomassCheck < 0 ) {
-            std::cout << "Biomass going negative, acting cohort: " << _FunctionalGroupIndex << ", " << getId() << std::endl;
-            exit( 1 );
+            //std::cout << "Biomass going negative, acting cohort: " << _FunctionalGroupIndex << ", " << getId() << " "<< NetBiomass<< " "<< _IndividualBodyMass<<std::endl;
+            //exit( 1 );
         }
-    }
+    //}
 
     //Loop over all keys in the deltas sorted list
     for( auto& d: _MassAccounting["biomass"] ) {
@@ -912,8 +999,8 @@ void Cohort::applyEcology(){
         }
     }
     // Check that individual body mass is still greater than zero
-    assert( _IndividualBodyMass >= 0 && "biomass < 0" );
-
+    if (!(_IndividualBodyMass >=0)) cout<<_IndividualBodyMass<<endl;
+    //assert( _IndividualBodyMass >= 0 && "biomass < 0" );
     // If the current individual body mass is the largest that has been achieved by this cohort, then update the maximum achieved
     // body mass tracking variable for the cohort
     if( _IndividualBodyMass > _MaximumAchievedBodyMass )
@@ -943,6 +1030,7 @@ void Cohort::applyEcology(){
 //------------------------------------------------------------------------------------------------------------
 /*
 void EcologyApply::UpdatePools( GridCell& gcl ) {
+use patchhere<Encvornment>??
     // Loop over all keys in the organic pool deltas sorted list
     for( auto &D: Cohort::mMassAccounting["organicpool"] ) {
         // Check that the delta value is not negative

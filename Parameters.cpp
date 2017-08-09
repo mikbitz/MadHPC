@@ -336,6 +336,7 @@ float Parameters::GetUserLongitudeAtIndex( const unsigned& index ) const {
 }
 
 float Parameters::GetUserLatitudeAtIndex( const unsigned& index ) const {
+    //if (index==168){std::cout<<mLengthUserLatitudeArray<<std::endl;exit(1);}
     return mUserLatitudeArray[ index ];
 }
 

@@ -51,13 +51,12 @@ FunctionalGroupDefinitions::FunctionalGroupDefinitions( std::string fileName ) {
                         if( category[i] == "definition" ) {
                             //for each trait, store the value for a given functional group
                             //indexed by functional group number
-                            _Traits[ i][header[ i ] ]= data ;
-
+                            _Traits[ count][header[ i ] ]= data ;
                         }
                         //Otherwise get the value for the given property
                         //for this functional group
                         if( category[i] == "property" ) {
-                            _Properties[i][ header[ i ] ]=atof( data.c_str( ) ) ;
+                            _Properties[count][ header[ i ] ]=atof( data.c_str( ) ) ;
                         }
                     }
                 }
@@ -68,12 +67,11 @@ FunctionalGroupDefinitions::FunctionalGroupDefinitions( std::string fileName ) {
         std::cout << "Something wrong with functional group definitions file " << fileName << std::endl;
     }
     infile.close( );
-
 }
 //--------------------------------------------------------------------------
-std::string FunctionalGroupDefinitions::Trait(unsigned i,std::string s){return _Traits[i][s];}
+std::string FunctionalGroupDefinitions::Trait(unsigned i,std::string s){std::transform(s.begin( ), s.end( ), s.begin( ), ::tolower );return _Traits[i][s];}
 //--------------------------------------------------------------------------
-double FunctionalGroupDefinitions::Property(unsigned i,std::string s){return _Properties[i][s];}
+double FunctionalGroupDefinitions::Property(unsigned i,std::string s){std::transform( s.begin( ), s.end( ), s.begin( ), ::tolower );return _Properties[i][s];}
 //--------------------------------------------------------------------------
 unsigned FunctionalGroupDefinitions::size() {
     return count;

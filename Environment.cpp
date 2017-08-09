@@ -4,7 +4,7 @@
 #include "ClimateVariablesCalculator.h"
 
 #include "DataLayerSet.h"
-//#include "DataIndices.h"
+#include "DataIndices.h"
 #include "TimeStep.h"
 #include "Parameters.h"
 #include "UtilityFunctions.h"
@@ -16,9 +16,10 @@ Environment::Environment(repast::AgentId id, repast::relogo::Observer* obs) : re
 void Environment::setup(){
     _cellIndex=pxCor()+pyCor()*Parameters::Get()->GetLengthUserLongitudeArray( );//based on 1-D representation of 2D arrays
     UtilityFunctions Utility;
-    _Area=Utility.CalculateGridCellArea(Parameters::Get()->GetUserLatitudeAtIndex(_cellIndex),Parameters::Get()->GetGridCellSize());
-    _Width=Utility.CalculateLengthOfDegreeLatitude( Parameters::Get()->GetUserLatitudeAtIndex(_cellIndex) )*Parameters::Get()->GetGridCellSize();
-    _Height=Utility.CalculateLengthOfDegreeLongitude( Parameters::Get()->GetUserLatitudeAtIndex(_cellIndex) )*Parameters::Get()->GetGridCellSize();
+    Types::DataIndicesPointer indices = Parameters::Get( )->GetDataIndicesFromCellIndex( _cellIndex );
+    _Area=Utility.CalculateGridCellArea(Parameters::Get()->GetUserLatitudeAtIndex(indices->GetY( )),Parameters::Get()->GetGridCellSize());
+    _Width=Utility.CalculateLengthOfDegreeLatitude( Parameters::Get()->GetUserLatitudeAtIndex(indices->GetY( )) )*Parameters::Get()->GetGridCellSize();
+    _Height=Utility.CalculateLengthOfDegreeLongitude( Parameters::Get()->GetUserLatitudeAtIndex(indices->GetY( )) )*Parameters::Get()->GetGridCellSize();
     _OrganicPool=0;
     _RespiratoryCO2Pool=0;
 
@@ -65,6 +66,7 @@ void Environment::SetAVGSDTemp(){
     if( d == Constants::cMissingValue ) d = 0;
     avg += d;
  }
+ 
  avg = avg / 12;
  double sota = 0, sumExp = 0;
  _exptdev.resize(12);
@@ -81,7 +83,6 @@ void Environment::SetAVGSDTemp(){
  for( int tm = 0; tm < 12; tm++ ) {
     _exptdev[tm] = _exptdev[tm] / sumExp;
  }
-
  _AnnualTemperature = avg;
  _SDTemperature=sqrt( sota / 12 );
 
