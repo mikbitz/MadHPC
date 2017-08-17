@@ -58,7 +58,7 @@ public:
     double _MinimumMass;
     double _MaximumMass;
     
-    unsigned _CohortAbundance;
+    double _CohortAbundance;
     unsigned _BirthTimeStep;            
     unsigned _MaturityTimeStep;            
     double _LogOptimalPreyBodySizeRatio; 

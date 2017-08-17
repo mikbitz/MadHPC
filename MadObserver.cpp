@@ -57,7 +57,7 @@
 #include "Stock.h"
 #include "Cohort.h"
 #include "FileReader.h"
-#include "InfectionSum.h"
+#include "CohortSum.h"
 #include "TimeStep.h"
 #include "Constants.h"
 
@@ -72,16 +72,29 @@ void MadObserver::go() {
   }
   synchronize<AgentPackage>(*this, *this, *this, RepastProcess::USE_LAST_OR_USE_CURRENT);
   
-  //sets the value used to get environemtal fields (assumed monthly data)
-  TimeStep::Get( )->SetMonthly( RepastProcess :: instance ()->getScheduleRunner ().currentTick () );
+  //sets the value used to get environmental fields (assumed monthly data) - NB data month currently starts at 0, but tick at 1 so subtract 1
+  TimeStep::Get( )->SetMonthly( RepastProcess :: instance ()->getScheduleRunner ().currentTick () -1 );
   
   AgentSet<Stock> stocks;
   get(stocks);
+  
+  _totalStockBiomass=0;
+  for (auto s:stocks)_totalStockBiomass+=s->_TotalBiomass/1000; //g to kg
+ 
   stocks.ask(&Stock::step);
 
   AgentSet<Cohort> cohorts;
+
   get(cohorts);
-//to randomise maybe do this a cell at a time (using     repast::relogo::AgentSet<Cohort> cohorts= e->turtlesHere<Cohort>();)?
+  _totalCohorts=cohorts.size();
+  _totalCohortAbundance=0;
+  _totalCohortBiomass=0;
+  for (auto c:cohorts){
+   _totalCohortAbundance += c->_CohortAbundance;
+   _totalCohortBiomass += ( c->_IndividualBodyMass + c->_IndividualReproductivePotentialMass ) * c->_CohortAbundance / 1000.;
+  }
+
+  //to randomise maybe do this a cell at a time (using     repast::relogo::AgentSet<Cohort> cohorts= e->turtlesHere<Cohort>();)?
   cohorts.ask(&Cohort::step);
   cohorts.ask(&Cohort::markForDeath);
   AgentSet<Environment> Env=patches<Environment>();
@@ -130,7 +143,7 @@ void MadObserver::setup(Properties& props) {
           if (E->_Realm==StockDefinitions::Get()->Trait(i,"realm"))totalStocks+=1;//one stock per functional group
     }
   }
-  cout<<Env.size()<<" "<<totalCohorts<<endl;
+  //cout<<Env.size()<<" "<<totalCohorts<<endl;
   cohortType = create<Cohort> (totalCohorts);
   stockType  = create<Stock> (totalStocks);
 
@@ -160,12 +173,17 @@ void MadObserver::setup(Properties& props) {
     }
   }
 
-//	SVDataSetBuilder svbuilder("./output/data.csv", ",", repast::RepastProcess::instance()->getScheduleRunner().schedule());
-//	InfectionSum* iSum = new InfectionSum(this);
-//	svbuilder.addDataSource(repast::createSVDataSource("number_infected", iSum, std::plus<int>()));
-//	addDataSet(svbuilder.createDataSet());
+	SVDataSetBuilder svbuilder("./output/data.csv", ",", repast::RepastProcess::instance()->getScheduleRunner().schedule());
+	CohortSum* cSum = new CohortSum(this);
+	svbuilder.addDataSource(repast::createSVDataSource("Total Cohorts", cSum, std::plus<int>()));
+    StockBiomassSum* sSum = new StockBiomassSum(this);
+    CohortAbundanceSum* caSum = new CohortAbundanceSum(this);
+  	svbuilder.addDataSource(repast::createSVDataSource("Total Cohort Abundance", caSum, std::plus<double>()));
+  	svbuilder.addDataSource(repast::createSVDataSource("Total Stock Biomass", sSum, std::plus<double>()));
+    CohortBiomassSum* cbSum = new CohortBiomassSum(this);
+  	svbuilder.addDataSource(repast::createSVDataSource("Total Cohort Biomass", cbSum, std::plus<double>()));
 
-
+	addDataSet(svbuilder.createDataSet());
 #ifndef _WIN32
 	// no netcdf under windows
 //	NCDataSetBuilder builder("./output/data.ncf", RepastProcess::instance()->getScheduleRunner().schedule());

@@ -32,19 +32,65 @@
  *   EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * InfectionSum.cpp
+ * InfectionSum.h
  *
  *  Created on: Oct 13, 2010
  *      Author: nick
  */
 
-#include "InfectionSum.h"
-#include "MadObserver.h"
+#ifndef COHORTSUM_H_
+#define COHORTSUM_H_
 
-InfectionSum::InfectionSum(MadObserver* zobs) : obs(zobs){}
+#include "repast_hpc/TDataSource.h"
 
-InfectionSum::~InfectionSum() {}
+class MadObserver;
+//----------------------------------------------------------
+class CohortSum: public repast::TDataSource<int> {
 
-int InfectionSum::getData() {
-	return obs->infectionCount();
-}
+private:
+	MadObserver* obs;
+
+public:
+	CohortSum(MadObserver* Mobs);
+	virtual ~CohortSum();
+
+	int getData();
+};
+//----------------------------------------------------------
+class CohortAbundanceSum: public repast::TDataSource<double> {
+
+private:
+	MadObserver* obs;
+
+public:
+	CohortAbundanceSum(MadObserver* Mobs);
+	virtual ~CohortAbundanceSum();
+
+	double getData();
+};
+//----------------------------------------------------------
+class CohortBiomassSum: public repast::TDataSource<double> {
+
+private:
+	MadObserver* obs;
+
+public:
+	CohortBiomassSum(MadObserver* Mobs);
+	virtual ~CohortBiomassSum();
+
+	double getData();
+};
+//----------------------------------------------------------
+class StockBiomassSum: public repast::TDataSource<double> {
+
+private:
+	MadObserver* obs;
+
+public:
+	StockBiomassSum(MadObserver* Mobs);
+	virtual ~StockBiomassSum();
+
+	double getData();
+};
+
+#endif /* COHORTSUM_H_ */

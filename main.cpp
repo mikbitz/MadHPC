@@ -82,7 +82,7 @@ void runModel(std::string propsFile, int argc, char ** argv) {
 	timer.start();
     
 
-
+//Here is where the actual model content is setup - Environment is the set of patches (model grid)
 	runner.run<MadObserver, Environment>(props);
 
   props.putProperty("run.time", timer.stop());

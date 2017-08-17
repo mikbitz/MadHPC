@@ -81,7 +81,7 @@ namespace Constants {
     const char cFolderDelimiter = '/';
     const char cWhiteSpaceCharacter = ' ';
     const double cMonth = 1;//assumes value for timestep is 1 month!
-    const double cDay = cMonth*365./12.;
+    const double cDay = 30;// should be cMonth*365./12.; but the original model assumes 30 days in a month!
     const double cYear = cMonth*12.;
 }
 

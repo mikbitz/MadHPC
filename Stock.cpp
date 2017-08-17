@@ -110,7 +110,6 @@ void Stock::step() {
         double FracBiomass=_TotalBiomass/AllBiomass;
         double fhanpp = HumanRemoval.RemoveHumanAppropriatedMatter(LocalEnvironment, NPPWetMatter, FracBiomass, CurrentTimeStep);
         _TotalBiomass += NPPWetMatter * ( 1 - fhanpp );
-        if (std::isnan(_TotalBiomass)){cout<<"blerrrrrrrrrrg "<<_TotalBiomass<<" "<<getId()<<" "<<AllBiomass<<" "<<NPPWetMatter<<endl;exit(1);}
     }
 
 }

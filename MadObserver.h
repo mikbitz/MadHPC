@@ -52,9 +52,12 @@ class MadObserver : public repast::relogo::Observer {
 private:
 	repast::Properties props;
 	int stockType, cohortType;
-	int _infectionCount;
+	int _totalCohorts;
+    double _totalStockBiomass;
+    double _totalCohortAbundance;
+    double _totalCohortBiomass;
 public:
-	MadObserver() : _infectionCount(0) {}
+	MadObserver() : _totalCohorts(0) {}
 	virtual ~MadObserver() {}
 
 	void go();
@@ -70,14 +73,19 @@ public:
 
 	void updateAgent(AgentPackage package);
 
-	void incrementInfectionCount() {
-		_infectionCount++;
-	}
 
-	int infectionCount() const {
-		return _infectionCount;
+	int CohortCount() const {
+		return _totalCohorts;
 	}
-
+	double CohortAbundance() const {
+		return _totalCohortAbundance;
+	}
+	double CohortBiomass() const {
+		return _totalCohortBiomass;
+	}
+	double StockBiomass() const {
+		return _totalStockBiomass;
+	}
 };
 
 #endif /* MADOBSERVER_H_ */

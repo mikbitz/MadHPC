@@ -37,6 +37,7 @@ public:
     double TerrestrialHANPP();
     double uVel();
     double vVel();
+    unsigned index(){return _cellIndex;}
 private:
     double GetVariableFromDatasetNamed(std:: string s);
     void   SetTotalPrecip();

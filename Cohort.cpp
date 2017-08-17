@@ -244,8 +244,9 @@ void Cohort::step() {
 }
 //------------------------------------------------------------------------------------------------------------
 void Cohort::markForDeath(){
+    //cout<<"fwaw "<<_CohortAbundance<<" "<<_IndividualBodyMass<<" "<<endl;
     if (_CohortAbundance - Parameters::Get( )->GetExtinctionThreshold( ) <= 0 || _IndividualBodyMass <= 0){ 
-      //markt he cohort but don't kill it yet to avoid any problems with movement code in parallel
+      //mark the cohort but don't kill it yet to avoid any problems with movement code in parallel
       _alive=false;
     }
 }
@@ -816,6 +817,7 @@ void Cohort::eat(){
         // Return the total  biomass of the autotroph stock eaten
        
         if( _CohortAbundance > 0 )_MassAccounting["biomass"]["herbivory"] += BiomassesEaten * _AssimilationEfficiency_H / _CohortAbundance;
+        
         _MassAccounting["organicpool"]["herbivory"] += BiomassesEaten * ( 1 - _AssimilationEfficiency_H );
        }
     }
