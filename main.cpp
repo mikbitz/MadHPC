@@ -66,8 +66,8 @@ void runModel(std::string propsFile, int argc, char ** argv) {
   f.ReadInputParameters( );
   props.putProperty("min.x",0);
   props.putProperty("min.y",0);
-  props.putProperty("max.x",Parameters::Get()->GetLengthUserLongitudeArray( )-1);
-  props.putProperty("max.y",Parameters::Get()->GetLengthUserLatitudeArray( )-1);
+  //props.putProperty("max.x",Parameters::Get()->GetLengthUserLongitudeArray( )-1);
+  //props.putProperty("max.y",Parameters::Get()->GetLengthUserLatitudeArray( )-1);
   
   std::string time;
   repast::timestamp(time);

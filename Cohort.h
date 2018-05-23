@@ -48,6 +48,8 @@
 class Cohort : public repast::relogo::Turtle {
 
 public:
+
+    
     unsigned _FunctionalGroupIndex;   
 
     double _JuvenileMass;     
@@ -118,6 +120,7 @@ public:
     const double _NumberOfBins = 12;
 
     std::map < std::string, std::map<std::string,double> > _MassAccounting;
+    
 
 public:
 //	Cohort(repast::AgentId id, repast::relogo::Observer* obs): repast::relogo::Turtle(id, obs), _infected(false), _infectionTime(0) {}
@@ -130,12 +133,12 @@ public:
 
 	virtual ~Cohort() {}
 
-	void step();
+	void step(Environment* ,repast::relogo::AgentSet<Cohort>&,repast::relogo::AgentSet<Stock>&);
 
-    void metabolize();
+    void metabolize(Environment*);
     void assignTimeActive();
-    void reproduce();
-    void eat();
+    void reproduce(Environment*);
+    void eat(Environment*,repast::relogo::AgentSet<Cohort>&,repast::relogo::AgentSet<Stock>&);
     void moveIt();
     void mort();
     void markForDeath();
@@ -147,6 +150,7 @@ public:
 
 void SqodgeThingsIntoPackage( AgentPackage& );
 void SuckThingsOutofPackage( const AgentPackage& );
+void ResetMassFluxes();
 };
 
 #endif /* COHORT_H_ */

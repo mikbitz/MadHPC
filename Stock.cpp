@@ -84,7 +84,7 @@ void Stock::setup(unsigned functionalGroup){
 //-------------------------------------------------------------------------------------------------------------------
 void Stock::step() {
 
-    unsigned CurrentTimeStep=RepastProcess :: instance ()->getScheduleRunner ().currentTick ();
+    unsigned CurrentTimeStep=RepastProcess :: instance ()->getScheduleRunner ().currentTick () - 1;
     Environment* LocalEnvironment=patchHere<Environment> ();
 
     if( _Marine ) {

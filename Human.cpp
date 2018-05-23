@@ -68,7 +68,7 @@ struct CountStocksOnPatch {
 //}
 
 void Human::step() {
-    _CurrentTimeStep=RepastProcess :: instance ()->getScheduleRunner ().currentTick ();
+    _CurrentTimeStep=RepastProcess :: instance ()->getScheduleRunner ().currentTick () - 1;
 	// if human is now dead we can't move it because
 	// it will be removed from the sim and the synchronization
 	// mechanism cannot move it.

@@ -2,7 +2,7 @@ REPAST_HPC_VERSION = 2.2.0
 
 ENABLE_SHARED = @ENABLE_SHARED@
 ENABLE_STATIC = @ENABLE_STATIC@
-BASE_DIR = /home/mb425/ownCloud/
+BASE_DIR = /home/mb425
 #LDFLAGS :=  -L$(BASE_DIR)/repastHPC/NetCDF/lib64 -L$(BASE_DIR)/repastHPC/NetCDF-cxx/lib64 -L$(BASE_DIR)/repastHPC/CURL/lib -L$(BASE_DIR)/repastHPC/Boost/Boost_1.61/lib -L$(BASE_DIR)/repastHPC/repast_hpc-2.2.0/lib/ -L$(BASE_DIR)/repastHPC/MPICH/lib64
 #CPPFLAGS :=  -I$(BASE_DIR)/repastHPC/NetCDF/include -I$(BASE_DIR)/repastHPC/NetCDF-cxx/include -I$(BASE_DIR)/repastHPC/CURL/include -I$(BASE_DIR)/repastHPC/Boost/Boost_1.61/include -I$(BASE_DIR)/repastHPC/repast_hpc-2.2.0/include/ -I$(BASE_DIR)/repastHPC/MPICH/include/
 LDFLAGS :=  -L/usr/local/netcdfcxx-4.2.1/lib64 -L/usr/local/netcdfc-4.3.3.1/lib64 -L/usr/local/hdf-1.8.15/lib64  -L$(BASE_DIR)/repastHPC/Boost/Boost_1.61/lib -L$(BASE_DIR)/repastHPC/repast_hpc-2.2.0/lib/ -L$(BASE_DIR)/repastHPC/MPICH/lib64
@@ -135,6 +135,7 @@ MADMODEL_SRC += $(DIR)/DataLayer3D.cpp
 MADMODEL_SRC += $(DIR)/DataLayer2DwithTime.cpp
 MADMODEL_SRC += $(DIR)/DataLayer3DwithTime.cpp
 MADMODEL_SRC += $(DIR)/UtilityFunctions.cpp
+MADMODEL_SRC += $(DIR)/NonStaticSimpleRNG.cpp
 
 # OBJECT FILES
 MADMODEL_OBJECTS=$(patsubst %.cpp,%.o,$(MADMODEL_SRC))

@@ -26,7 +26,7 @@ public:
     @param TotalNumberOfCohorts The total number of cohorts in this grid cell 
     @param TargetCohortThreshold The target threshold to reduce the number of cohorts to 
     @return The number of cohorts that have been merged */
-    static int MergeToReachThresholdFast( Environment* );
+    static int MergeToReachThresholdFast( Environment*) ;
 
 };
 

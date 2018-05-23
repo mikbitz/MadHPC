@@ -8,18 +8,46 @@
 #include "TimeStep.h"
 #include "Parameters.h"
 #include "UtilityFunctions.h"
-void Environment::merge(){
-    CohortMerger::MergeToReachThresholdFast( this );
+#include "Stock.h"
+
+bool fn(Cohort* a, Cohort* b){return a->_FunctionalGroupIndex * 10000000 + a->getId().id() <b->_FunctionalGroupIndex * 10000000 + b->getId().id();}
+
+void Environment::merge(int& bap){
+  bap+=CohortMerger::MergeToReachThresholdFast( this );
 }
 
+void Environment::step(){
+    repast::relogo::AgentSet<Cohort> cohorts= turtlesHere<Cohort>();
+
+    repast::relogo::AgentSet<Stock> stocks= turtlesHere<Stock>();
+    //DEBUG
+   // if (getId().id()==0 && getId().startingRank()==0){
+         // cout<<"Eeee "<<xCor()<< " " <<yCor()<<endl;   
+
+       // cout<<"Eeee "<<getId().id()<<" "<<getId().agentType()<<" ook ";
+       // for (auto c:cohorts){cout<<c->getId().id()<<" "<<c->getId().agentType()<<" "<<c->xCor()<<" "<<c->yCor()<<endl;cout.flush();}
+   // }
+    //random_shuffle(cohorts.begin(),cohorts.end());
+    //DEBUG
+    //sort(cohorts.begin(),cohorts.end(),fn);
+
+    for (auto c:cohorts){if(c->getId().currentRank()==repast::RepastProcess::instance()->rank())c->step(this,cohorts,stocks);}
+}
+void Environment::flap(){
+    repast::relogo::AgentSet<Cohort> cohorts= turtlesHere<Cohort>();
+
+    for (auto c:cohorts){if(c->getId().currentRank()==repast::RepastProcess::instance()->rank())c->moveIt();}
+}
 Environment::Environment(repast::AgentId id, repast::relogo::Observer* obs) : repast::relogo::Patch(id, obs) {}
+//------------------------------------------------------------------------------
 void Environment::setup(){
     _cellIndex=pxCor()+pyCor()*Parameters::Get()->GetLengthUserLongitudeArray( );//based on 1-D representation of 2D arrays
+    name="slartifartbarst";
     UtilityFunctions Utility;
-    Types::DataIndicesPointer indices = Parameters::Get( )->GetDataIndicesFromCellIndex( _cellIndex );
-    _Area=Utility.CalculateGridCellArea(Parameters::Get()->GetUserLatitudeAtIndex(indices->GetY( )),Parameters::Get()->GetGridCellSize());
-    _Width=Utility.CalculateLengthOfDegreeLatitude( Parameters::Get()->GetUserLatitudeAtIndex(indices->GetY( )) )*Parameters::Get()->GetGridCellSize();
-    _Height=Utility.CalculateLengthOfDegreeLongitude( Parameters::Get()->GetUserLatitudeAtIndex(indices->GetY( )) )*Parameters::Get()->GetGridCellSize();
+    _Area=   Utility.CalculateGridCellArea(Latitude(),cellSize());
+    _Width=  Utility.CalculateLengthOfDegreeLatitude( Latitude()) *cellSize();
+    _Height= Utility.CalculateLengthOfDegreeLongitude( Latitude())*cellSize();
+
     _OrganicPool=0;
     _RespiratoryCO2Pool=0;
 
@@ -277,14 +305,32 @@ double Environment::GetVariableFromDatasetNamed(std:: string s){
     double d = Constants::cMissingValue;
     d = DataLayerSet::Get( )->GetDataAtCellIndexFor( s, _cellIndex );
     if( d == Constants::cMissingValue ) {
-      std::cout << "Warning Environment::setTemperature- missing values in "<<s<<" field!!"<< std::endl;
+      std::cout << "Warning Environment::GetVariableFromDatasetNamed- missing values in "<<s<<" field!!"<< std::endl;
     }
     return d;
 }
 //------------------------------------------------------------------------------
-
-
-
+double Environment::Latitude(){
+    return Parameters::Get()->GetUserLatitudeAtIndex(LatitudeIndex());
+}
+//------------------------------------------------------------------------------
+double Environment::Longitude(){
+    return Parameters::Get()->GetUserLongitudeAtIndex(LongitudeIndex());
+}
+//------------------------------------------------------------------------------
+unsigned Environment::LatitudeIndex(){
+    Types::DataIndicesPointer indices = Parameters::Get( )->GetDataIndicesFromCellIndex( _cellIndex );
+    return indices->GetY( );
+}
+//------------------------------------------------------------------------------
+unsigned Environment::LongitudeIndex(){
+    Types::DataIndicesPointer indices = Parameters::Get( )->GetDataIndicesFromCellIndex( _cellIndex );
+    return indices->GetX( );
+}
+//------------------------------------------------------------------------------
+double Environment::cellSize(){
+    return Parameters::Get()->GetGridCellSize();
+}
 
 
 

@@ -1,0 +1,4 @@
+*.d
+*.o
+output/
+mad_model

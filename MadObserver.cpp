@@ -68,51 +68,77 @@ using namespace relogo;
 //----------------------------------------------------------------------------------------------------------
 void MadObserver::go() {
   if (_rank == 0) {
-    Log4CL::instance()->get_logger("root").log(INFO, "TICK BEGINS: " + boost::lexical_cast<string>(RepastProcess::instance()->getScheduleRunner().currentTick()));
+    //Log4CL::instance()->get_logger("root").log(INFO, "TICK BEGINS: " + boost::lexical_cast<string>(RepastProcess::instance()->getScheduleRunner().currentTick()));
   }
-  synchronize<AgentPackage>(*this, *this, *this, RepastProcess::USE_LAST_OR_USE_CURRENT);
+  //
   
+   synchronize<AgentPackage>(*this, *this, *this, RepastProcess::USE_LAST_OR_USE_CURRENT);
+
   //sets the value used to get environmental fields (assumed monthly data) - NB data month currently starts at 0, but tick at 1 so subtract 1
   TimeStep::Get( )->SetMonthly( RepastProcess :: instance ()->getScheduleRunner ().currentTick () -1 );
-  
-  AgentSet<Stock> stocks;
-  get(stocks);
+
+  AgentSet<Environment> Env=patches<Environment>(); 
+
+  //AgentSet<Stock> stocks;
+  //get(stocks);
   
   _totalStockBiomass=0;
-  for (auto s:stocks)_totalStockBiomass+=s->_TotalBiomass/1000; //g to kg
- 
-  stocks.ask(&Stock::step);
+  //for (auto s:stocks)_totalStockBiomass+=s->_TotalBiomass/1000; //g to kg
+
+  //stocks.ask(&Stock::step);
 
   AgentSet<Cohort> cohorts;
 
+ // get(cohorts);
+//cout<<"number "<<cohorts.size()<<endl;
+//    std::map<int,int>counts;
+        
+//  _totalCohorts=cohorts.size();
+//  _totalCohortAbundance=0;
+//  _totalCohortBiomass=0;
+//  for (auto c:cohorts){
+//   _totalCohortAbundance += c->_CohortAbundance;
+//   _totalCohortBiomass += ( c->_IndividualBodyMass + c->_IndividualReproductivePotentialMass ) * c->_CohortAbundance / 1000.;
+//   counts[c->_FunctionalGroupIndex]++;
+ // }
+  //for (auto n:counts)cout<<n.first<<" "<<n.second<<endl;
+
+ // cohorts.clear();
+  for (auto e: Env) if (e->getId().currentRank()==repast::RepastProcess::instance()->rank()) e->step();
+    for (auto e: Env) if (e->getId().currentRank()==repast::RepastProcess::instance()->rank()) e->flap();
+
+  //NB - the folliwing would not be randomised: this is done in the above, which also localises to cells
+  //cohorts.ask(&Cohort::step);
+  //re-get the cohorts so as to include new births -otherwise merging acts on subsets in Environment that include new births, but not visible here
+
   get(cohorts);
-  _totalCohorts=cohorts.size();
-  _totalCohortAbundance=0;
-  _totalCohortBiomass=0;
-  for (auto c:cohorts){
-   _totalCohortAbundance += c->_CohortAbundance;
-   _totalCohortBiomass += ( c->_IndividualBodyMass + c->_IndividualReproductivePotentialMass ) * c->_CohortAbundance / 1000.;
-  }
 
-  //to randomise maybe do this a cell at a time (using     repast::relogo::AgentSet<Cohort> cohorts= e->turtlesHere<Cohort>();)?
-  cohorts.ask(&Cohort::step);
-  cohorts.ask(&Cohort::markForDeath);
-  AgentSet<Environment> Env=patches<Environment>();
+  //cohorts.ask(&Cohort::markForDeath);
+  //Merge cohorts, if necessary
 
-  // Merge cohorts, if necessary
-  Env.ask(&Environment::merge);
-  cohorts.ask(&Cohort::markForDeath);
+  int totalMerged=0;
+  //for (auto e: Env) e->merge(totalMerged);
 
-  cohorts.ask(&Cohort::moveIt);
-  cohorts.ask(&Cohort::expire);
- cout<<cohorts.size()<<endl;
+ // cout<<"merged "<<totalMerged<<endl;
+  //for (auto c:cohorts){if (c->getId().currentRank()==repast::RepastProcess::instance()->rank()) c->moveIt();}
+  //cohorts.ask(&Cohort::moveIt);
+  //cohorts.ask(&Cohort::expire);
+
+  cohorts.clear();
+
+  synchronize<AgentPackage>(*this, *this, *this, RepastProcess::USE_LAST_OR_USE_CURRENT);
+
+
+
   if (_rank == 0) {
-    Log4CL::instance()->get_logger("root").log(INFO, "TICK ENDS: " + boost::lexical_cast<string>(RepastProcess::instance()->getScheduleRunner().currentTick()));
+    //Log4CL::instance()->get_logger("root").log(INFO, "TICK ENDS: " + boost::lexical_cast<string>(RepastProcess::instance()->getScheduleRunner().currentTick()));
   }
+
 }
 
 //----------------------------------------------------------------------------------------------------------
 void MadObserver::setup(Properties& props) {
+  //(SimRunner calls _setup, which calls this after all initialization is done)
 
   repast::Timer initTimer;
   initTimer.start();
@@ -137,13 +163,14 @@ void MadObserver::setup(Properties& props) {
   for (auto E : Env){
     for (unsigned i=0;i<numCohortGroups;i++){
 
-          if (E->_Realm==CohortDefinitions::Get()->Trait(i,"realm"))totalCohorts+=cohortCount;//one per functional group per cell
+          if (E->_Realm==CohortDefinitions::Get()->Trait(i,"realm"))totalCohorts+=cohortCount;//cohortCount per functional group per cell
     }
     for (unsigned i=0;i<numStockGroups;i++){
           if (E->_Realm==StockDefinitions::Get()->Trait(i,"realm"))totalStocks+=1;//one stock per functional group
     }
   }
   //cout<<Env.size()<<" "<<totalCohorts<<endl;
+  //DEBUG
   cohortType = create<Cohort> (totalCohorts);
   stockType  = create<Stock> (totalStocks);
 
@@ -154,7 +181,8 @@ void MadObserver::setup(Properties& props) {
 
   unsigned cNum=0,sNum=0;
   for (auto E : Env){
-  
+      //DEBUG
+  //if (E->getId().id()==0 && E->getId().startingRank()==0 && _rank==0) {
     unsigned totalCohortsThisCell=0;
     for (unsigned i=0;i<numCohortGroups;i++) if (E->_Realm==CohortDefinitions::Get()->Trait(i,"realm"))totalCohortsThisCell+=cohortCount;
     
@@ -169,23 +197,25 @@ void MadObserver::setup(Properties& props) {
 
     unsigned totalStocksThisCell=0;
     for (unsigned i=0;i<numStockGroups;i++){
-      if (E->_Realm==StockDefinitions::Get()->Trait(i,"realm")){stocks[sNum]->moveTo(E);stocks[sNum]->setup(i);totalStocksThisCell++;sNum++;}//one stock per functional group
+     // if (E->_Realm==StockDefinitions::Get()->Trait(i,"realm")){stocks[sNum]->moveTo(E);stocks[sNum]->setup(i);totalStocksThisCell++;sNum++;}//one stock per functional group
     }
+  //}
   }
+  
+//The things added to the datasetbuilder will be accumulated over cores each timestep and output to data.csv
+//	SVDataSetBuilder svbuilder("./output/data.csv", ",", repast::RepastProcess::instance()->getScheduleRunner().schedule());
+//	CohortSum* cSum = new CohortSum(this);
+//	svbuilder.addDataSource(repast::createSVDataSource("Total Cohorts", cSum, std::plus<int>()));
+//    StockBiomassSum* sSum = new StockBiomassSum(this);
+//    CohortAbundanceSum* caSum = new CohortAbundanceSum(this);
+//  	svbuilder.addDataSource(repast::createSVDataSource("Total Cohort Abundance", caSum, std::plus<double>()));
+//  	svbuilder.addDataSource(repast::createSVDataSource("Total Stock Biomass", sSum, std::plus<double>()));
+//    CohortBiomassSum* cbSum = new CohortBiomassSum(this);
+//  	svbuilder.addDataSource(repast::createSVDataSource("Total Cohort Biomass", cbSum, std::plus<double>()));
 
-	SVDataSetBuilder svbuilder("./output/data.csv", ",", repast::RepastProcess::instance()->getScheduleRunner().schedule());
-	CohortSum* cSum = new CohortSum(this);
-	svbuilder.addDataSource(repast::createSVDataSource("Total Cohorts", cSum, std::plus<int>()));
-    StockBiomassSum* sSum = new StockBiomassSum(this);
-    CohortAbundanceSum* caSum = new CohortAbundanceSum(this);
-  	svbuilder.addDataSource(repast::createSVDataSource("Total Cohort Abundance", caSum, std::plus<double>()));
-  	svbuilder.addDataSource(repast::createSVDataSource("Total Stock Biomass", sSum, std::plus<double>()));
-    CohortBiomassSum* cbSum = new CohortBiomassSum(this);
-  	svbuilder.addDataSource(repast::createSVDataSource("Total Cohort Biomass", cbSum, std::plus<double>()));
-
-	addDataSet(svbuilder.createDataSet());
+//	addDataSet(svbuilder.createDataSet());
 #ifndef _WIN32
-	// no netcdf under windows
+	// no netcdf under windows?
 //	NCDataSetBuilder builder("./output/data.ncf", RepastProcess::instance()->getScheduleRunner().schedule());
 //	InfectionSum* infectionSum = new InfectionSum(this);
 //	builder.addDataSource(repast::createNCDataSource("number_infected", infectionSum, std::plus<int>()));
@@ -196,6 +226,8 @@ void MadObserver::setup(Properties& props) {
 	std::stringstream ss;
 	ss << t;
 	props.putProperty("init.time", ss.str());
+    synchronize<AgentPackage>(*this, *this, *this, RepastProcess::USE_LAST_OR_USE_CURRENT);
+
 }
 
 
@@ -209,7 +241,7 @@ RelogoAgent* MadObserver::createAgent(const AgentPackage& content) {
 		return new Cohort(content.getId(), this, content);
 	} else {
 		// it's a patch.
-		return new Environment(content.getId(), this);
+      return new Environment(content.getId(), this);
 	}
 
 }
@@ -237,30 +269,29 @@ void MadObserver::updateAgent(AgentPackage content){
   }
 }
 
-//this never seems to get used?
+//this never seems to get used? might be needed for other types of code
 //----------------------------------------------------------------------------------------------------------
-//void MadObserver::provideContent(RelogoAgent* agent, std::vector<AgentPackage>& out) {
-//	AgentId id = agent->getId();
-//	AgentPackage content = { id.id(), id.startingRank(), id.agentType(), id.currentRank(), 0, false };
-//	if (id.agentType() == cohortType) {
-//		Cohort* cohort = static_cast<Cohort*> (agent);
-//		content.infected = cohort->infected();
-//		content.infectionTime = cohort->infectionTime();
-//	}
-//	out.push_back(content);
-//}
-//this never seems to get used?
+void MadObserver::provideContent(RelogoAgent* agent, std::vector<AgentPackage>& out) {
+	AgentId id = agent->getId();
+	AgentPackage content = { id.id(), id.startingRank(), id.agentType(), id.currentRank(), 0, false };
+	if (id.agentType() == cohortType) {
+		Cohort* cohort = static_cast<Cohort*> (agent);
+        cohort->SqodgeThingsIntoPackage(content);
+	}
+	out.push_back(content);
+}
+//need once grid.buffer is greater than 0
 //----------------------------------------------------------------------------------------------------------
-//void MadObserver::createAgents(std::vector<AgentPackage>& contents, std::vector<RelogoAgent*>& out) {
-//	for (size_t i = 0, n = contents.size(); i < n; ++i) {
-//		AgentPackage content = contents[i];
-//		if (content.type == stockType) {
-//			out.push_back(new Stock(content.getId(), this));
-//		} else if (content.type == cohortType) {
-//			out.push_back(new Cohort(content.getId(), this, content));
-//		} else {
-//			// it's a patch.
-//			out.push_back(new Environment(content.getId(), this));
-//		}
-//	}
-//}
+void MadObserver::createAgents(std::vector<AgentPackage>& contents, std::vector<RelogoAgent*>& out) {
+	for (size_t i = 0, n = contents.size(); i < n; ++i) {
+		AgentPackage content = contents[i];
+		if (content.type == stockType) {
+			out.push_back(new Stock(content.getId(), this));
+		} else if (content.type == cohortType) {
+			out.push_back(new Cohort(content.getId(), this, content));
+		} else {
+			// it's a patch.
+			out.push_back(new Environment(content.getId(), this));
+		}
+	}
+}

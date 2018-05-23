@@ -16,7 +16,9 @@ public:
 
 	virtual ~Environment() {}
 	
-	void merge();
+	void merge(int&);
+    void step();
+    void flap();
     double Temperature();
     double DiurnalTemperatureRange();
     double Width();
@@ -38,6 +40,13 @@ public:
     double uVel();
     double vVel();
     unsigned index(){return _cellIndex;}
+    double cellSize();
+    double Latitude();
+    double Longitude();
+    unsigned LatitudeIndex();
+    unsigned LongitudeIndex();
+unsigned _cellIndex;
+string name;
 private:
     double GetVariableFromDatasetNamed(std:: string s);
     void   SetTotalPrecip();
@@ -62,7 +71,8 @@ private:
     double _FractionYearFrost;
     double _FractionYearFire;
 
-    unsigned _cellIndex;
+    
+
 };
 #endif
 

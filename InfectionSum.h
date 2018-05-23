@@ -32,62 +32,29 @@
  *   EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * MadObserver.h
+ * InfectionSum.h
  *
- *  Created on: Sep 1, 2010
+ *  Created on: Oct 13, 2010
  *      Author: nick
  */
 
-#ifndef MADOBSERVER_H_
-#define MADOBSERVER_H_
+#ifndef INFECTIONSUM_H_
+#define INFECTIONSUM_H_
 
-#include "relogo/Observer.h"
-#include "repast_hpc/AgentRequest.h"
-#include "repast_hpc/Properties.h"
-#include "relogo/Patch.h"
-#include "relogo/AgentSet.h"
-#include "Environment.h"
-#include "AgentPackage.h"
-#include "Cohort.h"
-class MadObserver : public repast::relogo::Observer {
+#include "repast_hpc/TDataSource.h"
+
+class MadObserver;
+
+class InfectionSum: public repast::TDataSource<int> {
 
 private:
-	repast::Properties props;
-	int stockType, cohortType;
-	int _totalCohorts;
-    double _totalStockBiomass;
-    double _totalCohortAbundance;
-    double _totalCohortBiomass;
+	MadObserver* obs;
+
 public:
-	MadObserver() : _totalCohorts(0) {}
-	virtual ~MadObserver() {}
+	InfectionSum(MadObserver* zobs);
+	virtual ~InfectionSum();
 
-	void go();
-	virtual void setup(repast::Properties& props); // NOTE: 'virtual' needed by some compilers
-
-	// create and provide for agents moving between processes
-	repast::relogo::RelogoAgent* createAgent(const AgentPackage& content);
-	void provideContent(const repast::AgentRequest& request, std::vector<AgentPackage>& out);
-
-	// create and provide for buffer sync
-	void createAgents(std::vector<AgentPackage>& content, std::vector<repast::relogo::RelogoAgent*>& out);
-	void provideContent(repast::relogo::RelogoAgent* agent, std::vector<AgentPackage>& out);
-
-	void updateAgent(AgentPackage package);
-
-
-	int CohortCount() const {
-		return _totalCohorts;
-	}
-	double CohortAbundance() const {
-		return _totalCohortAbundance;
-	}
-	double CohortBiomass() const {
-		return _totalCohortBiomass;
-	}
-	double StockBiomass() const {
-		return _totalStockBiomass;
-	}
+	int getData();
 };
 
-#endif /* MADOBSERVER_H_ */
+#endif /* INFECTIONSUM_H_ */
