@@ -35,29 +35,21 @@
  */
 
 #include <boost/mpi.hpp>
-
 #include "repast_hpc/io.h"
 #include "repast_hpc/RepastProcess.h"
-#include "relogo/SimulationRunner.h"
-#include "relogo/Patch.h"
-#include "Environment.h"
+#include "model.h"
 #include "FileReader.h"
 #include "Parameters.h"
-//#include "repast_hpc/initialize_random.h"
-
-#include "MadObserver.h"
 
 using namespace repast;
-using namespace relogo;
-
-
+//-----------------------------------------------------------------------------------------------------
 void usage() {
 	std::cerr << "usage: X  string string" << std::endl;
 	std::cerr << "  first string: string is the path to the Repast HPC \n\tconfiguration properties file"
 			<< std::endl;
 	std::cerr << "  second string: string is the path to the model properties file" << std::endl;
 }
-
+//-----------------------------------------------------------------------------------------------------
 void runModel(std::string propsFile, int argc, char ** argv) {
   boost::mpi::communicator world;
   Properties props(propsFile, argc, argv, &world);
@@ -66,8 +58,8 @@ void runModel(std::string propsFile, int argc, char ** argv) {
   f.ReadInputParameters( );
   props.putProperty("min.x",0);
   props.putProperty("min.y",0);
-  //props.putProperty("max.x",Parameters::Get()->GetLengthUserLongitudeArray( )-1);
-  //props.putProperty("max.y",Parameters::Get()->GetLengthUserLatitudeArray( )-1);
+  props.putProperty("max.x",Parameters::Get()->GetLengthUserLongitudeArray( )-1);
+  props.putProperty("max.y",Parameters::Get()->GetLengthUserLatitudeArray( )-1);
   
   std::string time;
   repast::timestamp(time);
@@ -75,15 +67,21 @@ void runModel(std::string propsFile, int argc, char ** argv) {
 
   props.putProperty("process.count", world.size());
 
-	SimulationRunner runner(&world);
-
-	if(world.rank() == 0) std::cout << " Starting... " << std::endl;
-	repast::Timer timer;
-	timer.start();
+  if(world.rank() == 0) std::cout << " Starting... " << std::endl;
+  repast::Timer timer;
+  timer.start();
     
 
-//Here is where the actual model content is setup - Environment is the set of patches (model grid)
-	runner.run<MadObserver, Environment>(props);
+//Here is where the actual model  is setup 
+	RepastHPCModel* model = new RepastHPCModel(propsFile, argc, argv, &world);
+	repast::ScheduleRunner& runner = repast::RepastProcess::instance()->getScheduleRunner();
+	
+	model->init();
+	model->initSchedule(runner);
+	//now run things
+	runner.run();
+	
+	delete model;
 
   props.putProperty("run.time", timer.stop());
 
@@ -113,12 +111,14 @@ void runModel(std::string propsFile, int argc, char ** argv) {
   }
 
 }
-
+//-----------------------------------------------------------------------------------------------------
 int main(int argc, char **argv) {
-	boost::mpi::environment env(argc, argv);
-	std::string config, props;
+    //initialise MPI
+    boost::mpi::environment env(argc, argv);
 	boost::mpi::communicator world;
 
+    std::string config, props;
+    //check config and proerties files present
 	if (argc >= 3) {
 		config = argv[1];
 		props = argv[2];
@@ -129,6 +129,7 @@ int main(int argc, char **argv) {
 	}
 
 	if (config.size() > 0 && props.size() > 0) {
+        //GO!
 		RepastProcess::init(config, &world);
 		runModel(props, argc, argv);
 	} else {
@@ -139,4 +140,5 @@ int main(int argc, char **argv) {
 	RepastProcess::instance()->done();
 	return 0;
 }
+//-----------------------------------------------------------------------------------------------------
 
