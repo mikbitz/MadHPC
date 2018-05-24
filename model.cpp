@@ -2,47 +2,62 @@
 
 #include <stdio.h>
 #include <vector>
+#include <sstream>
 #include <boost/mpi.hpp>
 #include "repast_hpc/AgentId.h"
 #include "repast_hpc/RepastProcess.h"
 #include "repast_hpc/Utilities.h"
 #include "repast_hpc/Properties.h"
-
-
+#include "repast_hpc/SharedBaseGrid.h"                      // VN2D broken without this!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#include "repast_hpc/VN2DGridQuery.h"
 #include "repast_hpc/initialize_random.h"
 #include "repast_hpc/Point.h"
+#include "repast_hpc/AgentRequest.h"
+#include "repast_hpc/SVDataSet.h"
+#include "repast_hpc/SVDataSetBuilder.h"
+
+#ifndef _WIN32
+#include "repast_hpc/NCDataSetBuilder.h"
+#endif
+
 #include "model.h"
 #include "agent.h"
+#include "CohortMerger.h"
+#include "Environment.h"
+#include "Groups.h"
+#include "Stock.h"
+#include "Cohort.h"
+#include "FileReader.h"
+#include "CohortSum.h"
+#include "TimeStep.h"
+#include "Constants.h"
+
+using namespace std;
+using namespace repast;
+
 //------------------------------------------------------------------------------------------------------------
 //Constructor and destructor
 //------------------------------------------------------------------------------------------------------------
-RepastHPCModel::RepastHPCModel(std::string propsFile, int argc, char** argv, boost::mpi::communicator* comm): context(comm){
+MadModel::MadModel(std::string propsFile, int argc, char** argv, boost::mpi::communicator* comm): _context(comm){
     //-----------------
     //Pull in parameter from the model.props file
-    props = new repast::Properties(propsFile, argc, argv, comm);
+    _props = new repast::Properties(propsFile, argc, argv, comm);
     //Number of timesteps
-	stopAt = repast::strToInt(props->getProperty("stop.at"));
+	_stopAt = repast::strToInt(_props->getProperty("stop.at"));
     //extent of buffer zones in grid units - this many grid cells are sahred at the boundary between cores
-    gridBuffer = repast::strToInt(props->getProperty("grid.buffer"));
-    //Total agents in the run
-	countOfAgents = repast::strToInt(props->getProperty("count.of.agents"));
+    int gridBuffer = repast::strToInt(_props->getProperty("grid.buffer"));
     //Grid extent
-    minX=repast::strToInt(props->getProperty("min.x"));
-    minY=repast::strToInt(props->getProperty("min.y"));
-    maxX=repast::strToInt(props->getProperty("max.x"));
-    maxY=repast::strToInt(props->getProperty("max.y"));
-    int dimX=repast::strToInt(props->getProperty("proc.per.x"));
-    int dimY=repast::strToInt(props->getProperty("proc.per.y"));
-    //-----------------
-    //initialize default random number generator
-    initializeRandom(*props, comm);
-    //-----------------
-    //save out the properties for this run in the output
-    if(repast::RepastProcess::instance()->rank() == 0) props->writeToSVFile("./output/record.csv");
+    _minX=repast::strToInt(_props->getProperty("min.x"));
+    _minY=repast::strToInt(_props->getProperty("min.y"));
+    _maxX=repast::strToInt(_props->getProperty("max.x"));
+    _maxY=repast::strToInt(_props->getProperty("max.y"));
+    int dimX=repast::strToInt(_props->getProperty("proc.per.x"));
+    int dimY=repast::strToInt(_props->getProperty("proc.per.y"));
+
     //-----------------
 	//create the model grid
-    repast::Point<double> origin(minX,minY);
-    repast::Point<double> extent(maxX-minX+1, maxY-minY+1);
+    repast::Point<double> origin(_minX,_minY);
+    repast::Point<double> extent(_maxX-_minX+1, _maxY-_minY+1);
     
     repast::GridDimensions gd(origin, extent);
     
@@ -50,52 +65,67 @@ RepastHPCModel::RepastHPCModel(std::string propsFile, int argc, char** argv, boo
     processDims.push_back(dimX);
     processDims.push_back(dimY);
   
-    discreteSpace = new repast::SharedDiscreteSpace<RepastHPCAgent, repast::WrapAroundBorders, repast::SimpleAdder<RepastHPCAgent> >("AgentDiscreteSpace", gd, processDims, gridBuffer, comm);
+    discreteSpace = new repast::SharedDiscreteSpace<MadAgent, repast::WrapAroundBorders, repast::SimpleAdder<MadAgent> >("AgentDiscreteSpace", gd, processDims, gridBuffer, comm);
 	
    
     //The agent container is a context. Add the grid to it.
-   	context.addProjection(discreteSpace);
+   	_context.addProjection(discreteSpace);
     
    //-----------------
     //Set up the cross-thread data transferers
-	provider = new RepastHPCAgentPackageProvider(&context);
-	receiver = new RepastHPCAgentPackageReceiver(&context);
+//	provider = new MadAgentPackageProvider(&_context);
+//	receiver = new MadAgentPackageReceiver(&_context);
     
-    //-----------------
-	// Set up Data collection
-	// Create the data set builder
-	std::string fileOutputName("./output/agent_total_data.csv");
-	repast::SVDataSetBuilder builder(fileOutputName.c_str(), ",", repast::RepastProcess::instance()->getScheduleRunner().schedule());
-	
-	// Create the individual data sets to be added to the builder
-	DataSource_AgentTotals* agentTotals_DataSource = new DataSource_AgentTotals(&context);
-	builder.addDataSource(createSVDataSource("Total", agentTotals_DataSource, std::plus<int>()));
-
-	DataSource_AgentCTotals* agentCTotals_DataSource = new DataSource_AgentCTotals(&context);
-	builder.addDataSource(createSVDataSource("C", agentCTotals_DataSource, std::plus<int>()));
-
-	// Use the builder to create the data set
-	agentValues = builder.createDataSet();
-	
 }
 //------------------------------------------------------------------------------------------------------------
-RepastHPCModel::~RepastHPCModel(){
-	delete props;
-	delete provider;
-	delete receiver;
+MadModel::~MadModel(){
+	delete _props;
+//	delete provider;
+//	delete receiver;
 
 }
 //------------------------------------------------------------------------------------------------------------
 //Model Initialisation
 //------------------------------------------------------------------------------------------------------------
-void RepastHPCModel::initSchedule(repast::ScheduleRunner& runner){
-	runner.scheduleEvent(1, 1, repast::Schedule::FunctorPtr(new repast::MethodFunctor<RepastHPCModel> (this, &RepastHPCModel::step)));
-	runner.scheduleEndEvent(repast::Schedule::FunctorPtr(new repast::MethodFunctor<RepastHPCModel> (this, &RepastHPCModel::recordResults)));
-	runner.scheduleStop(stopAt);
+void MadModel::initSchedule(repast::ScheduleRunner& runner){
+	runner.scheduleEvent(1, 1, repast::Schedule::FunctorPtr(new repast::MethodFunctor<MadModel> (this, &MadModel::step)));
+	//runner.scheduleEndEvent(repast::Schedule::FunctorPtr(new repast::MethodFunctor<MadModel> (this, &MadModel::recordResults)));
+	runner.scheduleStop(_stopAt);
 }
-void RepastHPCModel::init(){
+//------------------------------------------------------------------------------------------------------------
+void MadModel::init(){
+    //time the initialisation
+    repast::Timer initTimer;
+    initTimer.start();
+    //rank (i.e. the number of this thread) will be needed to make agents unique *between* threads
     int rank = repast::RepastProcess::instance()->rank();
-    if (rank==0) cout<<"In init "<<discreteSpace->dimensions().extents().getX()<<" "<<discreteSpace->dimensions().extents().getY()<<endl;
+    
+    //get the environmental data - this is stored in the background as a DataLayerSet
+    FileReader F;
+    F.ReadFiles();
+    
+    //now set up the environmental cells - note at present this uses the full grid, not just local to this thread
+    //so that off-thread environment can be easily queried. Currently some duplication here, but it is not a huge amount of data.
+    _Env.resize( (_maxX-_minX+1) * (_maxY-_minY+1) );
+    for(int x=_minX;x<=_maxX;x++) {
+        for(int y=_minY;y<=_maxY;y++) {
+            Environment* E=new Environment(x,y);
+            _Env[x-_minX+(_maxX-_minX+1)*(y-_minY)]=E;
+        }
+    }
+ 
+    //get the definitions of stocks and cohorts
+    StockDefinitions::Initialise(Constants::cStockDefinitionsFileName);
+    CohortDefinitions::Initialise(Constants::cCohortDefinitionsFileName);
+  
+    unsigned numCohortGroups=CohortDefinitions::Get()->size();
+    unsigned cohortCount = strToInt(_props->getProperty("cohort.count"));
+    unsigned numStockGroups = StockDefinitions::Get()->size();
+    
+    //arbitrary numbers to distiguish the agents types
+    _cohortType = 0;
+    _stockType  = 1;
+    
     //explicitly use the local bounds of the grid on this thread to create countOfAgents per cell.
     //Not doing this can lead to problems with agents in dsitant cells not within the local thread neighbourhood
     //see SharedBaseGrid.h moveTo method
@@ -103,38 +133,91 @@ void RepastHPCModel::init(){
     int xmax= xmin + discreteSpace->dimensions().extents().getX();
     int ymin=        discreteSpace->dimensions().origin().getY() ;
     int ymax= ymin + discreteSpace->dimensions().extents().getY();
-    int c=0;
-	for(int i = 0; i < countOfAgents; i++){
-        for(int x = xmin; x < xmax; x++){
-            for(int y = ymin; y < ymax; y++){
+     unsigned totalCohorts=0,totalStocks=0;
+
+  unsigned cNum=0,sNum=0;
+
+    unsigned totalStocksThisCell=0;
+
+  
+    int s=0;
+    for (int x = xmin; x < xmax; x++){
+        for (int y = ymin; y < ymax; y++){
+             Environment* E=_Env[x-_minX+(_maxX-_minX+1)*(y-_minY)];
+             unsigned totalCohortsThisCell=0;
+             for (unsigned i=0;i<numCohortGroups;i++) if (E->_Realm==CohortDefinitions::Get()->Trait(i,"realm"))totalCohortsThisCell+=cohortCount;
              repast::Point<int> initialLocation(x,y);
-             //make sure the agentId is unique on this thread!!
-             // values are int id, int startProc, int agentType, 
-		     repast::AgentId id(c, rank, 0);
-		     id.currentRank(rank);
-		     RepastHPCAgent* agent = new RepastHPCAgent(id);
-		     context.addAgent(agent);
-             discreteSpace->moveTo(id, initialLocation);
-             c++;
+             for (unsigned i=0;i<numCohortGroups;i++){
+                 if (E->_Realm==CohortDefinitions::Get()->Trait(i,"realm")){
+                     for (unsigned j=0;j<cohortCount;j++){
+                         //make sure the agentId is unique on this thread!!
+                         // values are int id, int startProc, int agentType, 
+                         repast::AgentId id(Cohort::_NextID, rank, _cohortType);
+                         id.currentRank(rank);
+                         Cohort* c = new Cohort(id);
+                         c->setup(i,totalCohortsThisCell, E);
+                         _context.addAgent(c);
+                         discreteSpace->moveTo(id, initialLocation);
+                    }
+                }
+             }
+             for (unsigned i=0;i<numStockGroups;i++){
+                 //one stock per functional group - use s to make sure agentId are different
+                 if (E->_Realm==StockDefinitions::Get()->Trait(i,"realm")){
+                         repast::AgentId id(s, rank, _stockType);
+                         id.currentRank(rank);
+                         Stock* agent = new Stock(id,E);
+                         agent->setup(i, E);
+                         _context.addAgent(agent);
+                         discreteSpace->moveTo(id, initialLocation);
+                         s++;
+                }
+             }
             }
         }
-	}
+	
+	//The things added to the datasetbuilder will be accumulated over cores each timestep and output to data.csv
+//	SVDataSetBuilder svbuilder("./output/data.csv", ",", repast::RepastProcess::instance()->getScheduleRunner().schedule());
+//	CohortSum* cSum = new CohortSum(this);
+//	svbuilder.addDataSource(repast::createSVDataSource("Total Cohorts", cSum, std::plus<int>()));
+//    StockBiomassSum* sSum = new StockBiomassSum(this);
+//    CohortAbundanceSum* caSum = new CohortAbundanceSum(this);
+//  	svbuilder.addDataSource(repast::createSVDataSource("Total Cohort Abundance", caSum, std::plus<double>()));
+//  	svbuilder.addDataSource(repast::createSVDataSource("Total Stock Biomass", sSum, std::plus<double>()));
+//    CohortBiomassSum* cbSum = new CohortBiomassSum(this);
+//  	svbuilder.addDataSource(repast::createSVDataSource("Total Cohort Biomass", cbSum, std::plus<double>()));
+
+//	addDataSet(svbuilder.createDataSet());
+#ifndef _WIN32
+	// no netcdf under windows?
+//	NCDataSetBuilder builder("./output/data.ncf", RepastProcess::instance()->getScheduleRunner().schedule());
+//	InfectionSum* infectionSum = new InfectionSum(this);
+//	builder.addDataSource(repast::createNCDataSource("number_infected", infectionSum, std::plus<int>()));
+//	addDataSet(builder.createDataSet());
+#endif
+    long double t = initTimer.stop();
+	std::stringstream ss;
+	ss << t;
+	_props->putProperty("init.time", ss.str());
 }
+//------------------------------------------------------------------------------------------------------------
+
+
 //------------------------------------------------------------------------------------------------------------
 //Run the model
 //------------------------------------------------------------------------------------------------------------
-void RepastHPCModel::step(){
+void MadModel::step(){
+    unsigned CurrentTimeStep=RepastProcess :: instance ()->getScheduleRunner ().currentTick () - 1;
 	if(repast::RepastProcess::instance()->rank() == 0) 
-        std::cout << " TICK " << repast::RepastProcess::instance()->getScheduleRunner().currentTick() << std::endl;
-    sync();
+        std::cout << " TICK " << CurrentTimeStep << std::endl;
 
-	std::vector<RepastHPCAgent*> agents;
-    context.selectAgents(repast::SharedContext<RepastHPCAgent>::LOCAL,agents);
+    //make sure all data is synced across threads
+    sync();
 
 	//for(auto& a:agents){
 	//	a->step(this);
     //    }
-	for (int i=1;i<3;i++){
+/*	for (int i=1;i<3;i++){
     for (auto& a:agents){
  	    a->move(this,-1,-1);
         }
@@ -143,38 +226,65 @@ void RepastHPCModel::step(){
         if (a->getId().startingRank()==0 && a->getId().id()==25)std::cout << " AGENT " << " ON Thread " << repast::RepastProcess::instance()->rank() << std::endl;
 
 		a->reportLocation(this);
-        } 
-   
+        }*/
+    int xmin=        discreteSpace->dimensions().origin().getX() ;
+    int xmax= xmin + discreteSpace->dimensions().extents().getX();
+    int ymin=        discreteSpace->dimensions().origin().getY() ;
+    int ymax= ymin + discreteSpace->dimensions().extents().getY();
+    for(int x = xmin; x < xmax; x++){
+        for(int y = ymin; y < ymax; y++){
+
+            Environment* E=_Env[x-_minX+(_maxX-_minX+1)*(y-_minY)];
+            repast::Point<int> location(x,y);
+            std::vector<MadAgent*> agentsInCell;
+            //query four neighbouring cells, distance 0 (i.e. just the centre cell) - "true" keeps the centre cell.
+            repast::VN2DGridQuery<MadAgent> VN2DQuery(space());
+            VN2DQuery.query(location, 0, true, agentsInCell);
+            std::vector<Stock*> stocks;
+            std::vector<Cohort*> cohorts;
+            for (auto a:agentsInCell){
+                if (a->getId().agentType()==_stockType) stocks.push_back( (Stock*) a); else cohorts.push_back( (Cohort*) a);
+            }
+            
+            double allBiomass=0;
+            for (auto s:stocks)allBiomass+=s->_TotalBiomass;
+            for (auto s:stocks)s->step(allBiomass,E, CurrentTimeStep);
+            for (auto c:cohorts)c->step(E, cohorts, stocks, CurrentTimeStep);
+        }
+    }
+        
+        
 }
 //------------------------------------------------------------------------------------------------------------
-void RepastHPCModel::sync(){
+void MadModel::sync(){
     //These lines synchronize the agents across all threads - if there is more than one...
-	discreteSpace->balance();
-    repast::RepastProcess::instance()->synchronizeAgentStatus<RepastHPCAgent, RepastHPCAgentPackage, 
-             RepastHPCAgentPackageProvider, RepastHPCAgentPackageReceiver>(context, *provider, *receiver, *receiver);
+/*	discreteSpace->balance();
+    repast::RepastProcess::instance()->synchronizeAgentStatus<MadAgent, MadAgentPackage, 
+             MadAgentPackageProvider, MadAgentPackageReceiver>(_context, *provider, *receiver, *receiver);
     
-    repast::RepastProcess::instance()->synchronizeProjectionInfo<RepastHPCAgent, RepastHPCAgentPackage, 
-             RepastHPCAgentPackageProvider, RepastHPCAgentPackageReceiver>(context, *provider, *receiver, *receiver);
+    repast::RepastProcess::instance()->synchronizeProjectionInfo<MadAgent, MadAgentPackage, 
+             MadAgentPackageProvider, MadAgentPackageReceiver>(_context, *provider, *receiver, *receiver);
 
-	repast::RepastProcess::instance()->synchronizeAgentStates<RepastHPCAgentPackage, 
-             RepastHPCAgentPackageProvider, RepastHPCAgentPackageReceiver>(*provider, *receiver);
+	repast::RepastProcess::instance()->synchronizeAgentStates<MadAgentPackage, 
+             MadAgentPackageProvider, MadAgentPackageReceiver>(*provider, *receiver);
+             */
 }
 //------------------------------------------------------------------------------------------------------------
 // Packages for exchanging agents across threads
 //------------------------------------------------------------------------------------------------------------
+/*
 
-
-RepastHPCAgentPackageProvider::RepastHPCAgentPackageProvider(repast::SharedContext<RepastHPCAgent>* agentPtr): agents(agentPtr){ }
+MadAgentPackageProvider::MadAgentPackageProvider(repast::SharedContext<MadAgent>* agentPtr): agents(agentPtr){ }
 //------------------------------------------------------------------------------------------------------------
 
-void RepastHPCAgentPackageProvider::providePackage(RepastHPCAgent * agent, std::vector<RepastHPCAgentPackage>& out){
+void MadAgentPackageProvider::providePackage(MadAgent * agent, std::vector<MadAgentPackage>& out){
     repast::AgentId id = agent->getId();
-    RepastHPCAgentPackage package(id.id(), id.startingRank(), id.agentType(), id.currentRank(), agent->getC(), agent->getTotal());
+    MadAgentPackage package(id.id(), id.startingRank(), id.agentType(), id.currentRank(), agent->getC(), agent->getTotal());
     out.push_back(package);
 }
 //------------------------------------------------------------------------------------------------------------
 
-void RepastHPCAgentPackageProvider::provideContent(repast::AgentRequest req, std::vector<RepastHPCAgentPackage>& out){
+void MadAgentPackageProvider::provideContent(repast::AgentRequest req, std::vector<MadAgentPackage>& out){
     std::vector<repast::AgentId> ids = req.requestedAgents();
     for(size_t i = 0; i < ids.size(); i++){
         providePackage(agents->getAgent(ids[i]), out);
@@ -183,65 +293,21 @@ void RepastHPCAgentPackageProvider::provideContent(repast::AgentRequest req, std
 //------------------------------------------------------------------------------------------------------------
 
 
-RepastHPCAgentPackageReceiver::RepastHPCAgentPackageReceiver(repast::SharedContext<RepastHPCAgent>* agentPtr): agents(agentPtr){}
+MadAgentPackageReceiver::MadAgentPackageReceiver(repast::SharedContext<MadAgent>* agentPtr): agents(agentPtr){}
 //------------------------------------------------------------------------------------------------------------
 
-RepastHPCAgent * RepastHPCAgentPackageReceiver::createAgent(RepastHPCAgentPackage package){
+MadAgent * MadAgentPackageReceiver::createAgent(MadAgentPackage package){
     repast::AgentId id(package.id, package.rank, package.type, package.currentRank);
-    return new RepastHPCAgent(id, package.c, package.total);
+    return new MadAgent(id, package.c, package.total);
 }
 //------------------------------------------------------------------------------------------------------------
 
-void RepastHPCAgentPackageReceiver::updateAgent(RepastHPCAgentPackage package){
+void MadAgentPackageReceiver::updateAgent(MadAgentPackage package){
     repast::AgentId id(package.id, package.rank, package.type);
-    RepastHPCAgent * agent = agents->getAgent(id);
+    MadAgent * agent = agents->getAgent(id);
     agent->set(package.currentRank, package.c, package.total);
 }
 
 //------------------------------------------------------------------------------------------------------------
-// DATA SAVING SECTION
-//------------------------------------------------------------------------------------------------------------
 
-void RepastHPCModel::recordResults(){
-	if(repast::RepastProcess::instance()->rank() == 0){
-		props->putProperty("Result","Passed");
-		std::vector<std::string> keyOrder;
-		keyOrder.push_back("RunNumber");
-		keyOrder.push_back("stop.at");
-		keyOrder.push_back("Result");
-		props->writeToSVFile("./output/results.csv", keyOrder);
-    }
-}
-
-//------------------------------------------------------------------------------------------------------------
-
-DataSource_AgentTotals::DataSource_AgentTotals(repast::SharedContext<RepastHPCAgent>* c) : context(c){ }
-
-int DataSource_AgentTotals::getData(){
-	int sum = 0;
-	repast::SharedContext<RepastHPCAgent>::const_local_iterator iter    = context->localBegin();
-	repast::SharedContext<RepastHPCAgent>::const_local_iterator iterEnd = context->localEnd();
-	while( iter != iterEnd) {
-		sum+= (*iter)->getTotal();
-		iter++;
-	}
-	return sum;
-}
-//------------------------------------------------------------------------------------------------------------
-
-
-DataSource_AgentCTotals::DataSource_AgentCTotals(repast::SharedContext<RepastHPCAgent>* c) : context(c){ }
-
-int DataSource_AgentCTotals::getData(){
-	int sum = 0;
-	repast::SharedContext<RepastHPCAgent>::const_local_iterator iter    = context->localBegin();
-	repast::SharedContext<RepastHPCAgent>::const_local_iterator iterEnd = context->localEnd();
-	while( iter != iterEnd) {
-		sum+= (*iter)->getC();
-		iter++;
-	}
-	return sum;
-}
-//------------------------------------------------------------------------------------------------------------
-//------------------------------------------------------------------------------------------------------------
-
+*/

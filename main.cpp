@@ -37,6 +37,7 @@
 #include <boost/mpi.hpp>
 #include "repast_hpc/io.h"
 #include "repast_hpc/RepastProcess.h"
+#include "repast_hpc/initialize_random.h"
 #include "model.h"
 #include "FileReader.h"
 #include "Parameters.h"
@@ -56,6 +57,7 @@ void runModel(std::string propsFile, int argc, char ** argv) {
 
   FileReader f;
   f.ReadInputParameters( );
+  //make sure the dimensions are consistent with the environmental data files
   props.putProperty("min.x",0);
   props.putProperty("min.y",0);
   props.putProperty("max.x",Parameters::Get()->GetLengthUserLongitudeArray( )-1);
@@ -73,7 +75,10 @@ void runModel(std::string propsFile, int argc, char ** argv) {
     
 
 //Here is where the actual model  is setup 
-	RepastHPCModel* model = new RepastHPCModel(propsFile, argc, argv, &world);
+    //initialize default random number generator
+    initializeRandom(props, &world);
+    //create and initialize model
+	MadModel* model = new MadModel(propsFile, argc, argv, &world);
 	repast::ScheduleRunner& runner = repast::RepastProcess::instance()->getScheduleRunner();
 	
 	model->init();
@@ -85,7 +90,7 @@ void runModel(std::string propsFile, int argc, char ** argv) {
 
   props.putProperty("run.time", timer.stop());
 
-
+//write properties of this run to output file
   if(world.rank() == 0){
     std::vector<std::string> keysToWrite;
     keysToWrite.push_back("run.number");

@@ -1,13 +1,12 @@
 #ifndef ENVIRONMENT
 #define ENVIRONMENT
-#include "relogo/Patch.h"
 #include "Constants.h"
 #include "Types.h"
 #include <vector>
-class Environment : public repast::relogo::Patch {
+class Environment {
 public:
-	Environment(repast::AgentId id, repast::relogo::Observer* obs);
-    void setup();
+	Environment();
+    Environment(int,int);
     void SetRealm( );
 
 
@@ -17,8 +16,6 @@ public:
 	virtual ~Environment() {}
 	
 	void merge(int&);
-    void step();
-    void flap();
     double Temperature();
     double DiurnalTemperatureRange();
     double Width();
@@ -45,8 +42,8 @@ public:
     double Longitude();
     unsigned LatitudeIndex();
     unsigned LongitudeIndex();
-unsigned _cellIndex;
-string name;
+    unsigned _cellIndex;
+    
 private:
     double GetVariableFromDatasetNamed(std:: string s);
     void   SetTotalPrecip();

@@ -145,9 +145,8 @@ void MadObserver::setup(Properties& props) {
 
   FileReader F;
   F.ReadFiles();
-
-  AgentSet<Environment> Env=patches<Environment>();
-
+ Env.resize(x*y);
+ forxy{Environment* E=new Environment(x,y);Env[x+xlen*y]=E;}
   for (auto E : Env){E->setup();}
 
   StockDefinitions::Initialise(Constants::cStockDefinitionsFileName);

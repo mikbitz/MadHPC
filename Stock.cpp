@@ -41,24 +41,16 @@
 #include "Stock.h"
 #include "Cohort.h"
 
-#include "relogo/AgentSet.h"
-#include "relogo/Patch.h"
 #include "Environment.h"
 #include "AutotrophProcessor.h"
 #include "TerrestrialCarbon.h"
 #include "HANPP.h"
 #include "Groups.h"
 
-using namespace repast::relogo;
-using namespace repast;
-
 
 //-------------------------------------------------------------------------------------------------------------------
-    Stock::Stock(repast::AgentId id, repast::relogo::Observer* obs) : repast::relogo::Turtle(id, obs){
-        
-
-}
-void Stock::setup(unsigned functionalGroup){
+ 
+void Stock::setup(unsigned functionalGroup,Environment* LocalEnvironment){
      _FunctionalGroupIndex = functionalGroup;
     // Get the individual body masses for organisms in each stock functional group
 
@@ -68,24 +60,22 @@ void Stock::setup(unsigned functionalGroup){
     _Deciduous           =(StockDefinitions::Get()->Trait(functionalGroup   , "leaf strategy") =="deciduous");
 
     // If it is a functional group that corresponds to the current realm, then seed the stock
-    if( ! _Marine && patchHere<Environment> ()->Precipitation() != Constants::cMissingValue && patchHere<Environment> ()->Temperature()!= Constants::cMissingValue ) {
+    if( ! _Marine && LocalEnvironment->Precipitation() != Constants::cMissingValue && LocalEnvironment->Temperature()!= Constants::cMissingValue ) {
             // An instance of the terrestrial carbon model class
             TerrestrialCarbon PlantModel;
 
             // Calculate predicted leaf mass at equilibrium for this stock
-            _TotalBiomass = PlantModel.CalculateEquilibriumLeafMass(patchHere<Environment> () , _Deciduous );
+            _TotalBiomass = PlantModel.CalculateEquilibriumLeafMass(LocalEnvironment , _Deciduous );
 
             
-    } else if( _Marine && patchHere<Environment> ()->NPP()!= Constants::cMissingValue ) {
+    } else if( _Marine && LocalEnvironment->NPP()!= Constants::cMissingValue ) {
             _TotalBiomass = 1.e12;
     }
 
 }
 //-------------------------------------------------------------------------------------------------------------------
-void Stock::step() {
+void Stock::step(double& AllBiomass,Environment* LocalEnvironment,const unsigned CurrentTimeStep) {
 
-    unsigned CurrentTimeStep=RepastProcess :: instance ()->getScheduleRunner ().currentTick () - 1;
-    Environment* LocalEnvironment=patchHere<Environment> ();
 
     if( _Marine ) {
         AutotrophProcessor A;
@@ -104,12 +94,12 @@ void Stock::step() {
         double NPPWetMatter = PlantModel.UpdateLeafStock( LocalEnvironment ,this, _Deciduous );//??could pass TotalBiomass by reference?
 
         // Apply human appropriation of NPP - note in the latest C# version this is changed to include the NPPWetMatter calculated above
-        AgentSet<Stock> stocks = turtlesHere<Stock>();
-        double AllBiomass=0;
-        for (auto s:stocks)AllBiomass+=s->_TotalBiomass;
+        // AllBiomass is the current amount in this cell, so adjust for HANPP as well.
         double FracBiomass=_TotalBiomass/AllBiomass;
+        AllBiomass-=_TotalBiomass;
         double fhanpp = HumanRemoval.RemoveHumanAppropriatedMatter(LocalEnvironment, NPPWetMatter, FracBiomass, CurrentTimeStep);
         _TotalBiomass += NPPWetMatter * ( 1 - fhanpp );
+        AllBiomass+=_TotalBiomass;
     }
 
 }

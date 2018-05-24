@@ -6,87 +6,69 @@
 #include <boost/mpi.hpp>
 #include "repast_hpc/Schedule.h"
 #include "repast_hpc/Properties.h"
-#include "repast_hpc/SharedContext.h"
 #include "repast_hpc/AgentRequest.h"
 #include "repast_hpc/TDataSource.h"
 #include "repast_hpc/SVDataSet.h"
 #include "repast_hpc/SVDataSetBuilder.h"
+#include "repast_hpc/SharedContext.h"
 #include "repast_hpc/SharedDiscreteSpace.h"
 #include "repast_hpc/GridComponents.h"
+#include "Environment.h"
+#include "agent.h"
 
-class RepastHPCAgent;
-class RepastHPCAgentPackage;
-typedef repast::SharedDiscreteSpace<RepastHPCAgent, repast::WrapAroundBorders, repast::SimpleAdder<RepastHPCAgent> > modelSpaceType;
-/* Data Collection */
-class DataSource_AgentTotals : public repast::TDataSource<int>{
-private:
-	repast::SharedContext<RepastHPCAgent>* context;
-    
-public:
-	DataSource_AgentTotals(repast::SharedContext<RepastHPCAgent>* c);
-	int getData();
-};
+class MadAgentPackage;
+//This is an alias for the background discrete grid
+typedef repast::SharedDiscreteSpace<MadAgent, repast::WrapAroundBorders, repast::SimpleAdder<MadAgent> > modelSpaceType;
 
 
-class DataSource_AgentCTotals : public repast::TDataSource<int>{
-private:
-	repast::SharedContext<RepastHPCAgent>* context;
-	
-public:
-	DataSource_AgentCTotals(repast::SharedContext<RepastHPCAgent>* c);
-	int getData();
-};
-
-/* Agent Package Provider */
-class RepastHPCAgentPackageProvider {
+/*
+class MadAgentPackageProvider {
 	
 private:
-    repast::SharedContext<RepastHPCAgent>* agents;
+    repast::SharedContext<MadAgent>* agents;
 	
 public:
 	
-    RepastHPCAgentPackageProvider(repast::SharedContext<RepastHPCAgent>* agentPtr);
+    MadAgentPackageProvider(repast::SharedContext<MadAgent>* agentPtr);
 	
-    void providePackage(RepastHPCAgent * agent, std::vector<RepastHPCAgentPackage>& out);
+    void providePackage(MadAgent * agent, std::vector<MadAgentPackage>& out);
 	
-    void provideContent(repast::AgentRequest req, std::vector<RepastHPCAgentPackage>& out);
+    void provideContent(repast::AgentRequest req, std::vector<MadAgentPackage>& out);
 	
 };
 
-/* Agent Package Receiver */
-class RepastHPCAgentPackageReceiver {
+class MadAgentPackageReceiver {
 	
 private:
-    repast::SharedContext<RepastHPCAgent>* agents;
+    repast::SharedContext<MadAgent>* agents;
 	
 public:
 	
-    RepastHPCAgentPackageReceiver(repast::SharedContext<RepastHPCAgent>* agentPtr);
+    MadAgentPackageReceiver(repast::SharedContext<MadAgent>* agentPtr);
 	
-    RepastHPCAgent * createAgent(RepastHPCAgentPackage package);
+    MadAgent * createAgent(MadAgentPackage package);
 	
-    void updateAgent(RepastHPCAgentPackage package);
+    void updateAgent(MadAgentPackage package);
 	
-};
+};*/
 
 
-class RepastHPCModel{
-	int stopAt;
-    int gridBuffer;
-	int countOfAgents;
-    double minX,minY,maxX,maxY;
-	repast::Properties* props;
-	repast::SharedContext<RepastHPCAgent> context;
+class MadModel{
+	int _stopAt;
+    int _stockType, _cohortType;
+    double _minX,_minY,_maxX,_maxY;
+	repast::Properties* _props;
+	repast::SharedContext<MadAgent> _context;
+    vector<Environment*> _Env;
 	
-	RepastHPCAgentPackageProvider* provider;
-	RepastHPCAgentPackageReceiver* receiver;
+	//MadAgentPackageProvider* provider;
+	//MadAgentPackageReceiver* receiver;
 
-	repast::SVDataSet* agentValues;
     modelSpaceType* discreteSpace;
 	
 public:
-	RepastHPCModel(std::string propsFile, int argc, char** argv, boost::mpi::communicator* comm);
-	~RepastHPCModel();
+	MadModel(std::string propsFile, int argc, char** argv, boost::mpi::communicator* comm);
+	~MadModel();
 	void init();
 	void moveAgents();
 	void step();

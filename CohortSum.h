@@ -42,8 +42,7 @@
 #define COHORTSUM_H_
 
 #include "repast_hpc/TDataSource.h"
-
-class MadObserver;
+/*
 //----------------------------------------------------------
 class CohortSum: public repast::TDataSource<int> {
 
@@ -92,5 +91,5 @@ public:
 
 	double getData();
 };
-
+*/
 #endif /* COHORTSUM_H_ */

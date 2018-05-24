@@ -40,12 +40,15 @@
 
 #ifndef COHORT_H_
 #define COHORT_H_
-
-#include "relogo/Turtle.h"
+#include "agent.h"
+#include "repast_hpc/AgentId.h"
+#include "repast_hpc/SharedContext.h"
+#include "repast_hpc/SharedDiscreteSpace.h"
 #include "AgentPackage.h"
 #include "Environment.h"
 
-class Cohort : public repast::relogo::Turtle {
+
+class Cohort: public MadAgent  {
 
 public:
 
@@ -120,26 +123,26 @@ public:
     const double _NumberOfBins = 12;
 
     std::map < std::string, std::map<std::string,double> > _MassAccounting;
-    
+
 
 public:
-//	Cohort(repast::AgentId id, repast::relogo::Observer* obs): repast::relogo::Turtle(id, obs), _infected(false), _infectionTime(0) {}
-//	Cohort(repast::AgentId id, repast::relogo::Observer* obs, const AgentPackage& package): repast::relogo::Turtle(id, obs), _infected(package.infected),
-//			_infectionTime(package.infectionTime) {}
-    Cohort(repast::AgentId id, repast::relogo::Observer* obs): repast::relogo::Turtle(id, obs),_alive(true),_Merged(false){}
-	Cohort(repast::AgentId id, repast::relogo::Observer* obs, const AgentPackage& package): repast::relogo::Turtle(id, obs){SuckThingsOutofPackage(package);}
 
-	void setup(unsigned,unsigned);
+    static unsigned _NextID;
+    repast::AgentId _id;
+    Cohort(repast::AgentId id): MadAgent(id), _alive(true),_Merged(false){_NextID++;}
+	Cohort(repast::AgentId id, const AgentPackage& package){SuckThingsOutofPackage(package);}
+
+	void setup(unsigned,unsigned,Environment*);
 
 	virtual ~Cohort() {}
 
-	void step(Environment* ,repast::relogo::AgentSet<Cohort>&,repast::relogo::AgentSet<Stock>&);
+	void step(Environment* ,vector<Cohort*>&,vector<Stock*>&,const unsigned);
 
     void metabolize(Environment*);
-    void assignTimeActive();
+    void assignTimeActive(Environment*);
     void reproduce(Environment*);
-    void eat(Environment*,repast::relogo::AgentSet<Cohort>&,repast::relogo::AgentSet<Stock>&);
-    void moveIt();
+    void eat(Environment*,vector<Cohort*>&,vector<Stock*>&);
+    void moveIt(Environment*);
     void mort();
     void markForDeath();
     void expire();
@@ -152,5 +155,4 @@ void SqodgeThingsIntoPackage( AgentPackage& );
 void SuckThingsOutofPackage( const AgentPackage& );
 void ResetMassFluxes();
 };
-
 #endif /* COHORT_H_ */

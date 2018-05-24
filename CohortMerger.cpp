@@ -15,7 +15,7 @@ int CohortMerger::MergeToReachThresholdFast( Environment* e) {
     // set is automatically sorted - multiset allows for elements with the same distance
     std::multiset< CohortPair, CohortPair::Comparator > SortedDistances;
     // How many cohorts to remove to hit the threshold
-    repast::relogo::AgentSet<Cohort> cohorts= e->turtlesHere<Cohort>();
+    vector<Cohort*> cohorts;
   
    
     //break down cell contents into functional groups

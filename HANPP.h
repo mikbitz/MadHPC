@@ -9,6 +9,8 @@
 
 /** \brief Removes autotroph matter appropriated by humans from a grid cell's autotroph stocks
 \remarks   Assumes that autotroph matter is appropriated evenly from different stocks in proportion to their biomass */
+using namespace std;
+
 class HumanAutotrophMatterAppropriation {
 public:
     //----------------------------------------------------------------------------------------------

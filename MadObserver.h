@@ -41,11 +41,8 @@
 #ifndef MADOBSERVER_H_
 #define MADOBSERVER_H_
 
-#include "relogo/Observer.h"
 #include "repast_hpc/AgentRequest.h"
 #include "repast_hpc/Properties.h"
-#include "relogo/Patch.h"
-#include "relogo/AgentSet.h"
 #include "Environment.h"
 #include "AgentPackage.h"
 #include "Cohort.h"
@@ -63,6 +60,7 @@ public:
 	virtual ~MadObserver() {}
 
 	void go();
+    vector<Environment*> Env;
 	virtual void setup(repast::Properties& props); // NOTE: 'virtual' needed by some compilers
 
 	// create and provide for agents moving between processes

@@ -39,7 +39,7 @@
  */
 
 #include "CohortSum.h"
-#include "MadObserver.h"
+/*
 
 CohortSum::CohortSum(MadObserver* Mobs) : obs(Mobs){}
 
@@ -72,3 +72,4 @@ StockBiomassSum::~StockBiomassSum() {}
 double StockBiomassSum::getData() {
 	return obs->StockBiomass();
 }
+*/

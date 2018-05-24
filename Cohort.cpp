@@ -38,9 +38,6 @@
  *      Author: nick
  */
 
-#include "relogo/AgentSet.h"
-#include "relogo/Patch.h"
-#include "MadObserver.h"
 
 #include "repast_hpc/RepastProcess.h"
 #include "repast_hpc/Random.h"
@@ -50,9 +47,8 @@
 #include "Stock.h"
 #include "Parameters.h"
 
-using namespace repast::relogo;
 using namespace repast;
-
+unsigned Cohort::_NextID=0;
 
 void Cohort::ResetMassFluxes( ) {
     // Initialize delta abundance sorted list with appropriate processes
@@ -78,7 +74,7 @@ void Cohort::ResetMassFluxes( ) {
     _MassAccounting["respiratoryCO2pool"]["metabolism"] = 0.0;
 }
 //used to create an initial set of cohorts at the start of a run
-void Cohort::setup(unsigned functionalGroup,unsigned numCohortsThisCell){
+void Cohort::setup(unsigned functionalGroup,unsigned numCohortsThisCell,Environment* e){
     ResetMassFluxes( );
     _FunctionalGroupIndex=functionalGroup;
     _Merged                      = false;
@@ -111,33 +107,26 @@ void Cohort::setup(unsigned functionalGroup,unsigned numCohortsThisCell){
     _MaximumMass=CohortDefinitions::Get()->Property(functionalGroup   ,"maximum mass");
 
     repast::DoubleUniformGenerator gen = repast::Random::instance()->createUniDoubleGenerator(0, 1);
-    //DEBUG
-    //_AdultMass = pow( 10, ( gen.next( ) * ( log10( _MaximumMass ) - log10( 50 * _MinimumMass ) ) + log10( 50 * _MinimumMass ) ) );
-    _AdultMass = pow( 10, ( 0.5 * ( log10( _MaximumMass ) - log10( 50 * _MinimumMass ) ) + log10( 50 * _MinimumMass ) ) );
+    _AdultMass = pow( 10, ( gen.next( ) * ( log10( _MaximumMass ) - log10( 50 * _MinimumMass ) ) + log10( 50 * _MinimumMass ) ) );
   
     //Changes from original code
-    //DEBUG
     NormalGenerator NJ= repast::Random::instance()->createNormalGenerator(0.1,0.02);
-    //_LogOptimalPreyBodySizeRatio = log(std::max( 0.01, NJ.next() ));
-    _LogOptimalPreyBodySizeRatio = log(0.16);
+    _LogOptimalPreyBodySizeRatio = log(std::max( 0.01, NJ.next() ));
 
     double expectedLnAdultMassRatio = 2.24 + 0.13 * log( _AdultMass );
     LogNormalGenerator LNJ= repast::Random::instance()->createLogNormalGenerator(expectedLnAdultMassRatio, 0.5);
 
     if( _Realm=="terrestrial" ) {
           do {
-//            _JuvenileMass = _AdultMass  / (1.0 + LNJ.next());
-              _JuvenileMass = _AdultMass  / (1.0 + expectedLnAdultMassRatio);
+            _JuvenileMass = _AdultMass  / (1.0 + LNJ.next());
           } while( _AdultMass <= _JuvenileMass || _JuvenileMass < _MinimumMass );
     } else {
           do {
-//            _JuvenileMass = _AdultMass  / (1.0 + 10 *LNJ.next());
-              _JuvenileMass = _AdultMass  / (1.0 + 10 *expectedLnAdultMassRatio);
+            _JuvenileMass = _AdultMass  / (1.0 + 10 *LNJ.next());
           } while( _AdultMass <= _JuvenileMass || _JuvenileMass < _MinimumMass );
     }
-    //DEBUG
-//_JuvenileMass=100;_AdultMass=500000;
-    double NewBiomass = ( 3300. / numCohortsThisCell ) * 100 * 3000 * pow( 0.6, ( log10( _JuvenileMass ) ) ) * ( patchHere<Environment>()->Area() );
+
+    double NewBiomass = ( 3300. / numCohortsThisCell ) * 100 * 3000 * pow( 0.6, ( log10( _JuvenileMass ) ) ) * ( e->Area() );
 
     _CohortAbundance = NewBiomass / _JuvenileMass;
     _MaximumAchievedBodyMass=_JuvenileMass;
@@ -264,14 +253,11 @@ void Cohort::setupOffspring( Cohort* actingCohort, double juvenileBodyMass, doub
 
 }
 //------------------------------------------------------------------------------------------------------------
-void Cohort::step(Environment* e,repast::relogo::AgentSet<Cohort>& preys,repast::relogo::AgentSet<Stock>& stocks) {
+void Cohort::step(Environment* e,vector<Cohort*>& preys,vector<Stock*>& stocks,const unsigned T) {
         if(getId().currentRank()!=repast::RepastProcess::instance()->rank())return;
 
-    _CurrentTimeStep=RepastProcess :: instance ()->getScheduleRunner ().currentTick () - 1;
-if (getId().id() ==0 && getId().startingRank()==0 )    {cout.precision(15);
-    cout<<"Rank! "<<_CurrentTimeStep<<" "<< getId().currentRank()<<" xy: "<<xCor()<<" "<<yCor()<<" ll: "<<e->getId().id()<<" "<<e->name<<" "<<e->getId().currentRank()<<" "<<repast::RepastProcess::instance()->rank()<<" "<<e->xCor()<<" "<<e->yCor()<<" "<<e->Longitude()<<" "<<e->Latitude()<<endl;
+    _CurrentTimeStep=T;
 
-}
     //note - passing in preys here from above ensures that new cohorts created later do not immediately get eaten.
     //since they *do* get added to the global cohort list straight away.
     //pass in of environment avoids having to find it with an expensive lookup
@@ -295,19 +281,17 @@ void Cohort::markForDeath(){
 //------------------------------------------------------------------------------------------------------------
 void Cohort::expire(){
     //now really kill the cohort.
-    if (!_alive)die();
+    //if (!_alive)die();context.removeAgent(id);
 }
 //------------------------------------------------------------------------------------------------------------
-void Cohort::moveIt(){
+void Cohort::moveIt(Environment* e){
     	// if cohort is now dead we can't move it because
 	    // it will be removed from the sim and the synchronization
 	    // mechanism cannot move it.
 
         if (!_alive)return;
 
-        Environment* e=patchHere<Environment>();//NB call to this are very expensive - reduce to the minimum possible.
-        if (e==0){cout.precision(15);cout<<"in MoveIt "<<_observer->rank()<<" "<<getId().currentRank()<<" "<<xCor()<<" "<<yCor()<<endl;return;}
-        // Calculate the scalar to convert from the time step units used by this implementation of dispersal to the global model time step units
+       // Calculate the scalar to convert from the time step units used by this implementation of dispersal to the global model time step units
         double DeltaT = Constants::cMonth;
         double latCellLength = e->Height();
         double lonCellLength = e->Width();
@@ -445,10 +429,10 @@ void Cohort::moveIt(){
        }
      }
      //DEBUG
-     signu=1;signv=1;
+     //signu=1;signv=1;
       //facexy(xCor()+signu,yCor()+signv);move(sqrt(double(2.0)));
-     setxy(doubleCoordToInt(xCor()+signu),doubleCoordToInt(yCor()));
-     setxy(doubleCoordToInt(xCor()),doubleCoordToInt(yCor()+signv));//)sqrt(signu*signu+signv*signv));
+     //setxy(doubleCoordToInt(xCor()+signu),doubleCoordToInt(yCor()));
+     //setxy(doubleCoordToInt(xCor()),doubleCoordToInt(yCor()+signv));//)sqrt(signu*signu+signv*signv));
      //cout<<"ming "<<getId().id()<<" "<<getId().currentRank()<<" "<<e->xCor()<<" "<<e->yCor()<<endl;
      //repast::relogo::AgentSet<Environment>ook; e->neighbors(ook);for(auto o:ook)cout<<"ning! "<<(o->xCor()-(xCor()+signu)) << " "<< o->yCor()-(yCor()+signv)<<endl;
      //Environment* er=patchRightAndAhead<Environment>(0,1);if (er ==0)cout<<"blerrrg "<<endl;  //expensive call
@@ -465,7 +449,7 @@ void Cohort::moveIt(){
 
 }
 //------------------------------------------------------------------------------------------------------------
-void Cohort::assignTimeActive(){
+void Cohort::assignTimeActive(Environment* e){
 
     double WarmingTolerance = 0;
     double ThermalSafetyMargin = 0;
@@ -494,7 +478,6 @@ void Cohort::assignTimeActive(){
                  double ProportionTimeSuitableMarine = 1.0;
                 _ProportionTimeActive = ProportionTimeSuitableMarine * _ProportionSuitableTimeActive;
             } else {
-               Environment* e=patchHere<Environment> ();
                AmbientTemp = e->Temperature();
                DTR         = e->DiurnalTemperatureRange();
 
@@ -543,7 +526,7 @@ void Cohort::assignTimeActive(){
     }
 }
 //------------------------------------------------------------------------------------------------------------
-void Cohort::eat(Environment* e,repast::relogo::AgentSet<Cohort>& preys,repast::relogo::AgentSet<Stock>& stocks){
+void Cohort::eat(Environment* e,vector<Cohort*>& preys,vector<Stock*>& stocks){
     
     double  PotentialBiomassEaten=0.,HandlingTime=0.,HandlingTimeScaled=0.,BiomassesEaten=0.,IndividualHerbivoryRate=0.;
     double edibleFraction=0,AttackRateExponent=0, HandlingTimeExponent=0,HandlingTimeScalar=0;
@@ -909,9 +892,14 @@ void Cohort::reproduce(Environment* e){
              // Update cohort abundance in case juvenile mass has been altered through 'evolution'
              offspringCohortAbundance = offspringCohortAbundance * ( _JuvenileMass / newJuvenileMass );
 
-
-            Cohort* newH = _observer->hatch<Cohort> (this);
-            newH->setupOffspring( this, newJuvenileMass, newAdultMass, newJuvenileMass, offspringCohortAbundance, _CurrentTimeStep);
+                         //repast::AgentId id(Cohort::_nextID, rank, _cohortType);
+                         //id.currentRank(rank);
+                         //Cohort* c = new Cohort(id);
+                         //c->setup(i,totalCohortsThisCell);
+                         //context.addAgent(c);
+                         //discreteSpace->moveTo(id, initialLocation);
+            //Cohort* newH = _observer->hatch<Cohort> (this);
+            //newH->setupOffspring( this, newJuvenileMass, newAdultMass, newJuvenileMass, offspringCohortAbundance, _CurrentTimeStep);
 
             // Subtract all of the reproductive potential mass of the parent cohort, which has been used to generate the new
             // cohort, from the delta reproductive potential mass and delta adult body mass
@@ -1118,7 +1106,6 @@ void Cohort::applyEcology(){
 //------------------------------------------------------------------------------------------------------------
 /*
 void EcologyApply::UpdatePools( GridCell& gcl ) {
-use patchhere<Encvornment>??
     // Loop over all keys in the organic pool deltas sorted list
     for( auto &D: Cohort::_MassAccounting["organicpool"] ) {
         // Check that the delta value is not negative

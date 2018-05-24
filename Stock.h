@@ -41,17 +41,18 @@
 #ifndef STOCK_H_
 #define STOCK_H_
 
-#include "relogo/Turtle.h"
+#include "repast_hpc/AgentId.h"
+#include "agent.h"
 
+class Environment;
 
-
-class Stock : public repast::relogo::Turtle {
+class Stock: public MadAgent  {
 public:
-	Stock(repast::AgentId id, repast::relogo::Observer* obs);
-    void setup(unsigned);
-	virtual ~Stock() {}
+    Stock(repast::AgentId id,Environment*) : MadAgent(id){ }
 
-	void step();
+	virtual ~Stock() {}
+    void setup(unsigned,Environment* );
+	void step(double&,Environment*,const unsigned);
     double _TotalBiomass;
     bool _Marine,_Deciduous;
     unsigned _FunctionalGroupIndex;
