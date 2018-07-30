@@ -45,13 +45,14 @@
 #include "repast_hpc/AgentId.h"
 
 struct AgentPackage {
-
+    AgentPackage(){}
+    AgentPackage(int id, int rank, int type, int currentRank):_id(id), _rank(rank), _type(type), _currentRank(currentRank){ }
 	template<class Archive>
 	void serialize(Archive& ar, const unsigned int version) {
-		ar & id;
-		ar & proc;
-		ar & type;
-		ar & currentProc;
+		ar & _id;
+		ar & _rank;
+		ar & _type;
+		ar & _currentRank;
 
 		ar & _FunctionalGroupIndex;   
 
@@ -95,7 +96,7 @@ struct AgentPackage {
 		ar & _AssimilationEfficiency_C;
 	}
 
-	int id, proc, type, currentProc;
+	int _id, _rank, _type, _currentRank;
 
 
     unsigned _FunctionalGroupIndex;   
@@ -108,7 +109,7 @@ struct AgentPackage {
     double _MinimumMass;
     double _MaximumMass;
     
-    unsigned _CohortAbundance;
+    double _CohortAbundance;
     unsigned _BirthTimeStep;            
     unsigned _MaturityTimeStep;            
     double _LogOptimalPreyBodySizeRatio; 
@@ -141,7 +142,7 @@ struct AgentPackage {
     double _AssimilationEfficiency_C;
 
 	repast::AgentId getId() const {
-		return repast::AgentId(id, proc, type, currentProc);
+		return repast::AgentId(_id, _rank, _type, _currentRank);
 	}
 };
 

@@ -10,10 +10,11 @@ protected:
     repast::AgentId   _id;
 
 public:
-    MadAgent(){}
-    MadAgent(repast::AgentId id): _id(id){}
-	
-    void set(int currentRank){    _id.currentRank(currentRank);}
+    MadAgent(){_moved=false;_alive=true;}
+    MadAgent(repast::AgentId id): _id(id){_moved=false;_alive=true;}
+	bool _moved;
+    bool _alive;
+    void set(int currentRank){    _id.currentRank(currentRank);}//is this correct/needed?
 
     virtual ~MadAgent(){};
 	

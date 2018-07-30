@@ -46,7 +46,9 @@
 #include "repast_hpc/SharedDiscreteSpace.h"
 #include "AgentPackage.h"
 #include "Environment.h"
+#include "randomizer.h"
 
+class MadModel;
 
 class Cohort: public MadAgent  {
 
@@ -69,7 +71,8 @@ public:
     double _LogOptimalPreyBodySizeRatio; 
      
     bool _Merged;
-    bool _alive;                     
+    //bool _alive;
+    //bool _moved;
 
   
 	bool _Heterotroph;   
@@ -128,11 +131,11 @@ public:
 public:
 
     static unsigned _NextID;
-    repast::AgentId _id;
-    Cohort(repast::AgentId id): MadAgent(id), _alive(true),_Merged(false){_NextID++;}
-	Cohort(repast::AgentId id, const AgentPackage& package){SuckThingsOutofPackage(package);}
-
-	void setup(unsigned,unsigned,Environment*);
+    Cohort* _newH;
+    Cohort(repast::AgentId id): MadAgent(id), _Merged(false){_NextID++;_newH=NULL;}
+	Cohort(repast::AgentId id, const AgentPackage& package): MadAgent(id){PullThingsOutofPackage(package);_newH=NULL;}
+    void set(int currentRank, const AgentPackage& package){_id.currentRank(currentRank);PullThingsOutofPackage(package);}
+	void setup(unsigned,unsigned,Environment*,randomizer&);
 
 	virtual ~Cohort() {}
 
@@ -142,17 +145,18 @@ public:
     void assignTimeActive(Environment*);
     void reproduce(Environment*);
     void eat(Environment*,vector<Cohort*>&,vector<Stock*>&);
-    void moveIt(Environment*);
+    void moveIt(Environment*,MadModel*);
+    void relocateBy(int,int, MadModel*);
     void mort();
     void markForDeath();
-    void expire();
-    void applyEcology();
+    void applyEcology(Environment*);
+    void updatePools(Environment*);
     void setupOffspring( Cohort* , double , double , double , double , unsigned  );
-    void TryToDisperse(double,Environment*);
-    void TryToDisperse(double,double,Environment*);
+    void TryToDisperse(double,Environment*,MadModel* );
+    void TryToDisperse(double,double,Environment*,MadModel* );
 
-void SqodgeThingsIntoPackage( AgentPackage& );
-void SuckThingsOutofPackage( const AgentPackage& );
+void PushThingsIntoPackage( AgentPackage& );
+void PullThingsOutofPackage( const AgentPackage& );
 void ResetMassFluxes();
 };
 #endif /* COHORT_H_ */

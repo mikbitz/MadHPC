@@ -31,10 +31,14 @@
 #include "CohortSum.h"
 #include "TimeStep.h"
 #include "Constants.h"
+#include "randomizer.h"
+#include "AgentPackage.h"
 
 using namespace std;
 using namespace repast;
+//arbitrary numbers to distiguish the agents types
 
+int MadModel::_stockType=0, MadModel::_cohortType=1;
 //------------------------------------------------------------------------------------------------------------
 //Constructor and destructor
 //------------------------------------------------------------------------------------------------------------
@@ -44,7 +48,7 @@ MadModel::MadModel(std::string propsFile, int argc, char** argv, boost::mpi::com
     _props = new repast::Properties(propsFile, argc, argv, comm);
     //Number of timesteps
 	_stopAt = repast::strToInt(_props->getProperty("stop.at"));
-    //extent of buffer zones in grid units - this many grid cells are sahred at the boundary between cores
+    //extent of buffer zones in grid units - this many grid cells are shared at the boundary between cores
     int gridBuffer = repast::strToInt(_props->getProperty("grid.buffer"));
     //Grid extent
     _minX=repast::strToInt(_props->getProperty("min.x"));
@@ -73,15 +77,33 @@ MadModel::MadModel(std::string propsFile, int argc, char** argv, boost::mpi::com
     
    //-----------------
     //Set up the cross-thread data transferers
-//	provider = new MadAgentPackageProvider(&_context);
-//	receiver = new MadAgentPackageReceiver(&_context);
-    
+	provider = new MadAgentPackageProvider(&_context);
+	receiver = new MadAgentPackageReceiver(&_context);
+    //---------------
+    //variables to hold totals across all cells
+    _totalCohorts=0;
+    _totalStocks=0;
+    _totalCohortAbundance=0;
+    _totalCohortBiomass=0;
+    _totalStockBiomass=0;
+    _totalOrganciPool=0;
+    _totalRespiratoryCO2Pool=0;
+    //----------------
+    //local grid extents on this thread
+    _xlo=        discreteSpace->dimensions().origin().getX() ;
+    _xhi= _xlo + discreteSpace->dimensions().extents().getX();
+    _ylo=        discreteSpace->dimensions().origin().getY() ;
+    _yhi= _ylo + discreteSpace->dimensions().extents().getY();
+
 }
 //------------------------------------------------------------------------------------------------------------
 MadModel::~MadModel(){
 	delete _props;
-//	delete provider;
-//	delete receiver;
+	delete provider;
+	delete receiver;
+    for (size_t i = 0; i < dataSets.size(); ++i) {
+		delete dataSets[i];
+	}
 
 }
 //------------------------------------------------------------------------------------------------------------
@@ -89,8 +111,9 @@ MadModel::~MadModel(){
 //------------------------------------------------------------------------------------------------------------
 void MadModel::initSchedule(repast::ScheduleRunner& runner){
 	runner.scheduleEvent(1, 1, repast::Schedule::FunctorPtr(new repast::MethodFunctor<MadModel> (this, &MadModel::step)));
-	//runner.scheduleEndEvent(repast::Schedule::FunctorPtr(new repast::MethodFunctor<MadModel> (this, &MadModel::recordResults)));
 	runner.scheduleStop(_stopAt);
+    runner.scheduleEndEvent(Schedule::FunctorPtr(new MethodFunctor<MadModel> (this, &MadModel::dataSetClose)));
+
 }
 //------------------------------------------------------------------------------------------------------------
 void MadModel::init(){
@@ -122,27 +145,24 @@ void MadModel::init(){
     unsigned cohortCount = strToInt(_props->getProperty("cohort.count"));
     unsigned numStockGroups = StockDefinitions::Get()->size();
     
-    //arbitrary numbers to distiguish the agents types
-    _cohortType = 0;
-    _stockType  = 1;
+    randomizer random;
+    random.SetSeed(100);
     
     //explicitly use the local bounds of the grid on this thread to create countOfAgents per cell.
-    //Not doing this can lead to problems with agents in dsitant cells not within the local thread neighbourhood
+    //Not doing this can lead to problems with agents in distant cells not within the local thread neighbourhood
     //see SharedBaseGrid.h moveTo method
-    int xmin=        discreteSpace->dimensions().origin().getX() ;
-    int xmax= xmin + discreteSpace->dimensions().extents().getX();
-    int ymin=        discreteSpace->dimensions().origin().getY() ;
-    int ymax= ymin + discreteSpace->dimensions().extents().getY();
-     unsigned totalCohorts=0,totalStocks=0;
 
-  unsigned cNum=0,sNum=0;
+    unsigned totalCohorts=0,totalStocks=0;
+
+    unsigned cNum=0,sNum=0;
 
     unsigned totalStocksThisCell=0;
 
   
     int s=0;
-    for (int x = xmin; x < xmax; x++){
-        for (int y = ymin; y < ymax; y++){
+    
+    for (int x = _xlo; x < _xhi; x++){
+        for (int y = _ylo; y < _yhi; y++){
              Environment* E=_Env[x-_minX+(_maxX-_minX+1)*(y-_minY)];
              unsigned totalCohortsThisCell=0;
              for (unsigned i=0;i<numCohortGroups;i++) if (E->_Realm==CohortDefinitions::Get()->Trait(i,"realm"))totalCohortsThisCell+=cohortCount;
@@ -155,9 +175,13 @@ void MadModel::init(){
                          repast::AgentId id(Cohort::_NextID, rank, _cohortType);
                          id.currentRank(rank);
                          Cohort* c = new Cohort(id);
-                         c->setup(i,totalCohortsThisCell, E);
+                         c->setup(i,totalCohortsThisCell, E,random);
                          _context.addAgent(c);
                          discreteSpace->moveTo(id, initialLocation);
+
+                         _totalCohorts++;
+                         _totalCohortAbundance += c->_CohortAbundance;
+                         _totalCohortBiomass += ( c->_IndividualBodyMass + c->_IndividualReproductivePotentialMass ) * c->_CohortAbundance / 1000.;//g to kg
                     }
                 }
              }
@@ -170,24 +194,52 @@ void MadModel::init(){
                          agent->setup(i, E);
                          _context.addAgent(agent);
                          discreteSpace->moveTo(id, initialLocation);
+                         _totalStockBiomass+=agent->_TotalBiomass/1000; //g to kg
                          s++;
                 }
              }
             }
         }
-	
+    cout<<"rank "<<rank<<" totalCohorts "<<_totalCohorts<<" totalStocks "<<s<<endl;
 	//The things added to the datasetbuilder will be accumulated over cores each timestep and output to data.csv
-//	SVDataSetBuilder svbuilder("./output/data.csv", ",", repast::RepastProcess::instance()->getScheduleRunner().schedule());
-//	CohortSum* cSum = new CohortSum(this);
-//	svbuilder.addDataSource(repast::createSVDataSource("Total Cohorts", cSum, std::plus<int>()));
-//    StockBiomassSum* sSum = new StockBiomassSum(this);
-//    CohortAbundanceSum* caSum = new CohortAbundanceSum(this);
-//  	svbuilder.addDataSource(repast::createSVDataSource("Total Cohort Abundance", caSum, std::plus<double>()));
-//  	svbuilder.addDataSource(repast::createSVDataSource("Total Stock Biomass", sSum, std::plus<double>()));
-//    CohortBiomassSum* cbSum = new CohortBiomassSum(this);
-//  	svbuilder.addDataSource(repast::createSVDataSource("Total Cohort Biomass", cbSum, std::plus<double>()));
+	SVDataSetBuilder svbuilder("./output/data.csv", ",", repast::RepastProcess::instance()->getScheduleRunner().schedule());
 
-//	addDataSet(svbuilder.createDataSet());
+    DispersalSum* DSum = new DispersalSum(this);
+    svbuilder.addDataSource(repast::createSVDataSource("Dispersals", DSum, std::plus<int>()));
+    
+    ExtinctionSum* ESum = new ExtinctionSum(this);
+    svbuilder.addDataSource(repast::createSVDataSource("Extinctions", ESum, std::plus<int>()));
+    
+    ProductionSum* PSum = new ProductionSum(this);
+    svbuilder.addDataSource(repast::createSVDataSource("Productions", PSum, std::plus<int>()));
+    
+    CombinationSum* coSum = new CombinationSum(this);
+    svbuilder.addDataSource(repast::createSVDataSource("Combinations", coSum, std::plus<int>()));
+    
+    CohortSum* cSum = new CohortSum(this);
+	svbuilder.addDataSource(repast::createSVDataSource("Total Cohorts", cSum, std::plus<int>()));
+    
+    StockSum* sSum = new StockSum(this);
+	svbuilder.addDataSource(repast::createSVDataSource("Total Stocks", sSum, std::plus<int>()));
+    
+    CohortAbundanceSum* caSum = new CohortAbundanceSum(this);
+  	svbuilder.addDataSource(repast::createSVDataSource("Total Cohort Abundance", caSum, std::plus<double>()));
+        
+    CohortOrganicPool* cpool = new CohortOrganicPool(this);
+  	svbuilder.addDataSource(repast::createSVDataSource("OrganicPool", cpool, std::plus<double>()));
+    
+    CohortResp* rpool = new CohortResp(this);
+  	svbuilder.addDataSource(repast::createSVDataSource("RespiratoryC02Pool", rpool, std::plus<double>()));
+    
+    StockBiomassSum* sbSum = new StockBiomassSum(this);
+  	svbuilder.addDataSource(repast::createSVDataSource("Total Stock Biomass", sbSum, std::plus<double>()));
+    
+    CohortBiomassSum* cbSum = new CohortBiomassSum(this);
+  	svbuilder.addDataSource(repast::createSVDataSource("Total Cohort Biomass", cbSum, std::plus<double>()));
+    
+
+	addDataSet(svbuilder.createDataSet());
+
 #ifndef _WIN32
 	// no netcdf under windows?
 //	NCDataSetBuilder builder("./output/data.ncf", RepastProcess::instance()->getScheduleRunner().schedule());
@@ -207,13 +259,115 @@ void MadModel::init(){
 //Run the model
 //------------------------------------------------------------------------------------------------------------
 void MadModel::step(){
+    _totalCohorts=0;
+    _totalStocks=0;
+    _totalCohortAbundance=0;
+    _totalCohortBiomass=0;
+    _totalStockBiomass=0;
+    _totalMerged=0;
+    _totalReproductions=0;
+    _totalDeaths=0;
+    _totalMoved=0;
+    
     unsigned CurrentTimeStep=RepastProcess :: instance ()->getScheduleRunner ().currentTick () - 1;
+    //needed to advance the datalayers to the current timestep
+    TimeStep::Get( )->SetMonthly( CurrentTimeStep);
+    
 	if(repast::RepastProcess::instance()->rank() == 0) 
         std::cout << " TICK " << CurrentTimeStep << std::endl;
 
     //make sure all data is synced across threads
     sync();
+    vector<unsigned> cohortBreakdown;
+    cohortBreakdown.resize(19);
+    for (auto& k:cohortBreakdown){k=0;}
 
+    //loop over local grid cells
+
+    for(int x = _xlo; x < _xhi; x++){
+        for(int y = _ylo; y < _yhi; y++){
+
+            Environment* E=_Env[x-_minX+(_maxX-_minX+1)*(y-_minY)];
+            E->zeroPools();
+
+            repast::Point<int> location(x,y);
+            std::vector<MadAgent*> agentsInCell;
+            //query four neighbouring cells, distance 0 (i.e. just the centre cell) - "true" keeps the centre cell.
+            repast::VN2DGridQuery<MadAgent> VN2DQuery(space());
+            VN2DQuery.query(location, 0, true, agentsInCell);
+            std::vector<Stock*> stocks;
+            std::vector<Cohort*> cohorts;
+            for (auto a:agentsInCell){
+               if (a->getId().currentRank()==repast::RepastProcess::instance()->rank() && a->_alive){//agents must be local and living!
+                if (a->getId().agentType()==_stockType) stocks.push_back( (Stock*) a); else cohorts.push_back( (Cohort*) a);
+               }
+            }
+            //need to random shuffle cohorts - this uses the version in repast::Random.h
+            
+            shuffleList<Cohort>(cohorts);
+            double allBiomass=0;
+            for (auto s:stocks)allBiomass+=s->_TotalBiomass;
+            for (auto s:stocks){s->step(allBiomass,E, CurrentTimeStep);}
+            for (auto c:cohorts)c->step(E, cohorts, stocks, CurrentTimeStep);
+            for (auto s:stocks){_totalStockBiomass+=s->_TotalBiomass/1000;_totalStocks++;}
+
+            //cohorts can have one offspring per timestep - add the offspring to the model
+            vector<Cohort*> newCohorts;
+            for (auto c:cohorts)if(c->_newH!=NULL){
+                _context.addAgent(c->_newH);
+                discreteSpace->moveTo(c->_newH->getId(), location);
+                newCohorts.push_back(c->_newH);
+                _totalReproductions++;
+            }
+            //make sure new cohorts can get marked for death/merged - new cohorts are guaranteed to be local
+            for (auto n:newCohorts){cohorts.push_back(n);}
+            newCohorts.clear();
+            for (auto c:cohorts){c->markForDeath();if (!c->_alive)_totalDeaths++;}
+            
+            _totalMerged+=CohortMerger::MergeToReachThresholdFast(cohorts);
+
+            for (auto c:cohorts){
+                if (c->_alive){
+                    _totalCohorts++;
+                    _totalCohortAbundance += c->_CohortAbundance;
+                    _totalCohortBiomass += ( c->_IndividualBodyMass + c->_IndividualReproductivePotentialMass ) * c->_CohortAbundance / 1000.;
+                    cohortBreakdown[c->_FunctionalGroupIndex]++;
+                }
+            }
+            //care with sync() here - need to get rid of non-local not-alive agents:currently this is a lazy delete for non-local agents (they get removed one timestep late)?
+            for (auto a:agentsInCell)if (!a->_alive)_context.removeAgent(a->getId());//does this delete the agent storage? - yes if Boost:shared_ptr works OK
+            _totalOrganciPool+=E->organicPool()/1000;
+            _totalRespiratoryCO2Pool+=E->respiratoryPool()/1000;
+        }
+    }
+    //numbers per functional group
+    for (auto& k:cohortBreakdown){cout<<k<<" ";}cout<<endl;
+
+    //_moved has been set to false by the cohort step method and is false for new agents
+    //if _moved is not used then agents can move multiple times in a step since they get picked up in queries of cells during the loop
+    for(int x = _xlo; x < _xhi; x++){
+        for(int y = _ylo; y < _yhi; y++){
+            Environment* E=_Env[x-_minX+(_maxX-_minX+1)*(y-_minY)];
+            repast::Point<int> location(x,y);
+            std::vector<MadAgent*> agentsInCell;
+            //query four neighbouring cells, distance 0 (i.e. just the centre cell) - "true" keeps the centre cell.
+            repast::VN2DGridQuery<MadAgent> VN2DQuery(space());
+            VN2DQuery.query(location, 0, true, agentsInCell);
+
+            for (auto a:agentsInCell){
+                 if (a->getId().currentRank()==repast::RepastProcess::instance()->rank()){
+                     if (a->getId().agentType()==MadModel::_cohortType && !a->_moved) {((Cohort*) a)->moveIt(E,this);if (a->_moved)_totalMoved++;}
+                }
+            }
+        }
+    }    
+        
+}
+//             for (auto& a:agentsInCell){
+//                if (a->getId().currentRank()==repast::RepastProcess::instance()->rank()){//agents must be local
+//                if (a->getId().agentType()==MadModel::_cohortType && !((Cohort*) a)->_moved){   ((Cohort*) a)->relocateBy(1,-1,this);}
+//                }
+//             }
 	//for(auto& a:agents){
 	//	a->step(this);
     //    }
@@ -227,64 +381,49 @@ void MadModel::step(){
 
 		a->reportLocation(this);
         }*/
-    int xmin=        discreteSpace->dimensions().origin().getX() ;
-    int xmax= xmin + discreteSpace->dimensions().extents().getX();
-    int ymin=        discreteSpace->dimensions().origin().getY() ;
-    int ymax= ymin + discreteSpace->dimensions().extents().getY();
-    for(int x = xmin; x < xmax; x++){
-        for(int y = ymin; y < ymax; y++){
+ //           for (auto& a:agentsInCell){
+//AgentId oil=a->getId();
+//if (!a->_moved){
+//                if (oil.id()==67 && oil.agentType()==1 && oil.startingRank()==0)cout<<"x "<<x<<" y "<<y<<" "<<oil.id()<<" "<<oil.currentRank()<<" "<<oil.agentType()<<" "<<oil.startingRank()<< " "<<xlo<<" "<<xhi<<" "<<ylo<<" "<<yhi<<endl;
+               // assert(oil.currentRank()==repast::RepastProcess::instance()->rank());}
+//}
+//            }
 
-            Environment* E=_Env[x-_minX+(_maxX-_minX+1)*(y-_minY)];
-            repast::Point<int> location(x,y);
-            std::vector<MadAgent*> agentsInCell;
-            //query four neighbouring cells, distance 0 (i.e. just the centre cell) - "true" keeps the centre cell.
-            repast::VN2DGridQuery<MadAgent> VN2DQuery(space());
-            VN2DQuery.query(location, 0, true, agentsInCell);
-            std::vector<Stock*> stocks;
-            std::vector<Cohort*> cohorts;
-            for (auto a:agentsInCell){
-                if (a->getId().agentType()==_stockType) stocks.push_back( (Stock*) a); else cohorts.push_back( (Cohort*) a);
-            }
-            
-            double allBiomass=0;
-            for (auto s:stocks)allBiomass+=s->_TotalBiomass;
-            for (auto s:stocks)s->step(allBiomass,E, CurrentTimeStep);
-            for (auto c:cohorts)c->step(E, cohorts, stocks, CurrentTimeStep);
-        }
-    }
-        
-        
-}
 //------------------------------------------------------------------------------------------------------------
 void MadModel::sync(){
     //These lines synchronize the agents across all threads - if there is more than one...
-/*	discreteSpace->balance();
-    repast::RepastProcess::instance()->synchronizeAgentStatus<MadAgent, MadAgentPackage, 
+    //Question - are threads guaranteed to be in sync?? (i.e. are we sure that all threads are on the same timestep?)
+	discreteSpace->balance();
+    repast::RepastProcess::instance()->synchronizeAgentStatus<MadAgent, AgentPackage, 
              MadAgentPackageProvider, MadAgentPackageReceiver>(_context, *provider, *receiver, *receiver);
     
-    repast::RepastProcess::instance()->synchronizeProjectionInfo<MadAgent, MadAgentPackage, 
+    repast::RepastProcess::instance()->synchronizeProjectionInfo<MadAgent, AgentPackage, 
              MadAgentPackageProvider, MadAgentPackageReceiver>(_context, *provider, *receiver, *receiver);
 
-	repast::RepastProcess::instance()->synchronizeAgentStates<MadAgentPackage, 
+	repast::RepastProcess::instance()->synchronizeAgentStates<AgentPackage, 
              MadAgentPackageProvider, MadAgentPackageReceiver>(*provider, *receiver);
-             */
+             
 }
 //------------------------------------------------------------------------------------------------------------
 // Packages for exchanging agents across threads
 //------------------------------------------------------------------------------------------------------------
-/*
+
 
 MadAgentPackageProvider::MadAgentPackageProvider(repast::SharedContext<MadAgent>* agentPtr): agents(agentPtr){ }
 //------------------------------------------------------------------------------------------------------------
 
-void MadAgentPackageProvider::providePackage(MadAgent * agent, std::vector<MadAgentPackage>& out){
+void MadAgentPackageProvider::providePackage(MadAgent* agent, std::vector<AgentPackage>& out){
     repast::AgentId id = agent->getId();
-    MadAgentPackage package(id.id(), id.startingRank(), id.agentType(), id.currentRank(), agent->getC(), agent->getTotal());
-    out.push_back(package);
+    if (id.agentType() == MadModel::_cohortType){
+     AgentPackage package(id.id(), id.startingRank(), id.agentType(), id.currentRank());
+     ((Cohort*)agent)->PushThingsIntoPackage(package);
+     out.push_back(package);
+    }
 }
+
 //------------------------------------------------------------------------------------------------------------
 
-void MadAgentPackageProvider::provideContent(repast::AgentRequest req, std::vector<MadAgentPackage>& out){
+void MadAgentPackageProvider::provideContent(repast::AgentRequest req, std::vector<AgentPackage>& out){
     std::vector<repast::AgentId> ids = req.requestedAgents();
     for(size_t i = 0; i < ids.size(); i++){
         providePackage(agents->getAgent(ids[i]), out);
@@ -296,18 +435,41 @@ void MadAgentPackageProvider::provideContent(repast::AgentRequest req, std::vect
 MadAgentPackageReceiver::MadAgentPackageReceiver(repast::SharedContext<MadAgent>* agentPtr): agents(agentPtr){}
 //------------------------------------------------------------------------------------------------------------
 
-MadAgent * MadAgentPackageReceiver::createAgent(MadAgentPackage package){
-    repast::AgentId id(package.id, package.rank, package.type, package.currentRank);
-    return new MadAgent(id, package.c, package.total);
+MadAgent * MadAgentPackageReceiver::createAgent(AgentPackage package){
+    repast::AgentId id(package._id, package._rank, package._type, package._currentRank);
+    if (id.agentType() == MadModel::_cohortType){
+        Cohort* c=new Cohort(id,package);
+        return c;
+    } else {
+        return NULL;
+    }
 }
 //------------------------------------------------------------------------------------------------------------
-
-void MadAgentPackageReceiver::updateAgent(MadAgentPackage package){
-    repast::AgentId id(package.id, package.rank, package.type);
-    MadAgent * agent = agents->getAgent(id);
-    agent->set(package.currentRank, package.c, package.total);
+//This function is needed if buffers are being used so that agents can interact across cellSize
+//At present it does nothing
+void MadAgentPackageReceiver::updateAgent(AgentPackage package){
+    repast::AgentId id(package._id, package._rank, package._type);
+    if (id.agentType() == MadModel::_cohortType){
+      Cohort* agent = (Cohort*)(agents->getAgent(id));//I think this matches irrespective of the value of currentRank (AgentId== operator doesn't use it)
+      agent->PullThingsOutofPackage(package);//agent->set(id.currentRank(),package);// Do not use !! this line is incorrect!!
+    }
 }
 
 //------------------------------------------------------------------------------------------------------------
 
-*/
+void MadModel::dataSetClose() {
+	for (size_t i = 0; i < dataSets.size(); ++i) {
+		(dataSets[i])->write();
+		(dataSets[i])->close();
+	}
+}
+
+void MadModel::addDataSet(repast::DataSet* dataSet) {
+	dataSets.push_back(dataSet);
+	ScheduleRunner& runner = RepastProcess::instance()->getScheduleRunner();
+	runner.scheduleEvent(0.1, 1, Schedule::FunctorPtr(new MethodFunctor<repast::DataSet> (dataSet,
+			&repast::DataSet::record)));
+	Schedule::FunctorPtr dsWrite = Schedule::FunctorPtr(new MethodFunctor<repast::DataSet> (dataSet,
+			&repast::DataSet::write));
+	runner.scheduleEvent(100.2, 100, dsWrite);
+}

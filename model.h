@@ -16,12 +16,16 @@
 #include "Environment.h"
 #include "agent.h"
 
-class MadAgentPackage;
+
+class MadModel;
+class AgentPackage;
 //This is an alias for the background discrete grid
 typedef repast::SharedDiscreteSpace<MadAgent, repast::WrapAroundBorders, repast::SimpleAdder<MadAgent> > modelSpaceType;
 
 
-/*
+//------------------------------------------------------------------------------------------
+//Structs for moving agents across threads
+//------------------------------------------------------------------------------------------
 class MadAgentPackageProvider {
 	
 private:
@@ -29,14 +33,14 @@ private:
 	
 public:
 	
-    MadAgentPackageProvider(repast::SharedContext<MadAgent>* agentPtr);
-	
-    void providePackage(MadAgent * agent, std::vector<MadAgentPackage>& out);
-	
-    void provideContent(repast::AgentRequest req, std::vector<MadAgentPackage>& out);
+   MadAgentPackageProvider(repast::SharedContext<MadAgent>* agentPtr);
+
+    void providePackage(MadAgent * agent, std::vector<AgentPackage>& out);
+
+    void provideContent(repast::AgentRequest req, std::vector<AgentPackage>& out);
 	
 };
-
+//------------------------------------------------------------------------------------------
 class MadAgentPackageReceiver {
 	
 private:
@@ -46,27 +50,36 @@ public:
 	
     MadAgentPackageReceiver(repast::SharedContext<MadAgent>* agentPtr);
 	
-    MadAgent * createAgent(MadAgentPackage package);
+    MadAgent * createAgent(AgentPackage package);
 	
-    void updateAgent(MadAgentPackage package);
+    void updateAgent(AgentPackage package);
 	
-};*/
-
-
+};
+//------------------------------------------------------------------------------------------
+//Actual model class
+//------------------------------------------------------------------------------------------
 class MadModel{
+    
 	int _stopAt;
-    int _stockType, _cohortType;
-    double _minX,_minY,_maxX,_maxY;
+
 	repast::Properties* _props;
 	repast::SharedContext<MadAgent> _context;
-    vector<Environment*> _Env;
+    std::vector<repast::DataSet*> dataSets;
 	
-	//MadAgentPackageProvider* provider;
-	//MadAgentPackageReceiver* receiver;
+	MadAgentPackageProvider* provider;
+	MadAgentPackageReceiver* receiver;
 
     modelSpaceType* discreteSpace;
-	
+    int _totalCohorts,_totalStocks;
+    double _totalCohortAbundance,_totalCohortBiomass,_totalStockBiomass,_totalOrganciPool,_totalRespiratoryCO2Pool;
+    int    _totalMerged,_totalReproductions,_totalDeaths,_totalMoved;
+    void dataSetClose();
+    void addDataSet(repast::DataSet*) ;
+
 public:
+    int _minX,_minY,_maxX,_maxY;
+    int _xlo,_xhi,_ylo,_yhi;
+    vector<Environment*> _Env;
 	MadModel(std::string propsFile, int argc, char** argv, boost::mpi::communicator* comm);
 	~MadModel();
 	void init();
@@ -76,5 +89,41 @@ public:
 	void initSchedule(repast::ScheduleRunner& runner);
 	void recordResults();
     modelSpaceType* space(){return discreteSpace;}
+    static int _stockType, _cohortType;
+    //outputs
+    int CohortCount() const {
+		return _totalCohorts;
+	}
+    int StockCount() const {
+		return _totalStocks;
+	}
+	double CohortAbundance() const {
+		return _totalCohortAbundance;
+	}
+	double CohortBiomass() const {
+		return _totalCohortBiomass;
+	}
+	double StockBiomass() const {
+		return _totalStockBiomass;
+	}
+	double OrganicPool() const {
+		return _totalOrganciPool;
+	}
+	double RespiratoryCO2Pool() const {
+		return _totalRespiratoryCO2Pool;
+	}
+	int Merged() const {
+       return _totalMerged;
+    }
+    int Reproductions() const{
+        return _totalReproductions;
+    }
+    int Deaths(){
+        return _totalDeaths;
+    }
+    int Moved(){
+        return _totalMoved;
+    }
+
 };
 #endif

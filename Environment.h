@@ -43,7 +43,11 @@ public:
     unsigned LatitudeIndex();
     unsigned LongitudeIndex();
     unsigned _cellIndex;
-    
+    void addToOrganicPool(double d){_OrganicPool+=d;}
+    void addToRespiratoryCO2Pool(double d){_RespiratoryCO2Pool+=d;}
+    double organicPool(){return _OrganicPool;};
+    double respiratoryPool(){return _RespiratoryCO2Pool;};
+    void zeroPools(){    _OrganicPool=0; _RespiratoryCO2Pool=0;}
 private:
     double GetVariableFromDatasetNamed(std:: string s);
     void   SetTotalPrecip();

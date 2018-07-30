@@ -46,10 +46,11 @@
 #include "Cohort.h"
 #include "Stock.h"
 #include "Parameters.h"
+#include "model.h"
 
 using namespace repast;
 unsigned Cohort::_NextID=0;
-
+//------------------------------------------------------------------------------------------------------------
 void Cohort::ResetMassFluxes( ) {
     // Initialize delta abundance sorted list with appropriate processes
 
@@ -74,8 +75,10 @@ void Cohort::ResetMassFluxes( ) {
     _MassAccounting["respiratoryCO2pool"]["metabolism"] = 0.0;
 }
 //used to create an initial set of cohorts at the start of a run
-void Cohort::setup(unsigned functionalGroup,unsigned numCohortsThisCell,Environment* e){
+//------------------------------------------------------------------------------------------------------------
+void Cohort::setup(unsigned functionalGroup,unsigned numCohortsThisCell,Environment* e,randomizer& r){
     ResetMassFluxes( );
+
     _FunctionalGroupIndex=functionalGroup;
     _Merged                      = false;
     _alive                       = true;
@@ -107,14 +110,19 @@ void Cohort::setup(unsigned functionalGroup,unsigned numCohortsThisCell,Environm
     _MaximumMass=CohortDefinitions::Get()->Property(functionalGroup   ,"maximum mass");
 
     repast::DoubleUniformGenerator gen = repast::Random::instance()->createUniDoubleGenerator(0, 1);
+    
     _AdultMass = pow( 10, ( gen.next( ) * ( log10( _MaximumMass ) - log10( 50 * _MinimumMass ) ) + log10( 50 * _MinimumMass ) ) );
-  
-    //Changes from original code
-    NormalGenerator NJ= repast::Random::instance()->createNormalGenerator(0.1,0.02);
-    _LogOptimalPreyBodySizeRatio = log(std::max( 0.01, NJ.next() ));
+    
 
+    NormalGenerator NJ= repast::Random::instance()->createNormalGenerator(0.1,0.02);
+    
+    _LogOptimalPreyBodySizeRatio = log(std::max( 0.01, NJ.next() ));
+    
     double expectedLnAdultMassRatio = 2.24 + 0.13 * log( _AdultMass );
-    LogNormalGenerator LNJ= repast::Random::instance()->createLogNormalGenerator(expectedLnAdultMassRatio, 0.5);
+    //in the original code the mean and sd are those of the underlying normal distribution
+    //in the boost lobrary they refer to the log distibution - see
+    //https://www.boost.org/doc/libs/1_43_0/libs/math/doc/sf_and_dist/html/math_toolkit/dist/dist_ref/dists/lognormal_dist.html
+    LogNormalGenerator LNJ= repast::Random::instance()->createLogNormalGenerator(exp(expectedLnAdultMassRatio+0.5*0.5/2.), (exp(0.5*0.5)-1)*exp(2*expectedLnAdultMassRatio+0.5*0.5));
 
     if( _Realm=="terrestrial" ) {
           do {
@@ -131,10 +139,9 @@ void Cohort::setup(unsigned functionalGroup,unsigned numCohortsThisCell,Environm
     _CohortAbundance = NewBiomass / _JuvenileMass;
     _MaximumAchievedBodyMass=_JuvenileMass;
     _IndividualBodyMass=_JuvenileMass;
-    
 }
 //------------------------------------------------------------------------------------------------------------
-void Cohort::SuckThingsOutofPackage( const AgentPackage& package ) {
+void Cohort::PullThingsOutofPackage( const AgentPackage& package ) {
     _FunctionalGroupIndex        = package._FunctionalGroupIndex;
     _JuvenileMass                = package._JuvenileMass;
     _AdultMass                   = package._AdultMass;
@@ -172,7 +179,7 @@ void Cohort::SuckThingsOutofPackage( const AgentPackage& package ) {
     _AssimilationEfficiency_C=package._AssimilationEfficiency_C;
 }
 //------------------------------------------------------------------------------------------------------------
-void Cohort::SqodgeThingsIntoPackage( AgentPackage& package ) {
+void Cohort::PushThingsIntoPackage( AgentPackage& package ) {
     package._FunctionalGroupIndex        =  _FunctionalGroupIndex;
     package._JuvenileMass                =  _JuvenileMass;
     package._AdultMass                   =  _AdultMass;
@@ -209,10 +216,10 @@ void Cohort::SqodgeThingsIntoPackage( AgentPackage& package ) {
     package._AssimilationEfficiency_H= _AssimilationEfficiency_H;
     package._AssimilationEfficiency_C= _AssimilationEfficiency_C;
 }
-
 //------------------------------------------------------------------------------------------------------------
 void Cohort::setupOffspring( Cohort* actingCohort, double juvenileBodyMass, double adultBodyMass, double initialBodyMass, double initialAbundance, unsigned birthTimeStep ) {
-    ResetMassFluxes( );
+     ResetMassFluxes( );
+     _newH=NULL;
     _FunctionalGroupIndex        = actingCohort->_FunctionalGroupIndex;
     _JuvenileMass                = juvenileBodyMass;
     _AdultMass                   = adultBodyMass;
@@ -249,25 +256,26 @@ void Cohort::setupOffspring( Cohort* actingCohort, double juvenileBodyMass, doub
     
     _AssimilationEfficiency_H=CohortDefinitions::Get()->Property(_FunctionalGroupIndex   ,"herbivory assimilation");
     _AssimilationEfficiency_C=CohortDefinitions::Get()->Property(_FunctionalGroupIndex   ,"carnivory assimilation");
-    
+
 
 }
 //------------------------------------------------------------------------------------------------------------
 void Cohort::step(Environment* e,vector<Cohort*>& preys,vector<Stock*>& stocks,const unsigned T) {
-        if(getId().currentRank()!=repast::RepastProcess::instance()->rank())return;
-
+    _newH=NULL;//make sure the reproduction pointer has been zeroed out
+    _moved=false;//cohorts cannot have moved yet
+    if (_CohortAbundance - Parameters::Get( )->GetExtinctionThreshold( ) <= 0)return;
     _CurrentTimeStep=T;
 
     //note - passing in preys here from above ensures that new cohorts created later do not immediately get eaten.
     //since they *do* get added to the global cohort list straight away.
     //pass in of environment avoids having to find it with an expensive lookup
-    //ResetMassFluxes( );
-    //assignTimeActive();
-    //eat(e,preys,stocks);
-    //metabolize(e);
-    //reproduce(e);
-    //mort();
-    //applyEcology();
+    ResetMassFluxes( );
+    assignTimeActive(e);
+    eat(e,preys,stocks);
+    metabolize(e);
+    reproduce(e);
+    mort();
+    applyEcology(e);
 
 }
 //------------------------------------------------------------------------------------------------------------
@@ -279,18 +287,11 @@ void Cohort::markForDeath(){
     }
 }
 //------------------------------------------------------------------------------------------------------------
-void Cohort::expire(){
-    //now really kill the cohort.
-    //if (!_alive)die();context.removeAgent(id);
-}
-//------------------------------------------------------------------------------------------------------------
-void Cohort::moveIt(Environment* e){
-    	// if cohort is now dead we can't move it because
-	    // it will be removed from the sim and the synchronization
-	    // mechanism cannot move it.
+void Cohort::moveIt(Environment* e,MadModel* m){
+
 
         if (!_alive)return;
-
+      
        // Calculate the scalar to convert from the time step units used by this implementation of dispersal to the global model time step units
         double DeltaT = Constants::cMonth;
         double latCellLength = e->Height();
@@ -302,9 +303,8 @@ void Cohort::moveIt(Environment* e){
 
         
         double dispersalSpeed=0.;
-
-        if( _IsPlanktonic ) {
-
+        if( _IsPlanktonic || (_Realm=="marine" &&  (_IndividualBodyMass <= Parameters::Get( )->GetPlanktonSizeThreshold( ))))  {
+          NormalGenerator NJ= repast::Random::instance()->createNormalGenerator(0,1);
           // Advective dispersal
           //dispersalName = "advective";
           double HorizontalDiffusivity = 100;
@@ -316,7 +316,6 @@ void Cohort::moveIt(Environment* e){
 
           // Convert velocity from m/s to km/month. Note that if the _TimeUnitImplementation changes, this will also have to change.
           double VelocityUnitConversion = 60 * 60 * 24 * Constants::cDay * Constants::cMonth  / 1000;
-          
           for( int mm = 0; mm < AdvectionTimeStepsPerModelTimeStep; mm++ ) {
             // Get the u speed and the v speed from the cell data
             double uAdvectiveSpeed = e->uVel();
@@ -327,12 +326,11 @@ void Cohort::moveIt(Environment* e){
 
             // Note that this formulation drops the delta t because we set the horizontal diffusivity to be at the same temporal
             // scale as the time step
-            NormalGenerator NJ= repast::Random::instance()->createNormalGenerator(0,1);
+            
             // Calculate the distance travelled in this dispersal (not global) time step. both advective and diffusive speeds need to have been converted to km / advective model time step
             double uSpeed = uAdvectiveSpeed * VelocityUnitConversion / AdvectionTimeStepsPerModelTimeStep + NJ.next() * sqrt( ( 2.0 * HorizontalDiffusivityKmSqPerADTimeStep ) );
             double vSpeed = vAdvectiveSpeed * VelocityUnitConversion / AdvectionTimeStepsPerModelTimeStep + NJ.next() * sqrt( ( 2.0 * HorizontalDiffusivityKmSqPerADTimeStep ) );
-
-             TryToDisperse( uSpeed,vSpeed,e );
+            TryToDisperse( uSpeed,vSpeed,e,m );
           }
         }// Otherwise, if mature do responsive dispersal
 
@@ -354,14 +352,14 @@ void Cohort::moveIt(Environment* e){
              // If the body mass loss is greater than the starvation dispersal body mass threshold, then the cohort tries to disperse
              if( _IndividualBodyMass / _AdultMass < StarvationDispersalBodyMassThreshold ) {
                 // Cohort tries to disperse
-                TryToDisperse( dispersalSpeed,e );
+                TryToDisperse( dispersalSpeed,e,m );
                 // Note that regardless of whether or not it succeeds,  it is counted as having dispersed for the purposes of not then allowing it to disperse based on its density.
                 cohortHasDispersed = true;
                 // Otherwise, the cohort has a chance of trying to disperse proportional to its mass lass
              } else {
                // Cohort tries to disperse with a particular probability
                if( ( ( 1.0 - _IndividualBodyMass / _AdultMass ) / ( 1.0 - StarvationDispersalBodyMassThreshold ) ) > repast::Random::instance()->nextDouble() ) {
-                 TryToDisperse( dispersalSpeed,e );
+                 TryToDisperse( dispersalSpeed,e,m );
                  cohortHasDispersed = true;
                }
              }
@@ -370,27 +368,28 @@ void Cohort::moveIt(Environment* e){
           if( !cohortHasDispersed ) {
             // If below the density threshold
             if( ( _CohortAbundance / CellArea ) < DensityThresholdScaling / _AdultMass ) {
-                TryToDisperse( dispersalSpeed,e );
+                TryToDisperse( dispersalSpeed,e,m );
            }
           }
         }// If the cohort is immature, run diffusive dispersal
         else {
            dispersalSpeed=DispersalSpeedBodyMassScalar * pow( _IndividualBodyMass, DispersalSpeedBodyMassExponent);
 
-           TryToDisperse( dispersalSpeed,e );
+           TryToDisperse( dispersalSpeed,e,m );
         }
+
 }
 //------------------------------------------------------------------------------------------------------------
- void Cohort::TryToDisperse(double dispersalSpeed, Environment* e){
+ void Cohort::TryToDisperse(double dispersalSpeed, Environment* e,MadModel* m){
     double randomDirection = repast::Random::instance()->nextDouble()* 2 * acos( -1. );
 
     // Calculate the u and v components given the dispersal speed
     double uSpeed = dispersalSpeed * cos( randomDirection );
     double vSpeed = dispersalSpeed * sin( randomDirection );
-    TryToDisperse(uSpeed, vSpeed,e);
+    TryToDisperse(uSpeed, vSpeed,e,m);
  }
  //------------------------------------------------------------------------------------------------------------
- void Cohort::TryToDisperse(double uSpeed, double vSpeed,Environment* e){
+ void Cohort::TryToDisperse(double uSpeed, double vSpeed,Environment* e, MadModel* m){
  // Pick a direction at random
     double latCellLength = e->Height();
     double lonCellLength = e->Width();
@@ -415,10 +414,10 @@ void Cohort::moveIt(Environment* e){
    // Note that the values in the dispersal array are the proportional area moved outside the grid cell in each direction; we simply compare the random draw to this
    // to determine the direction in which the cohort moves probabilistically
    double RandomValue=repast::Random::instance()->nextDouble();
+   if( DispersalProbability >= RandomValue ) {
 
-   //if( DispersalProbability >= RandomValue ) {
-      double signu = ( uSpeed > 0 ) - ( uSpeed < 0 );
-      double signv = ( vSpeed > 0 ) - ( vSpeed < 0 );
+      int signu = ( uSpeed > 0 ) - ( uSpeed < 0 );
+      int signv = ( vSpeed > 0 ) - ( vSpeed < 0 );
       // Longitudinally
       if( RandomValue <= AreaOutsideU / CellArea ) {
        signv = 0;
@@ -428,25 +427,30 @@ void Cohort::moveIt(Environment* e){
            signu = 0;
        }
      }
-     //DEBUG
-     //signu=1;signv=1;
-      //facexy(xCor()+signu,yCor()+signv);move(sqrt(double(2.0)));
-     //setxy(doubleCoordToInt(xCor()+signu),doubleCoordToInt(yCor()));
-     //setxy(doubleCoordToInt(xCor()),doubleCoordToInt(yCor()+signv));//)sqrt(signu*signu+signv*signv));
-     //cout<<"ming "<<getId().id()<<" "<<getId().currentRank()<<" "<<e->xCor()<<" "<<e->yCor()<<endl;
-     //repast::relogo::AgentSet<Environment>ook; e->neighbors(ook);for(auto o:ook)cout<<"ning! "<<(o->xCor()-(xCor()+signu)) << " "<< o->yCor()-(yCor()+signv)<<endl;
-     //Environment* er=patchRightAndAhead<Environment>(0,1);if (er ==0)cout<<"blerrrg "<<endl;  //expensive call
+      vector<int> location;
+      m->space()->getLocation(_id, location);
+      int x=location[0],y=location[1];
 
-     //if (er!=0 and abs(e->Latitude()-er->Latitude() ) < 80){// and er->_Realm==_Realm) {
-     //   if (getId().startingRank()==0 )cout<<_CurrentTimeStep<<"here "<<er<<endl;
-
-    //    moveTo(er);
-
-    // } 
+     //only move if realm matches and we haven't exceed upper and lower latitude bounds (currently no movement across the pole)
+     if (x+signu >= m->_minX && x+signu <= m->_maxX){
+       if (y + signv < 0)y=y+ m->_maxY-m->_minY+1;
+       assert(y+signv>=0);
+       int yw= (y-m->_minY+signv) % (m->_maxY - m->_minY + 1) + m->_minY;//grid wrap in longitude
+       Environment* E=m->_Env[x+signu-m->_minX+(m->_maxX-m->_minX+1)*(yw-m->_minY)];
      
+       if (E->_Realm==_Realm) relocateBy(signu,signv, m); 
+     }
+   }
 
-  // }
+}
+//------------------------------------------------------------------------------------------------------------
 
+void Cohort::relocateBy(int x,int y, MadModel* m){
+
+    //calls function in repast::BaseGrid.h
+    std::vector<int> displ{x,y};
+    m->space()->moveByDisplacement(this,displ);
+    _moved=true;
 }
 //------------------------------------------------------------------------------------------------------------
 void Cohort::assignTimeActive(Environment* e){
@@ -646,7 +650,6 @@ void Cohort::eat(Environment* e,vector<Cohort*>& preys,vector<Stock*>& stocks){
           EdibleMass                          = stock->_TotalBiomass*edibleFraction;
           InstantFractionEaten                = _CohortAbundance * ( ( PotentialBiomassEaten / ( 1 + HandlingTime ) ) / EdibleMass );
           BiomassesEaten                      = EdibleMass * ( 1 - exp( -InstantFractionEaten * Constants::cDay*_ProportionTimeActive ) ); // should be min(stock._TotalBiomass,...)
-
           stock->_TotalBiomass               = stock->_TotalBiomass - BiomassesEaten;
 
         } 
@@ -752,7 +755,7 @@ void Cohort::metabolize(Environment* e){
 }
 //------------------------------------------------------------------------------------------------------------
 void Cohort::reproduce(Environment* e){
-        
+    _newH=NULL;//memory allocation for new cohorts is dealt with via the model list of agents 
     // Biomass per individual in each cohort to be assigned to reproductive potential
     double BiomassToAssignToReproductivePotential;
 
@@ -871,8 +874,8 @@ void Cohort::reproduce(Environment* e){
             double RandomValue = repast::Random::instance()->nextDouble();//mRandomNumber.GetUniform( );
             double newJuvenileMass = _JuvenileMass;
             double newAdultMass    = _AdultMass;
-                         //DEBUG
-            /*if( RandomValue > MassEvolutionProbabilityThreshold ) {
+                         
+            if( RandomValue > MassEvolutionProbabilityThreshold ) {
              // Determine the new juvenile body mass
              NormalGenerator NJ= repast::Random::instance()->createNormalGenerator(_JuvenileMass,MassEvolutionStandardDeviation * _JuvenileMass);
              double RandomValueJ = NJ.next();
@@ -884,22 +887,15 @@ void Cohort::reproduce(Environment* e){
              double RandomValueA = NA.next();
              newAdultMass = std::min( RandomValueA, _MaximumMass );
 
-             }*/ 
-
-             //newJuvenileMass=100;newAdultMass=500000;
-             
+             } 
 
              // Update cohort abundance in case juvenile mass has been altered through 'evolution'
              offspringCohortAbundance = offspringCohortAbundance * ( _JuvenileMass / newJuvenileMass );
+             //take care to get this right using _id - otherwise rank or agent type might not be correct.
+             repast::AgentId id(Cohort::_NextID, _id.currentRank(), _id.agentType());
 
-                         //repast::AgentId id(Cohort::_nextID, rank, _cohortType);
-                         //id.currentRank(rank);
-                         //Cohort* c = new Cohort(id);
-                         //c->setup(i,totalCohortsThisCell);
-                         //context.addAgent(c);
-                         //discreteSpace->moveTo(id, initialLocation);
-            //Cohort* newH = _observer->hatch<Cohort> (this);
-            //newH->setupOffspring( this, newJuvenileMass, newAdultMass, newJuvenileMass, offspringCohortAbundance, _CurrentTimeStep);
+             _newH = new Cohort(id);
+             _newH->setupOffspring( this, newJuvenileMass, newAdultMass, newJuvenileMass, offspringCohortAbundance, _CurrentTimeStep);
 
             // Subtract all of the reproductive potential mass of the parent cohort, which has been used to generate the new
             // cohort, from the delta reproductive potential mass and delta adult body mass
@@ -1019,7 +1015,7 @@ void Cohort::mort(){
     _MassAccounting[ "organicpool" ][ "mortality" ] = ( 1 - MortalityTotal ) * _CohortAbundance * ( BodyMassIncludingChangeThisTimeStep + ReproductiveMassIncludingChangeThisTimeStep );
 }
 //------------------------------------------------------------------------------------------------------------
-void Cohort::applyEcology(){
+void Cohort::applyEcology(Environment* e){
     // Variable to calculate net abundance change to check that cohort abundance will not become negative
     double NetAbundanceChange = 0.0;
     // Loop over all abundance deltas
@@ -1100,33 +1096,31 @@ void Cohort::applyEcology(){
             _IndividualReproductivePotentialMass += d.second;
         }
     }
+    updatePools(e);
     //Note that maturity time step is set in TReproductionBasic
 
 }
 //------------------------------------------------------------------------------------------------------------
-/*
-void EcologyApply::UpdatePools( GridCell& gcl ) {
+void Cohort::updatePools( Environment* e) {
     // Loop over all keys in the organic pool deltas sorted list
-    for( auto &D: Cohort::_MassAccounting["organicpool"] ) {
+    for( auto &D: _MassAccounting["organicpool"] ) {
         // Check that the delta value is not negative
-        if( D.second < 0 ) std::cout << "organic pool " << D.first << " " << D.second << std::endl;
+        //if( D.second < 0 ) std::cout << "organic pool " << D.first << " " << D.second << std::endl;
 
         //assert(D.second >= 0.0 && "A delta value for the organic pool is negative " );
         // Update the organic pool biomass
-        Environment::Get( "Organic Pool", gcl ) += D.second;
-        //Reset the delta value to zero
+        e->addToOrganicPool(D.second);
     }
     // Loop over all keys in the respiratory pool deltas sorted list
-    for( auto &D: Cohort::_MassAccounting["respiratoryCO2pool"] ) {
+    for( auto &D: _MassAccounting["respiratoryCO2pool"] ) {
         // Check that the delta value is not negative
-        assert( D.second >= 0.0 && "A delta value for the respiratory CO2 pool is negative" );
+        if( D.second < 0 ) std::cout << "respiratoryCO2pool " << D.first << " " << D.second << std::endl;
+        //assert( D.second >= 0.0 && "A delta value for the respiratory CO2 pool is negative" );
         // Update the respiratory CO2 pool
-        Environment::Get( "Respiratory CO2 Pool", gcl ) += D.second;
-        // Reset the delta value to zero // FIX - Should there be a declaration here?
+        e->addToRespiratoryCO2Pool(D.second);
     }
 }
-*/
-//}
+
 
 
 

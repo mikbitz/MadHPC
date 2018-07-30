@@ -12,9 +12,7 @@
 
 
 Environment::Environment() {}
-void Environment::merge(int& bap){
-  bap+=CohortMerger::MergeToReachThresholdFast( this );
-}
+
 //------------------------------------------------------------------------------
 Environment::Environment(int x,int y){
     _cellIndex=x+y*Parameters::Get()->GetLengthUserLongitudeArray( );//based on 1-D representation of 2D arrays

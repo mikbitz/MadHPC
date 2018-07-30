@@ -9,14 +9,13 @@ double CohortMerger::CalculateDistance( Cohort* cohortA, Cohort* cohortB ) {
     return ( ( AdultMassDistance * AdultMassDistance ) + ( JuvenileMassDistance * JuvenileMassDistance ) + ( CurrentMassDistance * CurrentMassDistance ) );
 }
 
-int CohortMerger::MergeToReachThresholdFast( Environment* e) {
+int CohortMerger::MergeToReachThresholdFast( vector<Cohort*> cohorts) {
      unsigned maxCohorts=Parameters::Get()->GetMaximumNumberOfCohorts();
     // Set of lists of shortest distances in each functional group
     // set is automatically sorted - multiset allows for elements with the same distance
     std::multiset< CohortPair, CohortPair::Comparator > SortedDistances;
     // How many cohorts to remove to hit the threshold
-    vector<Cohort*> cohorts;
-  
+ 
    
     //break down cell contents into functional groups
     std::map <int, std::vector <Cohort*> > CohortsByFunctionalGroup;
@@ -65,13 +64,13 @@ int CohortMerger::MergeToReachThresholdFast( Environment* e) {
                 CohortToMergeFrom->_CohortAbundance = 0.0;
 
                 // Designate both cohorts as having merged
-                I->mCohortA->_Merged = false;
+                I->mCohortA->_Merged = true;
                 I->mCohortB->_Merged = true;
                 MergeCounter++;
             }
             ++I;
         }
     }
-
+//cout<<NumberToRemove<<" "<<MergeCounter<<" "<<count<<endl;
     return MergeCounter;
 }

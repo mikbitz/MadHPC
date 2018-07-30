@@ -1,8 +1,8 @@
-#random.seed = 1284067381
+global.random.seed = 139
 stop.at = 20
 
 # per functional group per cell 
-cohort.count = 1
+cohort.count = 15
 # per cell 
 stock.count = 3;
 

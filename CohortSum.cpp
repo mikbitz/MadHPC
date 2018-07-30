@@ -39,9 +39,9 @@
  */
 
 #include "CohortSum.h"
-/*
+#include "model.h"
 
-CohortSum::CohortSum(MadObserver* Mobs) : obs(Mobs){}
+CohortSum::CohortSum(MadModel* Mobs) : obs(Mobs){}
 
 CohortSum::~CohortSum() {}
 
@@ -49,7 +49,15 @@ int CohortSum::getData() {
 	return obs->CohortCount();
 }
 //----------------------------------------------------------
-CohortAbundanceSum::CohortAbundanceSum(MadObserver* Mobs) : obs(Mobs){}
+StockSum::StockSum(MadModel* Mobs) : obs(Mobs){}
+
+StockSum::~StockSum() {}
+
+int StockSum::getData() {
+	return obs->StockCount();
+}
+//----------------------------------------------------------
+CohortAbundanceSum::CohortAbundanceSum(MadModel* Mobs) : obs(Mobs){}
 
 CohortAbundanceSum::~CohortAbundanceSum() {}
 
@@ -57,7 +65,7 @@ double CohortAbundanceSum::getData() {
 	return obs->CohortAbundance();
 }
 //----------------------------------------------------------
-CohortBiomassSum::CohortBiomassSum(MadObserver* Mobs) : obs(Mobs){}
+CohortBiomassSum::CohortBiomassSum(MadModel* Mobs) : obs(Mobs){}
 
 CohortBiomassSum::~CohortBiomassSum() {}
 
@@ -65,11 +73,57 @@ double CohortBiomassSum::getData() {
 	return obs->CohortBiomass();
 }
 //----------------------------------------------------------
-StockBiomassSum::StockBiomassSum(MadObserver* Mobs) : obs(Mobs){}
+StockBiomassSum::StockBiomassSum(MadModel* Mobs) : obs(Mobs){}
 
 StockBiomassSum::~StockBiomassSum() {}
 
 double StockBiomassSum::getData() {
 	return obs->StockBiomass();
 }
-*/
+//----------------------------------------------------------
+CohortOrganicPool::CohortOrganicPool (MadModel* Mobs) : obs(Mobs){}
+CohortOrganicPool::~CohortOrganicPool(){}
+
+double CohortOrganicPool::getData(){
+    return obs->OrganicPool();
+}
+//----------------------------------------------------------
+CohortResp::CohortResp (MadModel* Mobs) : obs(Mobs){}
+CohortResp::~CohortResp(){}
+
+double CohortResp::getData(){
+   return obs->RespiratoryCO2Pool() ;
+    
+}
+//----------------------------------------------------------
+DispersalSum::DispersalSum (MadModel* Mobs) : obs(Mobs){}
+DispersalSum::~DispersalSum(){}
+
+double DispersalSum::getData(){
+   return obs->Moved() ;
+    
+}
+//----------------------------------------------------------
+ExtinctionSum::ExtinctionSum (MadModel* Mobs) : obs(Mobs){}
+ExtinctionSum::~ExtinctionSum(){}
+
+double ExtinctionSum::getData(){
+   return obs->Deaths() ;
+    
+}
+//----------------------------------------------------------
+ProductionSum::ProductionSum (MadModel* Mobs) : obs(Mobs){}
+ProductionSum::~ProductionSum(){}
+
+double ProductionSum::getData(){
+   return obs->Reproductions() ;
+    
+}
+//----------------------------------------------------------
+CombinationSum::CombinationSum (MadModel* Mobs) : obs(Mobs){}
+CombinationSum::~CombinationSum(){}
+
+double CombinationSum::getData(){
+   return obs->Merged() ;
+    
+}

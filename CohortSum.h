@@ -42,16 +42,28 @@
 #define COHORTSUM_H_
 
 #include "repast_hpc/TDataSource.h"
-/*
+class MadModel;
 //----------------------------------------------------------
 class CohortSum: public repast::TDataSource<int> {
 
 private:
-	MadObserver* obs;
+	MadModel* obs;
 
 public:
-	CohortSum(MadObserver* Mobs);
+	CohortSum(MadModel* Mobs);
 	virtual ~CohortSum();
+
+	int getData();
+};
+//----------------------------------------------------------
+class StockSum: public repast::TDataSource<int> {
+
+private:
+	MadModel* obs;
+
+public:
+	StockSum(MadModel* Mobs);
+	virtual ~StockSum();
 
 	int getData();
 };
@@ -59,10 +71,10 @@ public:
 class CohortAbundanceSum: public repast::TDataSource<double> {
 
 private:
-	MadObserver* obs;
+	MadModel* obs;
 
 public:
-	CohortAbundanceSum(MadObserver* Mobs);
+	CohortAbundanceSum(MadModel* Mobs);
 	virtual ~CohortAbundanceSum();
 
 	double getData();
@@ -71,10 +83,10 @@ public:
 class CohortBiomassSum: public repast::TDataSource<double> {
 
 private:
-	MadObserver* obs;
+	MadModel* obs;
 
 public:
-	CohortBiomassSum(MadObserver* Mobs);
+	CohortBiomassSum(MadModel* Mobs);
 	virtual ~CohortBiomassSum();
 
 	double getData();
@@ -83,13 +95,80 @@ public:
 class StockBiomassSum: public repast::TDataSource<double> {
 
 private:
-	MadObserver* obs;
+	MadModel* obs;
 
 public:
-	StockBiomassSum(MadObserver* Mobs);
+	StockBiomassSum(MadModel* Mobs);
 	virtual ~StockBiomassSum();
 
 	double getData();
 };
-*/
+//----------------------------------------------------------
+class CohortOrganicPool: public repast::TDataSource<double> {
+
+private:
+	MadModel* obs;
+
+public:
+	CohortOrganicPool(MadModel* Mobs);
+	virtual ~CohortOrganicPool();
+
+	double getData();
+};
+//----------------------------------------------------------
+class CohortResp: public repast::TDataSource<double> {
+
+private:
+	MadModel* obs;
+
+public:
+	CohortResp(MadModel* Mobs);
+	virtual ~CohortResp();
+
+	double getData();
+};
+//----------------------------------------------------------
+class DispersalSum: public repast::TDataSource<double> {
+private:
+	MadModel* obs;
+
+public:
+    DispersalSum(MadModel* Mobs);
+	~DispersalSum();
+
+	double getData();
+};
+//----------------------------------------------------------
+class ExtinctionSum: public repast::TDataSource<double> {
+private:
+	MadModel* obs;
+
+public:
+    ExtinctionSum(MadModel* Mobs);
+	~ExtinctionSum();
+
+	double getData();
+};
+//----------------------------------------------------------
+class ProductionSum: public repast::TDataSource<double> {
+private:
+	MadModel* obs;
+
+public:
+    ProductionSum(MadModel* Mobs);
+	~ProductionSum();
+
+	double getData();
+};
+//----------------------------------------------------------
+class CombinationSum: public repast::TDataSource<double> {
+private:
+	MadModel* obs;
+
+public:
+    CombinationSum(MadModel* Mobs);
+	~CombinationSum();
+
+	double getData();
+};
 #endif /* COHORTSUM_H_ */
