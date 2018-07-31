@@ -152,8 +152,9 @@ public:
     void applyEcology(Environment*);
     void updatePools(Environment*);
     void setupOffspring( Cohort* , double , double , double , double , unsigned  );
-    void TryToDisperse(double,Environment*,MadModel* );
-    void TryToDisperse(double,double,Environment*,MadModel* );
+    vector<int> TryToDisperse(double,Environment*,MadModel* );
+    vector<int> TryToDisperse(double,double,Environment*,MadModel* );
+    vector<int> _displacement;
 
 void PushThingsIntoPackage( AgentPackage& );
 void PullThingsOutofPackage( const AgentPackage& );

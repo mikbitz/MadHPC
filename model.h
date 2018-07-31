@@ -77,7 +77,7 @@ class MadModel{
     void addDataSet(repast::DataSet*) ;
 
 public:
-    int _minX,_minY,_maxX,_maxY;
+    int _minX,_minY,_maxX,_maxY,_dimX,_dimY;
     int _xlo,_xhi,_ylo,_yhi;
     vector<Environment*> _Env;
 	MadModel(std::string propsFile, int argc, char** argv, boost::mpi::communicator* comm);

@@ -37,7 +37,6 @@
 using namespace std;
 using namespace repast;
 //arbitrary numbers to distiguish the agents types
-
 int MadModel::_stockType=0, MadModel::_cohortType=1;
 //------------------------------------------------------------------------------------------------------------
 //Constructor and destructor
@@ -55,8 +54,8 @@ MadModel::MadModel(std::string propsFile, int argc, char** argv, boost::mpi::com
     _minY=repast::strToInt(_props->getProperty("min.y"));
     _maxX=repast::strToInt(_props->getProperty("max.x"));
     _maxY=repast::strToInt(_props->getProperty("max.y"));
-    int dimX=repast::strToInt(_props->getProperty("proc.per.x"));
-    int dimY=repast::strToInt(_props->getProperty("proc.per.y"));
+    _dimX=repast::strToInt(_props->getProperty("proc.per.x"));
+    _dimY=repast::strToInt(_props->getProperty("proc.per.y"));
 
     //-----------------
 	//create the model grid
@@ -66,8 +65,8 @@ MadModel::MadModel(std::string propsFile, int argc, char** argv, boost::mpi::com
     repast::GridDimensions gd(origin, extent);
     
     std::vector<int> processDims;
-    processDims.push_back(dimX);
-    processDims.push_back(dimY);
+    processDims.push_back(_dimX);
+    processDims.push_back(_dimY);
   
     discreteSpace = new repast::SharedDiscreteSpace<MadAgent, repast::WrapAroundBorders, repast::SimpleAdder<MadAgent> >("AgentDiscreteSpace", gd, processDims, gridBuffer, comm);
 	
@@ -278,10 +277,11 @@ void MadModel::step(){
 
     //make sure all data is synced across threads
     sync();
-    vector<unsigned> cohortBreakdown;
+    vector<int> cohortBreakdown,finalCohortBreakdown;
     cohortBreakdown.resize(19);
+    finalCohortBreakdown.resize(19);
     for (auto& k:cohortBreakdown){k=0;}
-
+    for (auto& k:finalCohortBreakdown){k=0;}
     //loop over local grid cells
 
     for(int x = _xlo; x < _xhi; x++){
@@ -340,11 +340,13 @@ void MadModel::step(){
             _totalRespiratoryCO2Pool+=E->respiratoryPool()/1000;
         }
     }
-    //numbers per functional group
-    for (auto& k:cohortBreakdown){cout<<k<<" ";}cout<<endl;
-
-    //_moved has been set to false by the cohort step method and is false for new agents
-    //if _moved is not used then agents can move multiple times in a step since they get picked up in queries of cells during the loop
+    //numbers per functional group - here's how to add up across a vector over threads.
+    MPI_Reduce(cohortBreakdown.data(), finalCohortBreakdown.data(), 19, MPI::INT, MPI::SUM, 0, MPI_COMM_WORLD);
+    
+    if(repast::RepastProcess::instance()->rank() == 0){cout<<finalCohortBreakdown.size()<<endl;for (auto& k:finalCohortBreakdown){cout<<k<<" ";}cout<<endl;cout.flush();}
+    
+    //_moved is false for new agents
+    vector<Cohort*> movers;
     for(int x = _xlo; x < _xhi; x++){
         for(int y = _ylo; y < _yhi; y++){
             Environment* E=_Env[x-_minX+(_maxX-_minX+1)*(y-_minY)];
@@ -356,12 +358,67 @@ void MadModel::step(){
 
             for (auto a:agentsInCell){
                  if (a->getId().currentRank()==repast::RepastProcess::instance()->rank()){
-                     if (a->getId().agentType()==MadModel::_cohortType && !a->_moved) {((Cohort*) a)->moveIt(E,this);if (a->_moved)_totalMoved++;}
+                     if (a->getId().agentType()==MadModel::_cohortType ) {
+                         ((Cohort*) a)->moveIt(E,this);
+                         if (a->_moved){_totalMoved++;movers.push_back((Cohort*) a);}
+                    }
                 }
             }
         }
-    }    
-        
+    }
+    //RPHC is limited in thaht it uses a cartesian grid of threads to map onto the model grid
+    //it can't cope if an agent tried to move more than one cartesian grid cell in one go
+    //for some arrangments of cores thsi cuases a crash if maxMoveDist below (number of model grid cells moved this timstep)
+    //is set too high. TO work around this, some movers have to be displaced in multiple steps. moving across threads multiple time
+    //Each time they move we need a sync(0 to copy thier properties (including how far still left to go) and then we need to re-acquire
+    //the agents on each thread to take account of tne changes
+    int maxMoveDist=min((_maxX-_minX)/_dimX,(_maxY-_minY)/_dimY);
+    assert(maxMoveDist>1);
+    //Each thread has to find out locally if it has movedd all agents required
+    //globally Finiahed is needed to check across all threads to see if any are still active
+    //sync() needs to be called by ALL threads if any are still going - otherwise things can hang
+    bool globallyFinished=false;
+    while (!globallyFinished){
+     //are we finished locally?
+     bool finished=true;
+     for (auto& m:movers){
+         //move things with less than maxMovedDist - thes are then settled and _moved becomes false
+         if ( m->_moved &&
+             m->_displacement[0] <  maxMoveDist + 1 && m->_displacement[1] <  maxMoveDist + 1  &&
+             m->_displacement[0] > -maxMoveDist - 1 && m->_displacement[1] > -maxMoveDist - 1
+         ){
+         space()->moveByDisplacement(m,m->_displacement);m->_moved=false;
+         //now deal with fast movers
+         }else{
+             //not finished as these cohorts will need to move again
+             finished=false;
+             //move them by masMoveDist and then adjust their remaining displacement
+             vector<int> d={maxMoveDist,maxMoveDist};
+             d[0]=d[0]*( (m->_displacement[0] > 0) - (m->_displacement[0] < 0));
+             d[1]=d[1]*( (m->_displacement[1] > 0) - (m->_displacement[1] < 0));
+             m->_displacement[0]=m->_displacement[0] - d[0];
+             m->_displacement[1]=m->_displacement[1] - d[1];
+             space()->moveByDisplacement(m,d);
+         }
+     }
+     //check across all threads to see if we are finished globally
+     MPI_Allreduce(&finished, &globallyFinished, 1, MPI::BOOL, MPI::LAND,MPI_COMM_WORLD);
+     if (!globallyFinished){
+         //some moves still needed - synchronize teh temprary moves
+         sync();
+         movers.clear();
+         //now check on each thread for moved agents that still need to be moved
+     	 std::vector<MadAgent*> agents;
+         _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
+ 		 for(auto& a:agents){
+             if (a->getId().agentType()==MadModel::_cohortType && a->_moved) { 
+               movers.push_back((Cohort*) a);
+             }
+         }
+
+     }
+    }
+
 }
 //             for (auto& a:agentsInCell){
 //                if (a->getId().currentRank()==repast::RepastProcess::instance()->rank()){//agents must be local
