@@ -1,3 +1,11 @@
+/*
+ *
+ * CohortPair.h
+ *
+ *  Created on: May 7, 2018
+ *      Author: Mike Bithell
+ * 
+ */
 #ifndef COHORTPAIR
 #define	COHORTPAIR
 

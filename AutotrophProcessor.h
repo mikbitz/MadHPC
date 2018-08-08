@@ -1,3 +1,11 @@
+/*
+ *
+ * AutotrophProcessor.h
+ *
+ *  Created on: May 7, 2018
+ *      Author: Mike Bithell
+ * 
+  */
 #ifndef AUTOTROPHPROCESSOR
 #define AUTOTROPHPROCESSOR
 

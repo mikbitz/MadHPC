@@ -132,7 +132,7 @@ public:
 
     static unsigned _NextID;
     Cohort* _newH;
-    Cohort(repast::AgentId id): MadAgent(id), _Merged(false){_NextID++;_newH=NULL;}
+    Cohort(repast::AgentId id): MadAgent(id), _Merged(false){_NextID++;_newH=NULL; _location={0,0};}
 	Cohort(repast::AgentId id, const AgentPackage& package): MadAgent(id){PullThingsOutofPackage(package);_newH=NULL;}
     void set(int currentRank, const AgentPackage& package){_id.currentRank(currentRank);PullThingsOutofPackage(package);}
 	void setup(unsigned,unsigned,Environment*,randomizer&);
@@ -146,15 +146,15 @@ public:
     void reproduce(Environment*);
     void eat(Environment*,vector<Cohort*>&,vector<Stock*>&);
     void moveIt(Environment*,MadModel*);
-    void relocateBy(int,int, MadModel*);
     void mort();
     void markForDeath();
     void applyEcology(Environment*);
     void updatePools(Environment*);
     void setupOffspring( Cohort* , double , double , double , double , unsigned  );
-    vector<int> TryToDisperse(double,Environment*,MadModel* );
-    vector<int> TryToDisperse(double,double,Environment*,MadModel* );
-    vector<int> _displacement;
+    void TryToDisperse(double,Environment*,MadModel* );
+    void TryToDisperse(double,double,Environment*,MadModel* );
+    vector<int> _location,_destination;
+    void setLocation(int x, int y){_location={x,y};}
 
 void PushThingsIntoPackage( AgentPackage& );
 void PullThingsOutofPackage( const AgentPackage& );

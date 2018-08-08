@@ -37,6 +37,7 @@
 using namespace std;
 using namespace repast;
 //arbitrary numbers to distiguish the agents types
+
 int MadModel::_stockType=0, MadModel::_cohortType=1;
 //------------------------------------------------------------------------------------------------------------
 //Constructor and destructor
@@ -159,7 +160,23 @@ void MadModel::init(){
 
   
     int s=0;
-    
+                        /* int x=33,y=0;
+                         repast::Point<int> initialLocation(x,y);
+                         Environment* E=_Env[x-_minX+(_maxX-_minX+1)*(y-_minY)];
+                         repast::AgentId id(Cohort::_NextID, rank, _cohortType);
+                         id.currentRank(rank);
+                         Cohort* c = new Cohort(id);
+                         c->setup(0,1, E,random);
+                         _context.addAgent(c);
+                         discreteSpace->moveTo(id, initialLocation);
+                         std::vector<int> displ{1,0};
+                         space()->moveByDisplacement(c,displ);
+                         space()->moveByDisplacement(c,displ);
+                         space()->moveByDisplacement(c,displ);
+                         vector<int> location;
+                         space()->getLocation(id, location);
+                         cout<<location[0]<<" "<<location[1]<<endl;
+                         exit(1);*/
     for (int x = _xlo; x < _xhi; x++){
         for (int y = _ylo; y < _yhi; y++){
              Environment* E=_Env[x-_minX+(_maxX-_minX+1)*(y-_minY)];
@@ -172,12 +189,14 @@ void MadModel::init(){
                          //make sure the agentId is unique on this thread!!
                          // values are int id, int startProc, int agentType, 
                          repast::AgentId id(Cohort::_NextID, rank, _cohortType);
+                         //agent also needs id of its current thread
                          id.currentRank(rank);
                          Cohort* c = new Cohort(id);
                          c->setup(i,totalCohortsThisCell, E,random);
                          _context.addAgent(c);
                          discreteSpace->moveTo(id, initialLocation);
-
+                         //to get movement right agent needs its own copy of location
+                         c->setLocation(x,y);
                          _totalCohorts++;
                          _totalCohortAbundance += c->_CohortAbundance;
                          _totalCohortBiomass += ( c->_IndividualBodyMass + c->_IndividualReproductivePotentialMass ) * c->_CohortAbundance / 1000.;//g to kg
@@ -200,44 +219,7 @@ void MadModel::init(){
             }
         }
     cout<<"rank "<<rank<<" totalCohorts "<<_totalCohorts<<" totalStocks "<<s<<endl;
-	//The things added to the datasetbuilder will be accumulated over cores each timestep and output to data.csv
-	SVDataSetBuilder svbuilder("./output/data.csv", ",", repast::RepastProcess::instance()->getScheduleRunner().schedule());
-
-    DispersalSum* DSum = new DispersalSum(this);
-    svbuilder.addDataSource(repast::createSVDataSource("Dispersals", DSum, std::plus<int>()));
-    
-    ExtinctionSum* ESum = new ExtinctionSum(this);
-    svbuilder.addDataSource(repast::createSVDataSource("Extinctions", ESum, std::plus<int>()));
-    
-    ProductionSum* PSum = new ProductionSum(this);
-    svbuilder.addDataSource(repast::createSVDataSource("Productions", PSum, std::plus<int>()));
-    
-    CombinationSum* coSum = new CombinationSum(this);
-    svbuilder.addDataSource(repast::createSVDataSource("Combinations", coSum, std::plus<int>()));
-    
-    CohortSum* cSum = new CohortSum(this);
-	svbuilder.addDataSource(repast::createSVDataSource("Total Cohorts", cSum, std::plus<int>()));
-    
-    StockSum* sSum = new StockSum(this);
-	svbuilder.addDataSource(repast::createSVDataSource("Total Stocks", sSum, std::plus<int>()));
-    
-    CohortAbundanceSum* caSum = new CohortAbundanceSum(this);
-  	svbuilder.addDataSource(repast::createSVDataSource("Total Cohort Abundance", caSum, std::plus<double>()));
-        
-    CohortOrganicPool* cpool = new CohortOrganicPool(this);
-  	svbuilder.addDataSource(repast::createSVDataSource("OrganicPool", cpool, std::plus<double>()));
-    
-    CohortResp* rpool = new CohortResp(this);
-  	svbuilder.addDataSource(repast::createSVDataSource("RespiratoryC02Pool", rpool, std::plus<double>()));
-    
-    StockBiomassSum* sbSum = new StockBiomassSum(this);
-  	svbuilder.addDataSource(repast::createSVDataSource("Total Stock Biomass", sbSum, std::plus<double>()));
-    
-    CohortBiomassSum* cbSum = new CohortBiomassSum(this);
-  	svbuilder.addDataSource(repast::createSVDataSource("Total Cohort Biomass", cbSum, std::plus<double>()));
-    
-
-	addDataSet(svbuilder.createDataSet());
+    setupOutputs();
 
 #ifndef _WIN32
 	// no netcdf under windows?
@@ -343,9 +325,10 @@ void MadModel::step(){
     //numbers per functional group - here's how to add up across a vector over threads.
     MPI_Reduce(cohortBreakdown.data(), finalCohortBreakdown.data(), 19, MPI::INT, MPI::SUM, 0, MPI_COMM_WORLD);
     
-    if(repast::RepastProcess::instance()->rank() == 0){cout<<finalCohortBreakdown.size()<<endl;for (auto& k:finalCohortBreakdown){cout<<k<<" ";}cout<<endl;cout.flush();}
-    
-    //_moved is false for new agents
+    if(repast::RepastProcess::instance()->rank() == 0){cout<<finalCohortBreakdown.size()<<endl;
+        for (auto& k:finalCohortBreakdown){cout<<k<<" ";}cout<<endl;cout.flush();}
+
+    //_moved has been set to false for new agents
     vector<Cohort*> movers;
     for(int x = _xlo; x < _xhi; x++){
         for(int y = _ylo; y < _yhi; y++){
@@ -358,19 +341,26 @@ void MadModel::step(){
 
             for (auto a:agentsInCell){
                  if (a->getId().currentRank()==repast::RepastProcess::instance()->rank()){
-                     if (a->getId().agentType()==MadModel::_cohortType ) {
+                     if (a->getId().agentType()==MadModel::_cohortType) {
                          ((Cohort*) a)->moveIt(E,this);
-                         if (a->_moved){_totalMoved++;movers.push_back((Cohort*) a);}
-                    }
+                         if (a->_moved){
+                             movers.push_back((Cohort *) a);
+                        }
+                     }
                 }
             }
         }
     }
+    _totalMoved=movers.size();
+    /*for (auto m:movers){
+        space()->moveTo(m,m->_destination);
+        m->_location=m->_destination;
+    }*/
     //RPHC is limited in thaht it uses a cartesian grid of threads to map onto the model grid
     //it can't cope if an agent tried to move more than one cartesian grid cell in one go
     //for some arrangments of cores thsi cuases a crash if maxMoveDist below (number of model grid cells moved this timstep)
-    //is set too high. TO work around this, some movers have to be displaced in multiple steps. moving across threads multiple time
-    //Each time they move we need a sync(0 to copy thier properties (including how far still left to go) and then we need to re-acquire
+    //is set too high. To work around this, some movers have to be displaced in multiple steps. moving across threads multiple time
+    //Each time they move we need a sync() to copy thier properties (including how far still left to go) and then we need to re-acquire
     //the agents on each thread to take account of tne changes
     int maxMoveDist=min((_maxX-_minX)/_dimX,(_maxY-_minY)/_dimY);
     assert(maxMoveDist>1);
@@ -378,33 +368,36 @@ void MadModel::step(){
     //globally Finiahed is needed to check across all threads to see if any are still active
     //sync() needs to be called by ALL threads if any are still going - otherwise things can hang
     bool globallyFinished=false;
+    vector<int>displacement={0,0};
     while (!globallyFinished){
      //are we finished locally?
      bool finished=true;
      for (auto& m:movers){
-         //move things with less than maxMovedDist - thes are then settled and _moved becomes false
+         displacement[0]=m->_destination[0]-m->_location[0];
+         displacement[1]=m->_destination[1]-m->_location[1];
+         //move things with less than maxMovedDist - these are then settled and _moved becomes false
          if ( m->_moved &&
-             m->_displacement[0] <  maxMoveDist + 1 && m->_displacement[1] <  maxMoveDist + 1  &&
-             m->_displacement[0] > -maxMoveDist - 1 && m->_displacement[1] > -maxMoveDist - 1
+             displacement[0] <  maxMoveDist + 1 && displacement[1] <  maxMoveDist + 1  &&
+             displacement[0] > -maxMoveDist - 1 && displacement[1] > -maxMoveDist - 1
          ){
-         space()->moveByDisplacement(m,m->_displacement);m->_moved=false;
+         space()->moveTo(m,m->_destination);m->_moved=false;m->_location=m->_destination;
          //now deal with fast movers
          }else{
              //not finished as these cohorts will need to move again
              finished=false;
              //move them by masMoveDist and then adjust their remaining displacement
              vector<int> d={maxMoveDist,maxMoveDist};
-             d[0]=d[0]*( (m->_displacement[0] > 0) - (m->_displacement[0] < 0));
-             d[1]=d[1]*( (m->_displacement[1] > 0) - (m->_displacement[1] < 0));
-             m->_displacement[0]=m->_displacement[0] - d[0];
-             m->_displacement[1]=m->_displacement[1] - d[1];
+             d[0]=d[0]*( (displacement[0] > 0) - (displacement[0] < 0));
+             d[1]=d[1]*( (displacement[1] > 0) - (displacement[1] < 0));
+             m->_location[0]=m->_location[0] + d[0];
+             m->_location[1]=m->_location[1] + d[1];
              space()->moveByDisplacement(m,d);
          }
      }
      //check across all threads to see if we are finished globally
      MPI_Allreduce(&finished, &globallyFinished, 1, MPI::BOOL, MPI::LAND,MPI_COMM_WORLD);
      if (!globallyFinished){
-         //some moves still needed - synchronize teh temprary moves
+         //some moves still needed - synchronize the temporary moves
          sync();
          movers.clear();
          //now check on each thread for moved agents that still need to be moved
@@ -415,36 +408,10 @@ void MadModel::step(){
                movers.push_back((Cohort*) a);
              }
          }
-
      }
     }
-
 }
-//             for (auto& a:agentsInCell){
-//                if (a->getId().currentRank()==repast::RepastProcess::instance()->rank()){//agents must be local
-//                if (a->getId().agentType()==MadModel::_cohortType && !((Cohort*) a)->_moved){   ((Cohort*) a)->relocateBy(1,-1,this);}
-//                }
-//             }
-	//for(auto& a:agents){
-	//	a->step(this);
-    //    }
-/*	for (int i=1;i<3;i++){
-    for (auto& a:agents){
- 	    a->move(this,-1,-1);
-        }
-    }
-    for(auto& a:agents){
-        if (a->getId().startingRank()==0 && a->getId().id()==25)std::cout << " AGENT " << " ON Thread " << repast::RepastProcess::instance()->rank() << std::endl;
 
-		a->reportLocation(this);
-        }*/
- //           for (auto& a:agentsInCell){
-//AgentId oil=a->getId();
-//if (!a->_moved){
-//                if (oil.id()==67 && oil.agentType()==1 && oil.startingRank()==0)cout<<"x "<<x<<" y "<<y<<" "<<oil.id()<<" "<<oil.currentRank()<<" "<<oil.agentType()<<" "<<oil.startingRank()<< " "<<xlo<<" "<<xhi<<" "<<ylo<<" "<<yhi<<endl;
-               // assert(oil.currentRank()==repast::RepastProcess::instance()->rank());}
-//}
-//            }
 
 //------------------------------------------------------------------------------------------------------------
 void MadModel::sync(){
@@ -511,7 +478,49 @@ void MadAgentPackageReceiver::updateAgent(AgentPackage package){
       agent->PullThingsOutofPackage(package);//agent->set(id.currentRank(),package);// Do not use !! this line is incorrect!!
     }
 }
+//------------------------------------------------------------------------------------------------------------
+void MadModel::setupOutputs(){
+    
+	//The things added to the datasetbuilder will be accumulated over cores each timestep and output to data.csv
+	SVDataSetBuilder svbuilder("./output/data.csv", ",", repast::RepastProcess::instance()->getScheduleRunner().schedule());
 
+    DispersalSum* DSum = new DispersalSum(this);
+    svbuilder.addDataSource(repast::createSVDataSource("Dispersals", DSum, std::plus<int>()));
+    
+    ExtinctionSum* ESum = new ExtinctionSum(this);
+    svbuilder.addDataSource(repast::createSVDataSource("Extinctions", ESum, std::plus<int>()));
+    
+    ProductionSum* PSum = new ProductionSum(this);
+    svbuilder.addDataSource(repast::createSVDataSource("Productions", PSum, std::plus<int>()));
+    
+    CombinationSum* coSum = new CombinationSum(this);
+    svbuilder.addDataSource(repast::createSVDataSource("Combinations", coSum, std::plus<int>()));
+    
+    CohortSum* cSum = new CohortSum(this);
+	svbuilder.addDataSource(repast::createSVDataSource("Total Cohorts", cSum, std::plus<int>()));
+    
+    StockSum* sSum = new StockSum(this);
+	svbuilder.addDataSource(repast::createSVDataSource("Total Stocks", sSum, std::plus<int>()));
+    
+    CohortAbundanceSum* caSum = new CohortAbundanceSum(this);
+  	svbuilder.addDataSource(repast::createSVDataSource("Total Cohort Abundance", caSum, std::plus<double>()));
+        
+    CohortOrganicPool* cpool = new CohortOrganicPool(this);
+  	svbuilder.addDataSource(repast::createSVDataSource("OrganicPool", cpool, std::plus<double>()));
+    
+    CohortResp* rpool = new CohortResp(this);
+  	svbuilder.addDataSource(repast::createSVDataSource("RespiratoryC02Pool", rpool, std::plus<double>()));
+    
+    StockBiomassSum* sbSum = new StockBiomassSum(this);
+  	svbuilder.addDataSource(repast::createSVDataSource("Total Stock Biomass", sbSum, std::plus<double>()));
+    
+    CohortBiomassSum* cbSum = new CohortBiomassSum(this);
+  	svbuilder.addDataSource(repast::createSVDataSource("Total Cohort Biomass", cbSum, std::plus<double>()));
+    
+
+	addDataSet(svbuilder.createDataSet());
+    
+}
 //------------------------------------------------------------------------------------------------------------
 
 void MadModel::dataSetClose() {
@@ -524,9 +533,7 @@ void MadModel::dataSetClose() {
 void MadModel::addDataSet(repast::DataSet* dataSet) {
 	dataSets.push_back(dataSet);
 	ScheduleRunner& runner = RepastProcess::instance()->getScheduleRunner();
-	runner.scheduleEvent(0.1, 1, Schedule::FunctorPtr(new MethodFunctor<repast::DataSet> (dataSet,
-			&repast::DataSet::record)));
-	Schedule::FunctorPtr dsWrite = Schedule::FunctorPtr(new MethodFunctor<repast::DataSet> (dataSet,
-			&repast::DataSet::write));
+	runner.scheduleEvent(0.1, 1, Schedule::FunctorPtr(new MethodFunctor<repast::DataSet> (dataSet,&repast::DataSet::record)));
+	Schedule::FunctorPtr dsWrite = Schedule::FunctorPtr(new MethodFunctor<repast::DataSet> (dataSet,&repast::DataSet::write));
 	runner.scheduleEvent(100.2, 100, dsWrite);
 }

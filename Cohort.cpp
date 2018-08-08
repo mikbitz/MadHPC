@@ -139,7 +139,8 @@ void Cohort::setup(unsigned functionalGroup,unsigned numCohortsThisCell,Environm
     _CohortAbundance = NewBiomass / _JuvenileMass;
     _MaximumAchievedBodyMass=_JuvenileMass;
     _IndividualBodyMass=_JuvenileMass;
-    _displacement={0,0};
+    _moved=false;
+    _location={0,0};
 }
 //------------------------------------------------------------------------------------------------------------
 void Cohort::PullThingsOutofPackage( const AgentPackage& package ) {
@@ -178,8 +179,10 @@ void Cohort::PullThingsOutofPackage( const AgentPackage& package ) {
     
     _AssimilationEfficiency_H=package._AssimilationEfficiency_H;
     _AssimilationEfficiency_C=package._AssimilationEfficiency_C;
-    _displacement=package._displacement;
+    
     _moved=package._moved;
+    _location=package._location;
+    _destination=package._destination;
 }
 //------------------------------------------------------------------------------------------------------------
 void Cohort::PushThingsIntoPackage( AgentPackage& package ) {
@@ -218,8 +221,10 @@ void Cohort::PushThingsIntoPackage( AgentPackage& package ) {
     
     package._AssimilationEfficiency_H= _AssimilationEfficiency_H;
     package._AssimilationEfficiency_C= _AssimilationEfficiency_C;
-    package._displacement=_displacement;
+    
     package._moved=_moved;
+    package._location=_location;
+    package._destination=_destination;
 }
 //------------------------------------------------------------------------------------------------------------
 void Cohort::setupOffspring( Cohort* actingCohort, double juvenileBodyMass, double adultBodyMass, double initialBodyMass, double initialAbundance, unsigned birthTimeStep ) {
@@ -261,13 +266,17 @@ void Cohort::setupOffspring( Cohort* actingCohort, double juvenileBodyMass, doub
     
     _AssimilationEfficiency_H=CohortDefinitions::Get()->Property(_FunctionalGroupIndex   ,"herbivory assimilation");
     _AssimilationEfficiency_C=CohortDefinitions::Get()->Property(_FunctionalGroupIndex   ,"carnivory assimilation");
+    
+    _moved=false;
+    _location=actingCohort->_location;
+    _destination=_location;
 
 
 }
 //------------------------------------------------------------------------------------------------------------
 void Cohort::step(Environment* e,vector<Cohort*>& preys,vector<Stock*>& stocks,const unsigned T) {
     _newH=NULL;//make sure the reproduction pointer has been zeroed out
-    
+
     if (_CohortAbundance - Parameters::Get( )->GetExtinctionThreshold( ) <= 0)return;
     _CurrentTimeStep=T;
 
@@ -294,9 +303,11 @@ void Cohort::markForDeath(){
 //------------------------------------------------------------------------------------------------------------
 void Cohort::moveIt(Environment* e,MadModel* m){
 
+        _moved=false;
 
         if (!_alive)return;
-        _displacement={0,0};_moved=false;//cohort cannot have moved yet
+        _destination=_location;
+        vector<int> movement={0,0};
        // Calculate the scalar to convert from the time step units used by this implementation of dispersal to the global model time step units
         double DeltaT = Constants::cMonth;
         double latCellLength = e->Height();
@@ -321,7 +332,7 @@ void Cohort::moveIt(Environment* e,MadModel* m){
 
           // Convert velocity from m/s to km/month. Note that if the _TimeUnitImplementation changes, this will also have to change.
           double VelocityUnitConversion = 60 * 60 * 24 * Constants::cDay * Constants::cMonth  / 1000;
-          for( int mm = 0; mm <  AdvectionTimeStepsPerModelTimeStep; mm++ ) {
+          for( int mm = 0; mm < AdvectionTimeStepsPerModelTimeStep; mm++ ) {
             // Get the u speed and the v speed from the cell data
             double uAdvectiveSpeed = e->uVel();
             assert( uAdvectiveSpeed > -9999 );
@@ -335,9 +346,8 @@ void Cohort::moveIt(Environment* e,MadModel* m){
             // Calculate the distance travelled in this dispersal (not global) time step. both advective and diffusive speeds need to have been converted to km / advective model time step
             double uSpeed = uAdvectiveSpeed * VelocityUnitConversion / AdvectionTimeStepsPerModelTimeStep + NJ.next() * sqrt( ( 2.0 * HorizontalDiffusivityKmSqPerADTimeStep ) );
             double vSpeed = vAdvectiveSpeed * VelocityUnitConversion / AdvectionTimeStepsPerModelTimeStep + NJ.next() * sqrt( ( 2.0 * HorizontalDiffusivityKmSqPerADTimeStep ) );
-            vector<int> temp=TryToDisperse( uSpeed,vSpeed,e,m );
-            _displacement[0]+=temp[0];
-            _displacement[1]+=temp[1];
+            TryToDisperse( uSpeed,vSpeed,e,m );
+
           }
         }// Otherwise, if mature do responsive dispersal
 
@@ -359,14 +369,14 @@ void Cohort::moveIt(Environment* e,MadModel* m){
              // If the body mass loss is greater than the starvation dispersal body mass threshold, then the cohort tries to disperse
              if( _IndividualBodyMass / _AdultMass < StarvationDispersalBodyMassThreshold ) {
                 // Cohort tries to disperse
-                _displacement=TryToDisperse( dispersalSpeed,e,m );
+                TryToDisperse( dispersalSpeed,e,m );
                 // Note that regardless of whether or not it succeeds,  it is counted as having dispersed for the purposes of not then allowing it to disperse based on its density.
                 cohortHasDispersed = true;
-                // Otherwise, the cohort has a chance of trying to disperse proportional to its mass loss
+                // Otherwise, the cohort has a chance of trying to disperse proportional to its mass lass
              } else {
                // Cohort tries to disperse with a particular probability
                if( ( ( 1.0 - _IndividualBodyMass / _AdultMass ) / ( 1.0 - StarvationDispersalBodyMassThreshold ) ) > repast::Random::instance()->nextDouble() ) {
-                 _displacement=TryToDisperse( dispersalSpeed,e,m );
+                 TryToDisperse( dispersalSpeed,e,m );
                  cohortHasDispersed = true;
                }
              }
@@ -375,30 +385,30 @@ void Cohort::moveIt(Environment* e,MadModel* m){
           if( !cohortHasDispersed ) {
             // If below the density threshold
             if( ( _CohortAbundance / CellArea ) < DensityThresholdScaling / _AdultMass ) {
-                _displacement=TryToDisperse( dispersalSpeed,e,m );
+                TryToDisperse( dispersalSpeed,e,m );
+
            }
           }
         }// If the cohort is immature, run diffusive dispersal
         else {
            dispersalSpeed=DispersalSpeedBodyMassScalar * pow( _IndividualBodyMass, DispersalSpeedBodyMassExponent);
 
-           _displacement=TryToDisperse( dispersalSpeed,e,m );
+                TryToDisperse( dispersalSpeed,e,m );
         }
         
-        if (_displacement[0]!=0 || _displacement[1]!=0){_moved=true;}
+      
 }
 //------------------------------------------------------------------------------------------------------------
- vector<int> Cohort::TryToDisperse(double dispersalSpeed, Environment* e,MadModel* m){
+void Cohort::TryToDisperse(double dispersalSpeed, Environment* e,MadModel* m){
     double randomDirection = repast::Random::instance()->nextDouble()* 2 * acos( -1. );
 
     // Calculate the u and v components given the dispersal speed
     double uSpeed = dispersalSpeed * cos( randomDirection );
     double vSpeed = dispersalSpeed * sin( randomDirection );
-    vector<int> v=TryToDisperse(uSpeed, vSpeed,e,m);
-    return v;
+    TryToDisperse(uSpeed, vSpeed,e,m);
  }
  //------------------------------------------------------------------------------------------------------------
- vector<int> Cohort::TryToDisperse(double uSpeed, double vSpeed,Environment* e, MadModel* m){
+void Cohort::TryToDisperse(double uSpeed, double vSpeed,Environment* e, MadModel* m){
  // Pick a direction at random
     double latCellLength = e->Height();
     double lonCellLength = e->Width();
@@ -424,10 +434,12 @@ void Cohort::moveIt(Environment* e,MadModel* m){
    // to determine the direction in which the cohort moves probabilistically
    double RandomValue=repast::Random::instance()->nextDouble();
    int signu=0,signv=0;
+
    if( DispersalProbability >= RandomValue ) {
 
       signu = ( uSpeed > 0 ) - ( uSpeed < 0 );
       signv = ( vSpeed > 0 ) - ( vSpeed < 0 );
+
       // Longitudinally
       if( RandomValue <= AreaOutsideU / CellArea ) {
        signv = 0;
@@ -437,32 +449,20 @@ void Cohort::moveIt(Environment* e,MadModel* m){
            signu = 0;
        }
      }
-      vector<int> location;
-      m->space()->getLocation(_id, location);
-      int x=location[0],y=location[1];
 
-     //only move if realm matches and we haven't exceed upper and lower latitude bounds (currently no movement across the pole)
-     if (x+signu >= m->_minX && x+signu <= m->_maxX){
-       if (y + signv < 0)y=y+ m->_maxY-m->_minY+1;
-       assert(y+signv>=0);
-       int yw= (y-m->_minY+signv) % (m->_maxY - m->_minY + 1) + m->_minY;//grid wrap in longitude
-       Environment* E=m->_Env[x+signu-m->_minX+(m->_maxX-m->_minX+1)*(yw-m->_minY)];
-     
-       if (E->_Realm!=_Realm) {signu=0;signv=0;}
-     }
+      int x=_destination[0],y=_destination[1];//need to accumulate this over multiple steps or some movements might get missed/not wrap properly
+
+     //only move if realm matches and we haven't exceeded upper and lower latitude bounds (currently no movement across the pole)
+
+     if (y+signv >= m->_minY && y+signv <= m->_maxY){
+       if (x + signu < 0)x=x+ m->_maxX-m->_minX+1;
+       assert(x+signu>=0);
+       int xw= (x-m->_minX+signu) % (m->_maxX - m->_minX + 1) + m->_minX;//grid wrap in longitude
+       Environment* E=m->_Env[xw-m->_minX+(m->_maxX-m->_minX+1)*(y+signv-m->_minY)]; //get environment of destination cell
+       if (E->_Realm==_Realm){_moved=true; _destination[0]=xw;_destination[1]=y+signv;}  // no movement if worong realm at destination
+     }  //no movement across poles.
    }
-   vector<int>v={signu,signv};
-   return v;
 
-}
-//------------------------------------------------------------------------------------------------------------
-
-void Cohort::relocateBy(int x,int y, MadModel* m){
-
-    //calls function in repast::BaseGrid.h
-    std::vector<int> displ{x,y};
-    m->space()->moveByDisplacement(this,displ);
-    _moved=true;
 }
 //------------------------------------------------------------------------------------------------------------
 void Cohort::assignTimeActive(Environment* e){
@@ -1113,6 +1113,7 @@ void Cohort::applyEcology(Environment* e){
 
 }
 //------------------------------------------------------------------------------------------------------------
+
 void Cohort::updatePools( Environment* e) {
     // Loop over all keys in the organic pool deltas sorted list
     for( auto &D: _MassAccounting["organicpool"] ) {

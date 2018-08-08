@@ -41,74 +41,138 @@
 #ifndef HUMAN_H_
 #define HUMAN_H_
 
-#include "relogo/Turtle.h"
+/*
+ *
+ *
+ * Human.h
+ *
+ *  Created on: Aug 8, 2018
+ *      Author: Mike Bithell
+ */
+
+#ifndef COHORT_H_
+#define COHORT_H_
+#include "agent.h"
+#include "repast_hpc/AgentId.h"
+#include "repast_hpc/SharedContext.h"
+#include "repast_hpc/SharedDiscreteSpace.h"
 #include "AgentPackage.h"
+#include "Environment.h"
+#include "randomizer.h"
 
-class Human : public repast::relogo::Turtle {
+class MadModel;
 
-private:
-	bool _infected, _Heterotroph, _Endotherm,_Ectotherm,_Marine,_Terrestrial, _Iteroparous;
-    bool _IsMature,_IsPlanktonic,_IsFilterFeeder;
-    bool _alive;
-    bool _Merged;
-    bool _Herbivore,_Carnivore,_Omnivore;
-    double _ProportionTimeActive,_ProportionSuitableTimeActive;
-    double _MinimumMass,_MaximumMass;
-    double _IndividualBodyMass,_CohortAbundance,_AdultMass,_JuvenileMass,_IndividualReproductivePotentialMass,_MaximumAchievedBodyMass;
-    double _LogOptimalPreyBodySizeRatio;
-    double _PotentialAbundanceEaten;
-    unsigned _MaturityTimeStep,_BirthTimeStep,_CurrentTimeStep;
-    unsigned _FunctionalGroupIndex;
-//	int _infectionTime;
-    double _edibleFractionMarine;
-    double _AttackRateExponentMarine;
-    double _HandlingTimeExponentMarine;
-    double _HandlingTimeScalarMarine;
-    double _edibleFractionTerrestrial;
-    double _AttackRateExponentTerrestrial;
-    double  _HandlingTimeExponentTerrestrial;
-    double  _HandlingTimeScalarTerrestrial;
-    double _HerbivoryRateMassExponent;
-    double _HerbivoryRateConstant;
-    double _ReferenceMass;
-    double _AssimilationEfficiency;
-    std::map < std::string, std::map<std::string,double> > _MassAccounting;
+class Human: public MadAgent  {
 
 public:
-//	Human(repast::AgentId id, repast::relogo::Observer* obs): repast::relogo::Turtle(id, obs), _infected(false), _infectionTime(0) {}
-//	Human(repast::AgentId id, repast::relogo::Observer* obs, const AgentPackage& package): repast::relogo::Turtle(id, obs), _infected(package.infected),
-//			_infectionTime(package.infectionTime) {}
-	Human(repast::AgentId id, repast::relogo::Observer* obs): repast::relogo::Turtle(id, obs) {}
-	Human(repast::AgentId id, repast::relogo::Observer* obs, const AgentPackage& package): repast::relogo::Turtle(id, obs){}
+
+    
+    unsigned _FunctionalGroupIndex;   
+
+    double _JuvenileMass;     
+    double _AdultMass;               
+    double _IndividualBodyMass;
+    double _MaximumAchievedBodyMass;
+    double _IndividualReproductivePotentialMass;
+    double _MinimumMass;
+    double _MaximumMass;
+    
+    double _CohortAbundance;
+    unsigned _BirthTimeStep;            
+    unsigned _MaturityTimeStep;            
+    double _LogOptimalPreyBodySizeRatio; 
+     
+    bool _Merged;
+    //bool _alive;
+    //bool _moved;
+
+  
+	bool _Heterotroph;   
+    bool _Autotroph; 
+    bool _Endotherm; 
+    bool _Ectotherm;
+    
+    std::string _Realm;      
+
+    bool _Iteroparous;
+    bool _Semelparous;
+    bool _Herbivore;
+    bool _Carnivore;
+    bool _Omnivore;
+    bool _IsPlanktonic;
+    bool _IsFilterFeeder;
+
+    
+    double _ProportionSuitableTimeActive;
+    
+    bool _IsMature;
+    
+    double _AssimilationEfficiency_H;
+    double _AssimilationEfficiency_C;
+
+    double _ProportionTimeActive;
+
+    double _PotentialAbundanceEaten;
+    unsigned _CurrentTimeStep;
+    
+    //herbivores
+
+    const double _edibleFractionMarine            =1.0;
+    const double _AttackRateExponentMarine        =2.0;
+    const double _HandlingTimeExponentMarine      =0.7;
+    const double _HandlingTimeScalarMarine        =0.7;
+    const double _edibleFractionTerrestrial       =0.1;
+    const double _AttackRateExponentTerrestrial   =2.0;
+    const double _HandlingTimeExponentTerrestrial =0.7;
+    const double _HandlingTimeScalarTerrestrial   =0.7;
+    const double _HerbivoryRateMassExponent       =1.0;
+    const double _HerbivoryRateConstant           =1.0e-11;
+    const double _ReferenceMass                   =1.0;
+ 
+    //Carnivores
+
+    const double _HandlingTimeScalar_C = 0.5;
+    const double _HandlingTimeExponent_C = 0.7;
+    const double _SearchRateConstant = 1E-6;
+    const double _FeedingPreferenceStandardDeviation = 0.7;
+    const double _NumberOfBins = 12;
+
+    std::map < std::string, std::map<std::string,double> > _MassAccounting;
+
+
+public:
+
+    static unsigned _NextID;
+    Human* _newH;
+    Human(repast::AgentId id): MadAgent(id), _Merged(false){_NextID++;_newH=NULL;}
+	Human(repast::AgentId id, const AgentPackage& package): MadAgent(id){PullThingsOutofPackage(package);_newH=NULL;}
+    void set(int currentRank, const AgentPackage& package){_id.currentRank(currentRank);PullThingsOutofPackage(package);}
+	void setup(unsigned,unsigned,Environment*,randomizer&);
+
 	virtual ~Human() {}
 
-	void step();
+	void step(Environment* ,vector<Cohort*>&,vector<Stock*>&,const unsigned);
 
-//	void infect();
-    void metabolize();
-    void assignTimeActive();
-    void reproduce();
-    void eat();
-    void moveIt();
+    void metabolize(Environment*);
+    void assignTimeActive(Environment*);
+    void reproduce(Environment*);
+    void eat(Environment*,vector<Cohort*>&,vector<Stock*>&);
+    void moveIt(Environment*,MadModel*);
+    void relocateBy(int,int, MadModel*);
     void mort();
-    void expire();
-    void applyEcology();
-    void setOffspring( Human* , double , double , double , double , unsigned  );
-    void TryToDisperse(double);
-    void TryToDisperse(double,double);
+    void markForDeath();
+    void applyEcology(Environment*);
+    void updatePools(Environment*);
+    void setupOffspring( Human* , double , double , double , double , unsigned  );
+    vector<int> TryToDisperse(double,Environment*,MadModel* );
+    vector<int> TryToDisperse(double,double,Environment*,MadModel* );
+    vector<int> _displacement;
 
-//	bool infected() const {
-//		return _infected;
-//	}
-
-//	int infectionTime() const {
-//		return _infectionTime;
-//	}
-
- // void set(bool infected, int infectionTime){
- //   _infected = infected;
- //   _infectionTime = infectionTime;
- // }
+void PushThingsIntoPackage( AgentPackage& );
+void PullThingsOutofPackage( const AgentPackage& );
+void ResetMassFluxes();
 };
+
+
 
 #endif /* HUMAN_H_ */

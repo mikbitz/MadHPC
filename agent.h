@@ -25,30 +25,4 @@ public:
 
 };
 
-/* Serializable Agent Package */
-/* struct MadAgentPackage {
-	
-public:
-    int    id;
-    int    rank;
-    int    type;
-    int    currentRank;
-
-	
-    MadAgentPackage(){}; // For serialization
-    MadAgentPackage(int _id, int _rank, int _type, int _currentRank):id(_id), rank(_rank), type(_type), currentRank(_currentRank){ }
-
-
-MadAgentPackage::
-    template<class Archive>
-    void serialize(Archive &ar, const unsigned int version){
-        ar & id;
-        ar & rank;
-        ar & type;
-        ar & currentRank;
-
-    }
-
-};
-*/
 #endif

@@ -95,8 +95,9 @@ struct AgentPackage {
 		ar & _AssimilationEfficiency_H;
 		ar & _AssimilationEfficiency_C;
         
-        ar& _displacement;
-        ar& _moved;
+        ar & _moved;
+        ar & _location;
+        ar & _destination;
 	}
 
 	int _id, _rank, _type, _currentRank;
@@ -143,8 +144,9 @@ struct AgentPackage {
     
     double _AssimilationEfficiency_H;
     double _AssimilationEfficiency_C;
-    vector<int> _displacement;
+    
     bool _moved;
+    vector<int> _location,_destination;
 
 	repast::AgentId getId() const {
 		return repast::AgentId(_id, _rank, _type, _currentRank);

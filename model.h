@@ -89,8 +89,10 @@ public:
 	void initSchedule(repast::ScheduleRunner& runner);
 	void recordResults();
     modelSpaceType* space(){return discreteSpace;}
+
     static int _stockType, _cohortType;
     //outputs
+    void setupOutputs();
     int CohortCount() const {
 		return _totalCohorts;
 	}

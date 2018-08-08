@@ -1,3 +1,11 @@
+/*
+ *
+ * CohortPair.cpp
+ *
+ *  Created on: May 7, 2018
+ *      Author: Mike Bithell
+ * 
+ */
 #include "CohortPair.h"
 
 CohortPair::CohortPair( ) {
