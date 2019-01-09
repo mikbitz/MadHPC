@@ -1,5 +1,9 @@
 /*
- *   Repast for High Performance Computing (Repast HPC)
+ *  main.cpp
+ *  Created on: May 7, 2018
+ *      Author: Mike Bithell
+ * 
+ * based in part on Repast for High Performance Computing (Repast HPC)
  *
  *   Copyright (c) 2010 Argonne National Laboratory
  *   All rights reserved.
@@ -80,7 +84,8 @@ void runModel(std::string propsFile, int argc, char ** argv) {
     //create and initialize model
 	MadModel* model = new MadModel(propsFile, argc, argv, &world);
 	repast::ScheduleRunner& runner = repast::RepastProcess::instance()->getScheduleRunner();
-	
+	model->test1();
+    exit(0);
 	model->init();
 	model->initSchedule(runner);
 	//now run things

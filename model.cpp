@@ -160,23 +160,7 @@ void MadModel::init(){
 
   
     int s=0;
-                        /* int x=33,y=0;
-                         repast::Point<int> initialLocation(x,y);
-                         Environment* E=_Env[x-_minX+(_maxX-_minX+1)*(y-_minY)];
-                         repast::AgentId id(Cohort::_NextID, rank, _cohortType);
-                         id.currentRank(rank);
-                         Cohort* c = new Cohort(id);
-                         c->setup(0,1, E,random);
-                         _context.addAgent(c);
-                         discreteSpace->moveTo(id, initialLocation);
-                         std::vector<int> displ{1,0};
-                         space()->moveByDisplacement(c,displ);
-                         space()->moveByDisplacement(c,displ);
-                         space()->moveByDisplacement(c,displ);
-                         vector<int> location;
-                         space()->getLocation(id, location);
-                         cout<<location[0]<<" "<<location[1]<<endl;
-                         exit(1);*/
+
     for (int x = _xlo; x < _xhi; x++){
         for (int y = _ylo; y < _yhi; y++){
              Environment* E=_Env[x-_minX+(_maxX-_minX+1)*(y-_minY)];
@@ -221,13 +205,7 @@ void MadModel::init(){
     cout<<"rank "<<rank<<" totalCohorts "<<_totalCohorts<<" totalStocks "<<s<<endl;
     setupOutputs();
 
-#ifndef _WIN32
-	// no netcdf under windows?
-//	NCDataSetBuilder builder("./output/data.ncf", RepastProcess::instance()->getScheduleRunner().schedule());
-//	InfectionSum* infectionSum = new InfectionSum(this);
-//	builder.addDataSource(repast::createNCDataSource("number_infected", infectionSum, std::plus<int>()));
-//	addDataSet(builder.createDataSet());
-#endif
+
     long double t = initTimer.stop();
 	std::stringstream ss;
 	ss << t;
@@ -272,7 +250,9 @@ void MadModel::step(){
             Environment* E=_Env[x-_minX+(_maxX-_minX+1)*(y-_minY)];
             E->zeroPools();
 
+            //store current location in a repast structure for later use
             repast::Point<int> location(x,y);
+            
             std::vector<MadAgent*> agentsInCell;
             //query four neighbouring cells, distance 0 (i.e. just the centre cell) - "true" keeps the centre cell.
             repast::VN2DGridQuery<MadAgent> VN2DQuery(space());
@@ -288,6 +268,7 @@ void MadModel::step(){
             
             shuffleList<Cohort>(cohorts);
             double allBiomass=0;
+            //advance the stocks and cohorts by one timestep
             for (auto s:stocks)allBiomass+=s->_TotalBiomass;
             for (auto s:stocks){s->step(allBiomass,E, CurrentTimeStep);}
             for (auto c:cohorts)c->step(E, cohorts, stocks, CurrentTimeStep);
@@ -325,9 +306,10 @@ void MadModel::step(){
     //numbers per functional group - here's how to add up across a vector over threads.
     MPI_Reduce(cohortBreakdown.data(), finalCohortBreakdown.data(), 19, MPI::INT, MPI::SUM, 0, MPI_COMM_WORLD);
     
-    if(repast::RepastProcess::instance()->rank() == 0){cout<<finalCohortBreakdown.size()<<endl;
-        for (auto& k:finalCohortBreakdown){cout<<k<<" ";}cout<<endl;cout.flush();}
+   // if(repast::RepastProcess::instance()->rank() == 0){
+   //     for (auto& k:finalCohortBreakdown){cout<<k<<" ";}cout<<endl;cout.flush();}
 
+    //find out which agents need to move
     //_moved has been set to false for new agents
     vector<Cohort*> movers;
     for(int x = _xlo; x < _xhi; x++){
@@ -352,20 +334,20 @@ void MadModel::step(){
         }
     }
     _totalMoved=movers.size();
-    /*for (auto m:movers){
-        space()->moveTo(m,m->_destination);
-        m->_location=m->_destination;
-    }*/
-    //RPHC is limited in thaht it uses a cartesian grid of threads to map onto the model grid
-    //it can't cope if an agent tried to move more than one cartesian grid cell in one go
-    //for some arrangments of cores thsi cuases a crash if maxMoveDist below (number of model grid cells moved this timstep)
-    //is set too high. To work around this, some movers have to be displaced in multiple steps. moving across threads multiple time
-    //Each time they move we need a sync() to copy thier properties (including how far still left to go) and then we need to re-acquire
-    //the agents on each thread to take account of tne changes
+
+    //RPHC default limited in that it uses a cartesian grid of threads to map onto the model grid
+    //and it can't cope if an agent tried to move more than one cartesian grid cell in one go.
+    //For some arrangments of cores this causes a crash if maxMoveDist below (number of model grid cells moved this timstep)
+    //is set too high. To work around this, some movers have to be displaced in multiple steps. moving across threads multiple times
+    //Each time they move we need a sync() to copy their properties (including how far still left to go) and then we need to re-acquire
+    //the agents on each thread to take account of tne changes. This is unnecessarily expensive and needs a change to RHPC defaults.
+    //The main problem is in SharedBaseGrid::balance() which assumes moves are only to cartesian grid neighbours 
+    //see sync() below where this is specified
+    //Even using a large buffer will not fix this - an edit of RHPC code is required.
     int maxMoveDist=min((_maxX-_minX)/_dimX,(_maxY-_minY)/_dimY);
     assert(maxMoveDist>1);
-    //Each thread has to find out locally if it has movedd all agents required
-    //globally Finiahed is needed to check across all threads to see if any are still active
+    //Each thread has to find out locally if it has moved all agents required
+    //globallyFinished is needed to check across all threads to see if any are still active
     //sync() needs to be called by ALL threads if any are still going - otherwise things can hang
     bool globallyFinished=false;
     vector<int>displacement={0,0};
@@ -385,7 +367,7 @@ void MadModel::step(){
          }else{
              //not finished as these cohorts will need to move again
              finished=false;
-             //move them by masMoveDist and then adjust their remaining displacement
+             //move them by maxMoveDist and then adjust their remaining displacement
              vector<int> d={maxMoveDist,maxMoveDist};
              d[0]=d[0]*( (displacement[0] > 0) - (displacement[0] < 0));
              d[1]=d[1]*( (displacement[1] > 0) - (displacement[1] < 0));
@@ -417,12 +399,15 @@ void MadModel::step(){
 void MadModel::sync(){
     //These lines synchronize the agents across all threads - if there is more than one...
     //Question - are threads guaranteed to be in sync?? (i.e. are we sure that all threads are on the same timestep?)
+    //Possibilites for sync in terms of where to send agents are POLL, USE_CURRENT, USE_LAST_OR_CURRENT, USE_LAST_OR_POLL
+    //USE_CURRENT assumes agents do no move beyond the neighbours in the cartesian grid of threads. This fails
+    //for some long distance moves - POLL seems the safest (not sure if guaranteed to work though...also maybe slower)
 	discreteSpace->balance();
     repast::RepastProcess::instance()->synchronizeAgentStatus<MadAgent, AgentPackage, 
-             MadAgentPackageProvider, MadAgentPackageReceiver>(_context, *provider, *receiver, *receiver);
+             MadAgentPackageProvider, MadAgentPackageReceiver>(_context, *provider, *receiver, *receiver,RepastProcess::POLL);
     
     repast::RepastProcess::instance()->synchronizeProjectionInfo<MadAgent, AgentPackage, 
-             MadAgentPackageProvider, MadAgentPackageReceiver>(_context, *provider, *receiver, *receiver);
+             MadAgentPackageProvider, MadAgentPackageReceiver>(_context, *provider, *receiver, *receiver,RepastProcess::POLL);
 
 	repast::RepastProcess::instance()->synchronizeAgentStates<AgentPackage, 
              MadAgentPackageProvider, MadAgentPackageReceiver>(*provider, *receiver);
@@ -475,7 +460,8 @@ void MadAgentPackageReceiver::updateAgent(AgentPackage package){
     repast::AgentId id(package._id, package._rank, package._type);
     if (id.agentType() == MadModel::_cohortType){
       Cohort* agent = (Cohort*)(agents->getAgent(id));//I think this matches irrespective of the value of currentRank (AgentId== operator doesn't use it)
-      agent->PullThingsOutofPackage(package);//agent->set(id.currentRank(),package);// Do not use !! this line is incorrect!!
+      agent->PullThingsOutofPackage(package);
+      //agent->set(id.currentRank(),package;// Do not use !! this line is incorrect!!
     }
 }
 //------------------------------------------------------------------------------------------------------------
@@ -519,7 +505,13 @@ void MadModel::setupOutputs(){
     
 
 	addDataSet(svbuilder.createDataSet());
-    
+
+//  Netcdf is supposed to act in a similar way - currently not functional - example is left over from the RHPC zombie demo code
+//	NCDataSetBuilder builder("./output/data.ncf", RepastProcess::instance()->getScheduleRunner().schedule());
+//	InfectionSum* infectionSum = new InfectionSum(this);
+//	builder.addDataSource(repast::createNCDataSource("number_infected", infectionSum, std::plus<int>()));
+//	addDataSet(builder.createDataSet());
+
 }
 //------------------------------------------------------------------------------------------------------------
 
@@ -529,11 +521,70 @@ void MadModel::dataSetClose() {
 		(dataSets[i])->close();
 	}
 }
-
+//---------------------------------------------------------------------------------------------------------------------------
 void MadModel::addDataSet(repast::DataSet* dataSet) {
 	dataSets.push_back(dataSet);
 	ScheduleRunner& runner = RepastProcess::instance()->getScheduleRunner();
 	runner.scheduleEvent(0.1, 1, Schedule::FunctorPtr(new MethodFunctor<repast::DataSet> (dataSet,&repast::DataSet::record)));
 	Schedule::FunctorPtr dsWrite = Schedule::FunctorPtr(new MethodFunctor<repast::DataSet> (dataSet,&repast::DataSet::write));
+    //output every 100 steps
 	runner.scheduleEvent(100.2, 100, dsWrite);
+}
+//---------------------------------------------------------------------------------------------------------------------------
+void MadModel::test1(){
+    int rank = repast::RepastProcess::instance()->rank();
+    randomizer random;
+    random.SetSeed(100);
+    
+    //get the environmental data - this is stored in the background as a DataLayerSet
+    FileReader F;
+    F.ReadFiles();
+    
+    //now set up the environmental cells - note at present this uses the full grid, not just local to this thread
+    //so that off-thread environment can be easily queried. Currently some duplication here, but it is not a huge amount of data.
+    _Env.resize( (_maxX-_minX+1) * (_maxY-_minY+1) );
+    for(int x=_minX;x<=_maxX;x++) {
+        for(int y=_minY;y<=_maxY;y++) {
+            Environment* E=new Environment(x,y);
+            _Env[x-_minX+(_maxX-_minX+1)*(y-_minY)]=E;
+        }
+    }
+    //get the definitions of stocks and cohorts
+    StockDefinitions::Initialise(Constants::cStockDefinitionsFileName);
+    CohortDefinitions::Initialise(Constants::cCohortDefinitionsFileName);
+    //if (rank==0){
+    int x=_xlo,y=_ylo;
+    repast::Point<int> initialLocation(x,y);
+    repast::Point<int> origin(50,50);
+    Environment* E=_Env[x-_minX+(_maxX-_minX+1)*(y-_minY)];
+    repast::AgentId id(Cohort::_NextID, rank, _cohortType);
+    id.currentRank(rank);
+    Cohort* c = new Cohort(id);
+    c->setup(0,1, E,random);
+    _context.addAgent(c);
+    discreteSpace->moveTo(id, initialLocation);
+    
+    //std::vector<int> displ{1,0};
+    //space()->moveByDisplacement(c,displ);
+    //space()->moveByDisplacement(c,displ);
+    //space()->moveByDisplacement(c,displ);
+    //vector<int> location;
+    //space()->getLocation(id, location);
+    //assert(location[0]==x+3);
+    //assert(location[1]==0);
+    //sync();//}
+    //cout<<rank<<" "<<endl;
+    std::vector<MadAgent*> agents;
+    _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
+    //cout<<rank<<" c see : "<<agents.size()<<" "<<_xlo<<" "<<_xhi<<" "<<_ylo<<" "<<_yhi<<endl;
+    //cout<<"test1 succeeded"<<endl;
+    cout.flush();
+    for (auto a:agents)    discreteSpace->moveTo(a->getId(),origin);
+    sync();
+    agents.clear();
+    _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
+    cout<<rank<<" c see : "<<agents.size()<<" "<<_xlo<<" "<<_xhi<<" "<<_ylo<<" "<<_yhi<<endl;
+    cout<<"test1 succeeded"<<endl;
+    cout.flush();
+    sync();
 }
