@@ -84,7 +84,7 @@ void runModel(std::string propsFile, int argc, char ** argv) {
     //create and initialize model
 	MadModel* model = new MadModel(propsFile, argc, argv, &world);
 	repast::ScheduleRunner& runner = repast::RepastProcess::instance()->getScheduleRunner();
-	model->test1();
+	model->tests();
     exit(0);
 	model->init();
 	model->initSchedule(runner);

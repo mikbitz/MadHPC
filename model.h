@@ -93,7 +93,7 @@ public:
     static int _stockType, _cohortType;
     //outputs
     void setupOutputs();
-    void test1();
+    void tests();
     int CohortCount() const {
 		return _totalCohorts;
 	}

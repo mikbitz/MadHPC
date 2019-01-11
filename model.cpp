@@ -531,10 +531,11 @@ void MadModel::addDataSet(repast::DataSet* dataSet) {
 	runner.scheduleEvent(100.2, 100, dsWrite);
 }
 //---------------------------------------------------------------------------------------------------------------------------
-void MadModel::test1(){
+void MadModel::tests(){
     int rank = repast::RepastProcess::instance()->rank();
     randomizer random;
     random.SetSeed(100);
+    int nranks=_dimX*_dimY;
     
     //get the environmental data - this is stored in the background as a DataLayerSet
     FileReader F;
@@ -552,39 +553,264 @@ void MadModel::test1(){
     //get the definitions of stocks and cohorts
     StockDefinitions::Initialise(Constants::cStockDefinitionsFileName);
     CohortDefinitions::Initialise(Constants::cCohortDefinitionsFileName);
-    //if (rank==0){
     int x=_xlo,y=_ylo;
     repast::Point<int> initialLocation(x,y);
-    repast::Point<int> origin(50,50);
+    repast::Point<int> origin(_minX,_minY);
     Environment* E=_Env[x-_minX+(_maxX-_minX+1)*(y-_minY)];
-    repast::AgentId id(Cohort::_NextID, rank, _cohortType);
-    id.currentRank(rank);
-    Cohort* c = new Cohort(id);
-    c->setup(0,1, E,random);
-    _context.addAgent(c);
-    discreteSpace->moveTo(id, initialLocation);
     
-    //std::vector<int> displ{1,0};
-    //space()->moveByDisplacement(c,displ);
-    //space()->moveByDisplacement(c,displ);
-    //space()->moveByDisplacement(c,displ);
-    //vector<int> location;
-    //space()->getLocation(id, location);
-    //assert(location[0]==x+3);
-    //assert(location[1]==0);
-    //sync();//}
-    //cout<<rank<<" "<<endl;
+    //---------------------------------------------------
+    //***-------------------TEST 1-------------------***//
+    //---------------------------------------------------
+    //initially all agents are just on rank 0
+   int localTotals=0,globalTotals=0,n=1000;
+    //create some agents on rank 0
+    if (rank==0){
+     cout<<"Test1: create n="<<n<<" agents on rank 0"<<endl;
+     for (int i=0;i<n;i++){
+      repast::AgentId id(Cohort::_NextID, rank, _cohortType);
+      id.currentRank(rank);
+      Cohort* c = new Cohort(id);
+      c->setup(0,1, E,random);
+      _context.addAgent(c);
+      discreteSpace->moveTo(id, initialLocation);
+     }
+    }
+
     std::vector<MadAgent*> agents;
     _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
-    //cout<<rank<<" c see : "<<agents.size()<<" "<<_xlo<<" "<<_xhi<<" "<<_ylo<<" "<<_yhi<<endl;
-    //cout<<"test1 succeeded"<<endl;
-    cout.flush();
-    for (auto a:agents)    discreteSpace->moveTo(a->getId(),origin);
+    localTotals=agents.size();
+    
+    //check across all threads to see if agents all still exist
+    
+    MPI_Allreduce(&localTotals, &globalTotals, 1, MPI::INT, MPI::SUM,MPI_COMM_WORLD);
+    assert(globalTotals==n);
+    if (rank==0)cout<<"Test1 succeeded"<<endl;
+    
+    //---------------------------------------------------
+    //***-------------------TEST 2-------------------***//
+    //---------------------------------------------------
+    //remove agents, but again only on rank 0
+    agents.clear();
+    _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
+    if (rank==0){
+     cout<<"Test2: delete all "<<n<<" agents on rank 0"<<endl;
+     for (auto a:agents)_context.removeAgent(a->getId());
+    }
+    agents.clear();
+    _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
+    localTotals=agents.size();
+    MPI_Allreduce(&localTotals, &globalTotals, 1, MPI::INT, MPI::SUM,MPI_COMM_WORLD);
+    assert(globalTotals==0);
+    if (rank==0)cout<<"Test2 succeeded "<<endl;
+
+    //---------------------------------------------------
+    //***-------------------TEST 3-------------------***//
+    //---------------------------------------------------
+    //add agents back to rank 0
+    if (rank==0){
+     cout<<"Test3: re-create "<<n<<" agents on rank 0"<<endl;
+     for (int i=0;i<n;i++){
+      repast::AgentId id(Cohort::_NextID, rank, _cohortType);
+      id.currentRank(rank);
+      Cohort* c = new Cohort(id);
+      c->setup(0,1, E,random);
+      _context.addAgent(c);
+      discreteSpace->moveTo(id, initialLocation);
+     }
+    }
+    agents.clear();
+    _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
+    localTotals=agents.size();
+    MPI_Allreduce(&localTotals, &globalTotals, 1, MPI::INT, MPI::SUM,MPI_COMM_WORLD);
+    assert(globalTotals==n);
+    if (rank==0)cout<<"Test3 succeeded "<<endl;
+    
+    //---------------------------------------------------
+    //***-------------------TEST 4-------------------***//
+    //---------------------------------------------------
+    //all agents still exist: allow any thread to move them
+    agents.clear();
+    _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
+    if (rank==0)cout<<"Test4: move agents by 1 unit in x "<<endl;
+    std::vector<int> displ{1,0};
+    for (auto a:agents)space()->moveByDisplacement(a,displ);
     sync();
     agents.clear();
     _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
-    cout<<rank<<" c see : "<<agents.size()<<" "<<_xlo<<" "<<_xhi<<" "<<_ylo<<" "<<_yhi<<endl;
-    cout<<"test1 succeeded"<<endl;
+    localTotals=agents.size();
+    MPI_Allreduce(&localTotals, &globalTotals, 1, MPI::INT, MPI::SUM,MPI_COMM_WORLD);
+    assert(globalTotals==n);
+    vector<int> location;
+    for (auto a:agents){
+      space()->getLocation(a->getId(), location);
+      assert(location[0]==_xlo+1 && location[1]==_ylo+0);
+    }
+    if (rank==0)cout<<"Test4 succeeded "<<endl;
+    //---------------------------------------------------
+    //***-------------------TEST 5-------------------***//
+    //---------------------------------------------------
+    //all agents still exist: allow any thread to move them
+    agents.clear();
+    _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
+    if (rank==0)cout<<"Test5: move agents by 1 unit in y "<<endl;
+    std::vector<int> displ2{0,1};
+    for (auto a:agents)space()->moveByDisplacement(a,displ2);
+    sync();
+    agents.clear();
+    _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
+    localTotals=agents.size();
+    MPI_Allreduce(&localTotals, &globalTotals, 1, MPI::INT, MPI::SUM,MPI_COMM_WORLD);
+    assert(globalTotals==n);
+    
+    for (auto a:agents){
+      space()->getLocation(a->getId(), location);
+      assert(location[0]==_xlo+1 && location[1]==_ylo+1);
+    }
+    if (rank==0)cout<<"Test5 succeeded "<<endl;
+    //---------------------------------------------------
+    //***-------------------TEST 6-------------------***//
+    //---------------------------------------------------
+    //all agents still exist: allow any thread to move them
+    //note grid is wrapped, so moves of any distance should work.
+    //all agents are still co-located, so should end up on the same thread
+    agents.clear();
+    _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
+    int xm1=200,ym1=-15;
+    if (rank==0)cout<<"Test6: move agents by "<<xm1<<" units in x and "<<ym1<<" units in y "<<endl;
+    std::vector<int> displ3{xm1,ym1};
+    for (auto a:agents)space()->moveByDisplacement(a,displ3);
+    sync();
+    agents.clear();
+    _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
+    localTotals=agents.size();
+    MPI_Allreduce(&localTotals, &globalTotals, 1, MPI::INT, MPI::SUM,MPI_COMM_WORLD);
+    assert(globalTotals==n);
+    for (auto a:agents){
+      space()->getLocation(a->getId(), location);
+      //calculate the wrapped position including previous move by +1,+1 
+      int xpos=xm1+1+_minX,ypos=ym1+1+_minY;
+      while (xpos<_minX)xpos+=(_maxX - _minX + 1);
+      while (ypos<_minY)ypos+=(_maxY - _minY + 1);
+      xpos=xpos % (_maxX - _minX + 1);
+      ypos=ypos % (_maxY - _minY + 1);
+      assert(location[0]==xpos && location[1]==ypos);
+    }
+    if (rank==0)cout<<"Test6 succeeded "<<endl;
+    //---------------------------------------------------
+    //***-------------------TEST 7-------------------***//
+    //---------------------------------------------------
+    //all agents still exist: allow any thread to move them
+    //note grid is wrapped, so moves of any distance should work.
+    //all agents are still co-located, so should end up on the same thread
+    agents.clear();
+    _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
+    int xm2=-79,ym2=3355;
+    if (rank==0)cout<<"Test7: move agents by "<<xm2<<" units in x and "<<ym2<<" units in y "<<endl;
+    std::vector<int> displ4{xm2,ym2};
+    for (auto a:agents)space()->moveByDisplacement(a,displ4);
+    sync();
+    agents.clear();
+    _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
+    localTotals=agents.size();
+    MPI_Allreduce(&localTotals, &globalTotals, 1, MPI::INT, MPI::SUM,MPI_COMM_WORLD);
+    assert(globalTotals==n);
+    for (auto a:agents){
+      space()->getLocation(a->getId(), location);
+      //calculate the wrapped position including previous move by xm1+1,ym1+1 
+      int xpos=xm1+xm2+1+_minX,ypos=ym1+ym2+1+_minY;
+      while (xpos<_minX)xpos+=(_maxX - _minX + 1);
+      while (ypos<_minY)ypos+=(_maxY - _minY + 1);
+      xpos=xpos % (_maxX - _minX + 1);
+      ypos=ypos % (_maxY - _minY + 1);
+      assert(location[0]==xpos && location[1]==ypos);
+    }
+    //---------------------------------------------------
+    //***-------------------TEST 8-------------------***//
+    //---------------------------------------------------
+    //move all agents back to origin (thread 0)
+    agents.clear();
+    _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
+
+    if (rank==0)cout<<"Test8: move agents back to origin: "<<_minX<<" "<<_minY<<endl;
+    for (auto a:agents)space()->moveTo(a,origin);
+    sync();
+    agents.clear();
+    _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
+    localTotals=agents.size();
+    MPI_Allreduce(&localTotals, &globalTotals, 1, MPI::INT, MPI::SUM,MPI_COMM_WORLD);
+    assert(globalTotals==n);
+    for (auto a:agents){
+      space()->getLocation(a->getId(), location);
+      assert(location[0]==_minX && location[1]==_minY);
+    }
+    if (rank==0)cout<<"Test8 succeeded "<<endl;
+    //---------------------------------------------------
+    //***-------------------TEST 9-------------------***//
+    //---------------------------------------------------
+    //move all agents to random locations
+    agents.clear();
+    _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
+
+    if (rank==0)cout<<"Test9: move agents to random location: "<<endl;
+    
+    for (auto a:agents){
+        vector<int> loc{int(random.GetUniform()*1000.),int(random.GetUniform()*1000.)};
+        space()->moveTo(a,loc);
+    }
+    sync();
+    agents.clear();
+    _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
+    localTotals=agents.size();
+    cout<<"Total on rank:"<<rank<<" "<<localTotals<<endl;
+    MPI_Allreduce(&localTotals, &globalTotals, 1, MPI::INT, MPI::SUM,MPI_COMM_WORLD);
+    assert(globalTotals==n);
+    for (auto a:agents){
+      space()->getLocation(a->getId(), location);
+      assert(location[0]>=_xlo && location[1]>=_ylo && location[0]<_xhi && location[1]<_yhi);
+    }
+    if (rank==0)cout<<"Test9 succeeded "<<endl;
+    //---------------------------------------------------
+    //***-------------------TEST 10-------------------***//
+    //---------------------------------------------------
+    //test add and delete on all threads, not just rank 0
+    agents.clear();
+    _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
+
+    if (rank==0)cout<<"Test10: delete up to 10 agents per thread, add up to 100 new, move all randomly: "<<endl;
+    int nr=0,globalAdded,globalRemoved;
+    for (auto a:agents){
+        if (nr<int(random.GetUniform()*10.)){a->_alive=false;_context.removeAgent(a->getId());nr++;}
+        if (a->_alive){
+            vector<int> loc{int(random.GetUniform()*781.),int(random.GetUniform()*500.-250)};
+            space()->moveTo(a,loc);
+        }
+    }
+    int nnew=int(random.GetUniform()*100.);
+    for (int i=0;i<nnew;i++){
+      repast::AgentId id(Cohort::_NextID, rank, _cohortType);
+      id.currentRank(rank);
+      Cohort* c = new Cohort(id);
+      c->setup(0,1, E,random);
+      _context.addAgent(c);
+      vector<int> loc{int(random.GetUniform()*37.-99),int(random.GetUniform()*188.)};
+      space()->moveTo(c,loc);
+    }
+    
+    sync();
+    MPI_Allreduce(&nnew, &globalAdded, 1, MPI::INT, MPI::SUM,MPI_COMM_WORLD);
+    MPI_Allreduce(&nr, &globalRemoved, 1, MPI::INT, MPI::SUM,MPI_COMM_WORLD);
+
+    agents.clear();
+    _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
+    localTotals=agents.size();
+    MPI_Allreduce(&localTotals, &globalTotals, 1, MPI::INT, MPI::SUM,MPI_COMM_WORLD);
+    assert(globalTotals==n+globalAdded-globalRemoved);
+    for (auto a:agents){
+      space()->getLocation(a->getId(), location);
+      assert(location[0]>=_xlo && location[1]>=_ylo && location[0]<_xhi && location[1]<_yhi);
+      assert(a->getId().currentRank()==rank);
+    }
+    if (rank==0)cout<<"Test10 succeeded: "<<"removed:"<<globalRemoved<<" added:"<<globalAdded<<endl;
     cout.flush();
     sync();
 }
