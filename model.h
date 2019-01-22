@@ -73,9 +73,12 @@ class MadModel{
     int _totalCohorts,_totalStocks;
     double _totalCohortAbundance,_totalCohortBiomass,_totalStockBiomass,_totalOrganciPool,_totalRespiratoryCO2Pool;
     int    _totalMerged,_totalReproductions,_totalDeaths,_totalMoved;
+    vector<double> _FinalCohortBiomassMap,_FinalCohortAbundanceMap,_FinalCohortBreakdown;
+    vector<double> _FinalStockBiomassMap;
+
     void dataSetClose();
     void addDataSet(repast::DataSet*) ;
-
+    void asciiOutput( unsigned step ); 
 public:
     int _minX,_minY,_maxX,_maxY,_dimX,_dimY;
     int _xlo,_xhi,_ylo,_yhi;
@@ -94,6 +97,8 @@ public:
     //outputs
     void setupOutputs();
     void tests();
+    void setupCohortTestValues(Cohort*);
+    void checkCohortTestValues(Cohort*);
     int CohortCount() const {
 		return _totalCohorts;
 	}

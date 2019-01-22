@@ -41,7 +41,6 @@ bool Parameters::Initialise( const Types::StringMatrix& rawInputParameterData ) 
             for( unsigned rowIndex = 0; rowIndex < rawInputParameterData.size( ); ++rowIndex ) {
                 
                 std::string parameterName = Convertor::Get( )->RemoveWhiteSpace( Convertor::Get( )->ToLowercase( rawInputParameterData[ rowIndex ][ Constants::eParameterName ] ) );
-
                 if( parameterName == "rootdatadirectory" ) SetRootDataDirectory( Convertor::Get( )->RemoveWhiteSpace( rawInputParameterData[ rowIndex ][ Constants::eParameterValue ] ) );
                 else if( parameterName == "timestepunits" ) SetTimeStepUnits( Convertor::Get( )->RemoveWhiteSpace( Convertor::Get( )->ToLowercase( rawInputParameterData[ rowIndex ][ Constants::eParameterValue ] ) ) );
                 else if( parameterName == "lengthofsimulationinyears" ) SetLengthOfSimulationInMonths( Convertor::Get( )->StringToNumber( rawInputParameterData[ rowIndex ][ Constants::eParameterValue ] ) );
@@ -61,11 +60,13 @@ bool Parameters::Initialise( const Types::StringMatrix& rawInputParameterData ) 
                 else if( parameterName == "impactsteps" ) SetImpactSteps( Convertor::Get( )->StringToNumber( rawInputParameterData[ rowIndex ][ Constants::eParameterValue ] ) );
                 else if( parameterName == "recoverysteps" ) SetRecoverySteps( Convertor::Get( )->StringToNumber( rawInputParameterData[ rowIndex ][ Constants::eParameterValue ] ) );
             }
+
             CalculateParameters( );
             
             success = true;
         }
     }
+
     return success;
 }
 
@@ -86,11 +87,12 @@ void Parameters::CalculateParameters( ) {
 
     // Calculate spatial parameters
     mLengthDataLongitudeArray = 360 / mGridCellSize;
+
+
     mDataLongitudeArray = new float[ mLengthDataLongitudeArray ];
     for( unsigned longitudeIndex = 0; longitudeIndex < mLengthDataLongitudeArray; ++longitudeIndex ) {
         mDataLongitudeArray[ longitudeIndex ] = ( -180 + ( ( float )mGridCellSize / 2 ) ) + ( longitudeIndex * ( float )mGridCellSize );
     }
-
     mLengthDataLatitudeArray = 180 / mGridCellSize;
     mDataLatitudeArray = new float[ mLengthDataLatitudeArray ];
     for( unsigned latitudeIndex = 0; latitudeIndex < mLengthDataLatitudeArray; ++latitudeIndex ) {
@@ -165,7 +167,7 @@ int Parameters::GetUserMaximumLatitude( ) const {
     return mUserMaximumLatitude;
 }
 
-unsigned Parameters::GetGridCellSize( ) const {
+double Parameters::GetGridCellSize( ) const {
     return mGridCellSize;
 }
 
@@ -233,7 +235,7 @@ void Parameters::SetUserMaximumLatitude( const int& userMaximumLatitude ) {
     mUserMaximumLatitude = userMaximumLatitude;
 }
 
-void Parameters::SetGridCellSize( const unsigned& gridCellSize ) {
+void Parameters::SetGridCellSize( const double& gridCellSize ) {
     mGridCellSize = gridCellSize;
 }
 

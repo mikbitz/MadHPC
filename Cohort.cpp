@@ -91,7 +91,7 @@ void Cohort::setup(unsigned functionalGroup,unsigned numCohortsThisCell,Environm
     
     double expectedLnAdultMassRatio = 2.24 + 0.13 * log( _AdultMass );
     //in the original code the mean and sd are those of the underlying normal distribution
-    //in the boost lobrary they refer to the log distibution - see
+    //in the boost library they refer to the log distibution - see
     //https://www.boost.org/doc/libs/1_43_0/libs/math/doc/sf_and_dist/html/math_toolkit/dist/dist_ref/dists/lognormal_dist.html
     LogNormalGenerator LNJ= repast::Random::instance()->createLogNormalGenerator(exp(expectedLnAdultMassRatio+0.5*0.5/2.), (exp(0.5*0.5)-1)*exp(2*expectedLnAdultMassRatio+0.5*0.5));
 
@@ -114,7 +114,7 @@ void Cohort::setup(unsigned functionalGroup,unsigned numCohortsThisCell,Environm
     _location={0,0};
 }
 //------------------------------------------------------------------------------------------------------------
-//Required by RHPC for cross-core copy
+//Required by RHPC for cross-core copy - NB "MassFluxes" do not need to be included as they are instantaneous within a timestep
 void Cohort::PullThingsOutofPackage( const AgentPackage& package ) {
     _FunctionalGroupIndex        = package._FunctionalGroupIndex;
     _JuvenileMass                = package._JuvenileMass;
@@ -247,11 +247,11 @@ void Cohort::setupOffspring( Cohort* actingCohort, double juvenileBodyMass, doub
 
 }
 //------------------------------------------------------------------------------------------------------------
-void Cohort::step(Environment* e,vector<Cohort*>& preys,vector<Stock*>& stocks,const unsigned T) {
+void Cohort::step(Environment* e,vector<Cohort*>& preys,vector<Stock*>& stocks,const unsigned Timestep) {
     _newH=NULL;//make sure the reproduction pointer has been zeroed out
 
     if (_CohortAbundance - Parameters::Get( )->GetExtinctionThreshold( ) <= 0)return;
-    _CurrentTimeStep=T;
+    _CurrentTimeStep=Timestep;
 
     //note - passing in preys here from above ensures that new cohorts created later do not immediately get eaten.
     //since they *do* get added to the global cohort list straight away.

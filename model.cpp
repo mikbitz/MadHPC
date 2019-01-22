@@ -24,6 +24,7 @@
 #include "agent.h"
 #include "CohortMerger.h"
 #include "Environment.h"
+#include "Parameters.h"
 #include "Groups.h"
 #include "Stock.h"
 #include "Cohort.h"
@@ -117,6 +118,22 @@ void MadModel::initSchedule(repast::ScheduleRunner& runner){
 }
 //------------------------------------------------------------------------------------------------------------
 void MadModel::init(){
+    _totalCohorts=0;
+    _totalStocks=0;
+    _totalCohortAbundance=0;
+    _totalCohortBiomass=0;
+    _totalStockBiomass=0;
+    _totalMerged=0;
+    _totalReproductions=0;
+    _totalDeaths=0;
+    _totalMoved=0;
+    //Values only reduced on thread 0
+    if(repast::RepastProcess::instance()->rank() == 0){
+     _FinalCohortBiomassMap.resize( (_maxX-_minX+1) * (_maxY-_minY+1) );
+     _FinalCohortAbundanceMap.resize( (_maxX-_minX+1) * (_maxY-_minY+1) );
+     _FinalStockBiomassMap.resize( (_maxX-_minX+1) * (_maxY-_minY+1) );
+     _FinalCohortBreakdown.resize(19);
+    }
     //time the initialisation
     repast::Timer initTimer;
     initTimer.start();
@@ -237,17 +254,19 @@ void MadModel::step(){
 
     //make sure all data is synced across threads
     sync();
-    vector<int> cohortBreakdown,finalCohortBreakdown;
-    cohortBreakdown.resize(19);
-    finalCohortBreakdown.resize(19);
-    for (auto& k:cohortBreakdown){k=0;}
-    for (auto& k:finalCohortBreakdown){k=0;}
-    //loop over local grid cells
+    //vectors length 19 initialized to 0
+    vector<int> cohortBreakdown(19,0);
+    //spatial distributions - for efficiency these shoudl just the the local part, but easier initially to just keep he whole thing on each thread
+    //with zeros for non-local, and then reduce onto thread 0
+    vector<double> cohortBiomassMap( (_maxX-_minX+1) * (_maxY-_minY+1),0.0 ),cohortAbundanceMap( (_maxX-_minX+1) * (_maxY-_minY+1),0.0 );
+    vector<double> stockBiomassMap( (_maxX-_minX+1) * (_maxY-_minY+1),0.0 );
 
+
+    //loop over local grid cells
     for(int x = _xlo; x < _xhi; x++){
         for(int y = _ylo; y < _yhi; y++){
-
-            Environment* E=_Env[x-_minX+(_maxX-_minX+1)*(y-_minY)];
+            int cellindex=x-_minX+(_maxX-_minX+1)*(y-_minY);
+            Environment* E=_Env[cellindex];
             E->zeroPools();
 
             //store current location in a repast structure for later use
@@ -272,7 +291,8 @@ void MadModel::step(){
             for (auto s:stocks)allBiomass+=s->_TotalBiomass;
             for (auto s:stocks){s->step(allBiomass,E, CurrentTimeStep);}
             for (auto c:cohorts)c->step(E, cohorts, stocks, CurrentTimeStep);
-            for (auto s:stocks){_totalStockBiomass+=s->_TotalBiomass/1000;_totalStocks++;}
+            for (auto s:stocks){_totalStockBiomass+=s->_TotalBiomass/1000;stockBiomassMap[cellindex]+=s->_TotalBiomass/1000/E->Area();_totalStocks++;}
+            
 
             //cohorts can have one offspring per timestep - add the offspring to the model
             vector<Cohort*> newCohorts;
@@ -292,8 +312,11 @@ void MadModel::step(){
             for (auto c:cohorts){
                 if (c->_alive){
                     _totalCohorts++;
+                    cohortAbundanceMap[cellindex]+= c->_CohortAbundance/E->Area();
                     _totalCohortAbundance += c->_CohortAbundance;
-                    _totalCohortBiomass += ( c->_IndividualBodyMass + c->_IndividualReproductivePotentialMass ) * c->_CohortAbundance / 1000.;
+                    cohortBiomassMap[cellindex]+=( c->_IndividualBodyMass + c->_IndividualReproductivePotentialMass ) * c->_CohortAbundance / 1000.;
+                    _totalCohortBiomass += cohortBiomassMap[cellindex];
+                    cohortBiomassMap[cellindex]=cohortBiomassMap[cellindex]/E->Area();
                     cohortBreakdown[c->_FunctionalGroupIndex]++;
                 }
             }
@@ -303,11 +326,6 @@ void MadModel::step(){
             _totalRespiratoryCO2Pool+=E->respiratoryPool()/1000;
         }
     }
-    //numbers per functional group - here's how to add up across a vector over threads.
-    MPI_Reduce(cohortBreakdown.data(), finalCohortBreakdown.data(), 19, MPI::INT, MPI::SUM, 0, MPI_COMM_WORLD);
-    
-   // if(repast::RepastProcess::instance()->rank() == 0){
-   //     for (auto& k:finalCohortBreakdown){cout<<k<<" ";}cout<<endl;cout.flush();}
 
     //find out which agents need to move
     //_moved has been set to false for new agents
@@ -335,63 +353,25 @@ void MadModel::step(){
     }
     _totalMoved=movers.size();
 
-    //RPHC default limited in that it uses a cartesian grid of threads to map onto the model grid
-    //and it can't cope if an agent tried to move more than one cartesian grid cell in one go.
-    //For some arrangments of cores this causes a crash if maxMoveDist below (number of model grid cells moved this timstep)
-    //is set too high. To work around this, some movers have to be displaced in multiple steps. moving across threads multiple times
-    //Each time they move we need a sync() to copy their properties (including how far still left to go) and then we need to re-acquire
-    //the agents on each thread to take account of tne changes. This is unnecessarily expensive and needs a change to RHPC defaults.
-    //The main problem is in SharedBaseGrid::balance() which assumes moves are only to cartesian grid neighbours 
-    //see sync() below where this is specified
-    //Even using a large buffer will not fix this - an edit of RHPC code is required.
-    int maxMoveDist=min((_maxX-_minX)/_dimX,(_maxY-_minY)/_dimY);
-    assert(maxMoveDist>1);
-    //Each thread has to find out locally if it has moved all agents required
-    //globallyFinished is needed to check across all threads to see if any are still active
-    //sync() needs to be called by ALL threads if any are still going - otherwise things can hang
-    bool globallyFinished=false;
     vector<int>displacement={0,0};
-    while (!globallyFinished){
-     //are we finished locally?
-     bool finished=true;
-     for (auto& m:movers){
-         displacement[0]=m->_destination[0]-m->_location[0];
-         displacement[1]=m->_destination[1]-m->_location[1];
-         //move things with less than maxMovedDist - these are then settled and _moved becomes false
-         if ( m->_moved &&
-             displacement[0] <  maxMoveDist + 1 && displacement[1] <  maxMoveDist + 1  &&
-             displacement[0] > -maxMoveDist - 1 && displacement[1] > -maxMoveDist - 1
-         ){
-         space()->moveTo(m,m->_destination);m->_moved=false;m->_location=m->_destination;
-         //now deal with fast movers
-         }else{
-             //not finished as these cohorts will need to move again
-             finished=false;
-             //move them by maxMoveDist and then adjust their remaining displacement
-             vector<int> d={maxMoveDist,maxMoveDist};
-             d[0]=d[0]*( (displacement[0] > 0) - (displacement[0] < 0));
-             d[1]=d[1]*( (displacement[1] > 0) - (displacement[1] < 0));
-             m->_location[0]=m->_location[0] + d[0];
-             m->_location[1]=m->_location[1] + d[1];
-             space()->moveByDisplacement(m,d);
+    for (auto& m:movers){
+        displacement[0]=m->_destination[0]-m->_location[0];
+        displacement[1]=m->_destination[1]-m->_location[1];
+        //move things - these are then settled and _moved becomes false
+        if ( m->_moved  ){
+            space()->moveTo(m,m->_destination);m->_moved=false;m->_location=m->_destination;
          }
-     }
-     //check across all threads to see if we are finished globally
-     MPI_Allreduce(&finished, &globallyFinished, 1, MPI::BOOL, MPI::LAND,MPI_COMM_WORLD);
-     if (!globallyFinished){
-         //some moves still needed - synchronize the temporary moves
-         sync();
-         movers.clear();
-         //now check on each thread for moved agents that still need to be moved
-     	 std::vector<MadAgent*> agents;
-         _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
- 		 for(auto& a:agents){
-             if (a->getId().agentType()==MadModel::_cohortType && a->_moved) { 
-               movers.push_back((Cohort*) a);
-             }
-         }
-     }
     }
+    //outputs not yet available via svbuilder.  
+    //numbers per functional group - here's how to add up across a vector over threads.
+    MPI_Reduce(cohortBreakdown.data(), _FinalCohortBreakdown.data(), 19, MPI::INT, MPI::SUM, 0, MPI_COMM_WORLD);
+    //also get the biomass maps
+    MPI_Reduce(cohortBiomassMap.data(), _FinalCohortBiomassMap.data(), (_maxX-_minX+1) * (_maxY-_minY+1), MPI::DOUBLE, MPI::SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(cohortAbundanceMap.data(), _FinalCohortAbundanceMap.data(), (_maxX-_minX+1) * (_maxY-_minY+1), MPI::DOUBLE, MPI::SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(stockBiomassMap.data(), _FinalStockBiomassMap.data(), (_maxX-_minX+1) * (_maxY-_minY+1), MPI::DOUBLE, MPI::SUM, 0, MPI_COMM_WORLD);
+
+    if(repast::RepastProcess::instance()->rank() == 0){asciiOutput(CurrentTimeStep);}
+
 }
 
 
@@ -513,6 +493,55 @@ void MadModel::setupOutputs(){
 //	addDataSet(builder.createDataSet());
 
 }
+    //----------------------------------------------------------------------------------------------
+    void MadModel::asciiOutput( unsigned step ) {
+    stringstream A,B,C;
+    string fAname,fBname,fCname;
+    A<<"output/cohortAbundance_SqKm_"<<(step+1)<<".asc";
+    B<<"output/cohortBiomassKg_SqKm_"<<(step+1)<<".asc";
+    C<<"output/stockBiomassKg_SqKm_"<<(step+1)<<".asc";
+    A>>fAname;
+    B>>fBname;
+    C>>fCname;
+    ofstream Abundout(fAname.c_str());
+    Abundout.precision(15);
+    ofstream Biomaout(fBname.c_str());
+    Biomaout.precision(15);
+    ofstream Stockout(fCname.c_str());
+    Stockout.precision(15);
+    const unsigned int NumLon = _maxX-_minX+1;
+    const unsigned int NumLat = _maxY-_minY+1;
+    Abundout<<"ncols "<<NumLon<<endl;
+    Abundout<<"nrows "<<NumLat<<endl;
+    Abundout<<"xllcorner     -180.0"<<endl;
+    Abundout<<"yllcorner     -65.0"<<endl;
+    Abundout<<"cellsize "<< Parameters::Get()->GetGridCellSize( )<<endl;
+    Abundout<<"NODATA_value  -9999"<<endl;
+    Biomaout<<"ncols "<<NumLon<<endl;
+    Biomaout<<"nrows "<<NumLat<<endl;
+    Biomaout<<"xllcorner     -180.0"<<endl;
+    Biomaout<<"yllcorner     -65.0"<<endl;
+    Biomaout<<"cellsize "<< Parameters::Get()->GetGridCellSize( )<<endl;
+    Biomaout<<"NODATA_value  -9999"<<endl;
+    Stockout<<"ncols "<<NumLon<<endl;
+    Stockout<<"nrows "<<NumLat<<endl;
+    Stockout<<"xllcorner     -180.0"<<endl;
+    Stockout<<"yllcorner     -65.0"<<endl;
+    Stockout<<"cellsize "<< Parameters::Get()->GetGridCellSize( )<<endl;
+    Stockout<<"NODATA_value  -9999"<<endl;
+    for (int la=NumLat-1;la>=0;la--){
+     for (int lo=0;lo<NumLon;lo++){
+       int cellindex=lo-_minX+(_maxX-_minX+1)*(la-_minY);
+       Abundout<<_FinalCohortAbundanceMap[cellindex]<<" ";
+       Biomaout<<_FinalCohortBiomassMap[cellindex]<<" ";
+       Stockout<<_FinalStockBiomassMap[cellindex]<<" ";
+     }
+     Abundout<<endl;
+     Biomaout<<endl;
+     Stockout<<endl;
+     }
+       //     for (auto& k:finalCohortBreakdown){cout<<k<<" ";}cout<<endl;cout.flush();}
+    }
 //------------------------------------------------------------------------------------------------------------
 
 void MadModel::dataSetClose() {
@@ -530,6 +559,9 @@ void MadModel::addDataSet(repast::DataSet* dataSet) {
     //output every 100 steps
 	runner.scheduleEvent(100.2, 100, dsWrite);
 }
+//---------------------------------------------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------------------------------------------
+//***------------------------------------------------TESTING Section----------------------------------------------------***//
 //---------------------------------------------------------------------------------------------------------------------------
 void MadModel::tests(){
     int rank = repast::RepastProcess::instance()->rank();
@@ -573,6 +605,7 @@ void MadModel::tests(){
       c->setup(0,1, E,random);
       _context.addAgent(c);
       discreteSpace->moveTo(id, initialLocation);
+      c->setLocation(x,y);
      }
     }
 
@@ -616,6 +649,7 @@ void MadModel::tests(){
       c->setup(0,1, E,random);
       _context.addAgent(c);
       discreteSpace->moveTo(id, initialLocation);
+      c->setLocation(x,y);
      }
     }
     agents.clear();
@@ -778,6 +812,7 @@ void MadModel::tests(){
 
     if (rank==0)cout<<"Test10: delete up to 10 agents per thread, add up to 100 new, move all randomly: "<<endl;
     int nr=0,globalAdded,globalRemoved;
+    //remove up to 10 agents locally: move other agents around randomly
     for (auto a:agents){
         if (nr<int(random.GetUniform()*10.)){a->_alive=false;_context.removeAgent(a->getId());nr++;}
         if (a->_alive){
@@ -785,6 +820,7 @@ void MadModel::tests(){
             space()->moveTo(a,loc);
         }
     }
+    //addup to 100 new agents on this thread and then move these at random 
     int nnew=int(random.GetUniform()*100.);
     for (int i=0;i<nnew;i++){
       repast::AgentId id(Cohort::_NextID, rank, _cohortType);
@@ -811,6 +847,187 @@ void MadModel::tests(){
       assert(a->getId().currentRank()==rank);
     }
     if (rank==0)cout<<"Test10 succeeded: "<<"removed:"<<globalRemoved<<" added:"<<globalAdded<<endl;
+    //---------------------------------------------------
+    //***-------------------TEST 11-------------------***//
+    //---------------------------------------------------
+    //test whether data in cohorts move correctly across threads
+    //first remove all existing agents
+    agents.clear();
+    _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
+    if (rank==0)cout<<"Test11: check agent data moves correctly across threads"<<endl;
+
+    for (auto a:agents){
+        _context.removeAgent(a->getId());
+    }
+    sync();
+    //now add a new agent on each thread and set its properties to known values
+    for (int i=0;i<n;i++){
+      repast::AgentId id(Cohort::_NextID, rank, _cohortType);
+      id.currentRank(rank);
+      Cohort* c = new Cohort(id);
+      c->setup(0,1, E,random);
+      _context.addAgent(c);
+      discreteSpace->moveTo(id, initialLocation);
+      c->setLocation(x,y);
+      setupCohortTestValues(c);
+      checkCohortTestValues(c);
+     }
+    //move agents randomly 100 times
+    for (int i=0;i<100;i++){
+    agents.clear();
+    _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
+    for (auto a:agents){
+            vector<int> loc{int(random.GetUniform()*237.-125),int(random.GetUniform()*981.-250)};
+            space()->moveTo(a,loc);
+    }
+    sync();}
+    agents.clear();
+    _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
+    for (auto a:agents){
+      checkCohortTestValues((Cohort*) a);
+    }
+    //change some vlaues and check they are still OK
+    for (auto a:agents){
+      ((Cohort*)a)->setLocation(112,-98);
+      ((Cohort*)a)->_AdultMass=10.;
+    }
+
+    for (auto a:agents){
+            vector<int> loc{int(random.GetUniform()*237.-125),int(random.GetUniform()*981.-250)};
+            space()->moveTo(a,loc);
+    }
+    sync();
+    agents.clear();
+    _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
+    for (auto a:agents){
+      assert(((Cohort*)a)->_location[0]==112);
+      assert(((Cohort*)a)->_location[1]==-98);
+      assert(((Cohort*)a)->_AdultMass==10.);
+    }
+    if (rank==0)cout<<"Test11 succeeded: values copied across threads unchanged"<<endl;
+
     cout.flush();
     sync();
 }
+//---------------------------------------------------------------------------------------------------------------------------
+//define some data values for the Cohort to check whether they are preserved on moving across threads
+//see Cohort::setup
+void MadModel::setupCohortTestValues(Cohort* c){
+    
+
+    c->_FunctionalGroupIndex=12;//functionalGroup;
+    c->_Merged                      = false;
+    c->_alive                       = true;
+
+	c->_Heterotroph=false;//(CohortDefinitions::Get()->Trait(functionalGroup     , "heterotroph/autotroph")  =="heterotroph");   
+    c->_Autotroph  =!c->_Heterotroph;
+    c->_Endotherm  =true;//(CohortDefinitions::Get()->Trait(functionalGroup     , "endo/ectotherm")         =="endotherm");
+    c->_Ectotherm  =!c->_Endotherm;
+    c->_Realm      ="Astring";//CohortDefinitions::Get()->Trait(functionalGroup     , "realm");
+
+    c->_Iteroparous=true;//(CohortDefinitions::Get()->Trait(functionalGroup     , "reproductive strategy")  =="iteroparity");
+    c->_Semelparous=!c->_Iteroparous;
+    c->_Herbivore=false;//(CohortDefinitions::Get()->Trait(functionalGroup       , "nutrition source")       =="herbivore");
+    c->_Carnivore=true;//(CohortDefinitions::Get()->Trait(functionalGroup       , "nutrition source")       =="carnivore");
+    c->_Omnivore= false;//(CohortDefinitions::Get()->Trait(functionalGroup       , "nutrition source")       =="omnivore");
+    c->_IsPlanktonic= false;//(CohortDefinitions::Get()->Trait(functionalGroup   , "mobility")               =="planktonic");
+    c->_IsFilterFeeder=false;//(CohortDefinitions::Get()->Trait(functionalGroup   , "diet")                   =="allspecial");
+    
+    c->_ProportionSuitableTimeActive= 0.67;//CohortDefinitions::Get()->Property(functionalGroup   ,"proportion suitable time active");
+    
+    c->_IsMature=false;
+    c->_IndividualReproductivePotentialMass=0;
+    
+    c->_AssimilationEfficiency_H=0.15;//CohortDefinitions::Get()->Property(functionalGroup   ,"herbivory assimilation");
+    c->_AssimilationEfficiency_C=0.321;//CohortDefinitions::Get()->Property(functionalGroup   ,"carnivory assimilation");
+    c->_BirthTimeStep=0;
+    c->_MaturityTimeStep=std::numeric_limits<unsigned>::max( );
+    c->_MinimumMass=0.01;//CohortDefinitions::Get()->Property(functionalGroup   ,"minimum mass");
+    c->_MaximumMass=75000;//CohortDefinitions::Get()->Property(functionalGroup   ,"maximum mass");
+
+    //repast::DoubleUniformGenerator gen = repast::Random::instance()->createUniDoubleGenerator(0, 1);
+    
+    c->_AdultMass = 48.77;//pow( 10, ( gen.next( ) * ( log10( _MaximumMass ) - log10( 50 * _MinimumMass ) ) + log10( 50 * _MinimumMass ) ) );
+    
+
+    //NormalGenerator NJ= repast::Random::instance()->createNormalGenerator(0.1,0.02);
+    
+    c->_LogOptimalPreyBodySizeRatio = 0.05;//log(std::max( 0.01, NJ.next() ));
+    
+    //double expectedLnAdultMassRatio = 2.24 + 0.13 * log( _AdultMass );
+    //in the original code the mean and sd are those of the underlying normal distribution
+    //in the boost library they refer to the log distibution - see
+    //https://www.boost.org/doc/libs/1_43_0/libs/math/doc/sf_and_dist/html/math_toolkit/dist/dist_ref/dists/lognormal_dist.html
+    //LogNormalGenerator LNJ= repast::Random::instance()->createLogNormalGenerator(exp(expectedLnAdultMassRatio+0.5*0.5/2.), (exp(0.5*0.5)-1)*exp(2*expectedLnAdultMassRatio+0.5*0.5));
+    
+    /*if( _Realm=="terrestrial" ) {
+          do {
+            _JuvenileMass = _AdultMass  / (1.0 + LNJ.next());
+          } while( _AdultMass <= _JuvenileMass || _JuvenileMass < _MinimumMass );
+    } else {
+          do {
+            _JuvenileMass = _AdultMass  / (1.0 + 10 *LNJ.next());
+          } while( _AdultMass <= _JuvenileMass || _JuvenileMass < _MinimumMass );
+    }
+
+    double NewBiomass = ( 3300. / numCohortsThisCell ) * 100 * 3000 * pow( 0.6, ( log10( _JuvenileMass ) ) ) * ( e->Area() );
+    */
+    
+    c->_CohortAbundance = 100000;//NewBiomass / _JuvenileMass;
+    c->_JuvenileMass=12.5;
+    
+    c->_MaximumAchievedBodyMass=99;//_JuvenileMass;
+    c->_IndividualBodyMass=12567;//_JuvenileMass;
+    c->_moved=false;
+    c->_location={-12,75};
+}
+//---------------------------------------------------------------------------------------------------------------------------
+//check that the values set in the above function are still maintained
+void MadModel::checkCohortTestValues(Cohort* c){
+    assert(c->_FunctionalGroupIndex==12);
+    assert(c->_Merged                      == false);
+    assert(c->_alive                       == true);
+
+	assert(c->_Heterotroph==false);
+    assert(c->_Autotroph  ==!c->_Heterotroph);
+    assert(c->_Endotherm  ==true);
+    assert(c->_Ectotherm  ==!c->_Endotherm);
+    assert(c->_Realm      =="Astring");
+
+    assert(c->_Iteroparous==true);
+    assert(c->_Semelparous==!c->_Iteroparous);
+    assert(c->_Herbivore==false);
+    assert(c->_Carnivore==true);
+    assert(c->_Omnivore== false);
+    assert(c->_IsPlanktonic== false);
+    assert(c->_IsFilterFeeder==false);
+    
+    assert(c->_ProportionSuitableTimeActive== 0.67);
+    
+    assert(c->_IsMature==false);
+    assert(c->_IndividualReproductivePotentialMass==0);
+    
+    assert(c->_AssimilationEfficiency_H==0.15);
+    assert(c->_AssimilationEfficiency_C==0.321);
+    assert(c->_BirthTimeStep==0);
+    assert(c->_MaturityTimeStep==std::numeric_limits<unsigned>::max( ));
+    assert(c->_MinimumMass==0.01);
+    assert(c->_MaximumMass==75000);
+
+    assert(c->_AdultMass == 48.77);
+    
+    assert(c->_LogOptimalPreyBodySizeRatio == 0.05);
+
+    
+    assert(c->_CohortAbundance == 100000);
+    assert(c->_JuvenileMass==12.5);
+    assert(c->_MaximumAchievedBodyMass==99);
+    assert(c->_IndividualBodyMass==12567);
+    assert(c->_moved==false);
+    assert(c->_location[0]==-12);
+    assert(c->_location[1]==75);
+}
+//---------------------------------------------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------------------------------------------
+//***------------------------------------------------END TESTING Section----------------------------------------------------***//
+//---------------------------------------------------------------------------------------------------------------------------

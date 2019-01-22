@@ -66,7 +66,7 @@ void runModel(std::string propsFile, int argc, char ** argv) {
   props.putProperty("min.y",0);
   props.putProperty("max.x",Parameters::Get()->GetLengthUserLongitudeArray( )-1);
   props.putProperty("max.y",Parameters::Get()->GetLengthUserLatitudeArray( )-1);
-  
+  cout<<Parameters::Get()->GetLengthUserLongitudeArray( )<<" "<<Parameters::Get()->GetLengthUserLatitudeArray( )<<endl;
   std::string time;
   repast::timestamp(time);
   props.putProperty("date_time.run", time);
