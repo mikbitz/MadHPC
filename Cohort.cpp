@@ -5,7 +5,7 @@
  *  Created on: May 7, 2018
  *      Author: Mike Bithell
  * 
- *  Derived from Origianl C# code by
+ *  Derived from Original C# code by
  * Emergent Global Patterns of Ecosystem Structure and Function from a Mechanistic General Ecosystem Model , Michael B. J. Harfoot , Tim Newbold, Derek P. Tittensor,  Stephen Emmott, Jon Hutton, Vassily Lyutsarev, Matthew J. Smith, Jörn P. W. Scharlemann, Drew W. Purves PLOS Biology 12(4) 2014 e1001841 https://doi.org/10.1371/journal.pbio.1001841
  */
 
@@ -22,33 +22,33 @@
 using namespace repast;
 unsigned Cohort::_NextID=0;
 //------------------------------------------------------------------------------------------------------------
-void Cohort::ResetMassFluxes( ) {
+void Cohort::ResetAccounts( ) {
     // Initialize delta abundance sorted list with appropriate processes
 
-    _MassAccounting["abundance"]["mortality"] = 1.0;//NB this applies because of a change from the original model - this value is now a multiplier
+    _Accounting["abundance"]["mortality"] = 1.0;//NB this applies because of a change from the original model - this value is now a multiplier (reduces possibility of negatives)
 
     // Initialize delta biomass sorted list with appropriate processes
-    _MassAccounting["biomass"]["metabolism"] = 0.0;
-    _MassAccounting["biomass"]["carnivory"] = 0.0;
-    _MassAccounting["biomass"]["herbivory"] = 0.0;
-    _MassAccounting["biomass"]["reproduction"] = 0.0;
+    _Accounting["biomass"]["metabolism"] = 0.0;
+    _Accounting["biomass"]["carnivory"] = 0.0;
+    _Accounting["biomass"]["herbivory"] = 0.0;
+    _Accounting["biomass"]["reproduction"] = 0.0;
 
     // Initialize delta reproductive biomass vector with appropriate processes
 
-    _MassAccounting["reproductivebiomass"]["reproduction"] = 0.0;
+    _Accounting["reproductivebiomass"]["reproduction"] = 0.0;
 
     // Initialize organic pool delta vector with appropriate processes
-    _MassAccounting["organicpool"]["herbivory"] = 0.0;
-    _MassAccounting["organicpool"]["carnivory"] = 0.0;
-    _MassAccounting["organicpool"]["mortality"] = 0.0;
+    _Accounting["organicpool"]["herbivory"] = 0.0;
+    _Accounting["organicpool"]["carnivory"] = 0.0;
+    _Accounting["organicpool"]["mortality"] = 0.0;
 
     // Initialize respiratory CO2 pool delta vector with appropriate processes
-    _MassAccounting["respiratoryCO2pool"]["metabolism"] = 0.0;
+    _Accounting["respiratoryCO2pool"]["metabolism"] = 0.0;
 }
 //used to create an initial set of cohorts at the start of a run
 //------------------------------------------------------------------------------------------------------------
 void Cohort::setup(unsigned functionalGroup,unsigned numCohortsThisCell,Environment* e,randomizer& r){
-    ResetMassFluxes( );
+    ResetAccounts( );
 
     _FunctionalGroupIndex=functionalGroup;
     _Merged                      = false;
@@ -114,7 +114,7 @@ void Cohort::setup(unsigned functionalGroup,unsigned numCohortsThisCell,Environm
     _location={0,0};
 }
 //------------------------------------------------------------------------------------------------------------
-//Required by RHPC for cross-core copy - NB "MassFluxes" do not need to be included as they are instantaneous within a timestep
+//Required by RHPC for cross-core copy - NB "Accounts" do not need to be included as they are instantaneous within a timestep
 void Cohort::PullThingsOutofPackage( const AgentPackage& package ) {
     _FunctionalGroupIndex        = package._FunctionalGroupIndex;
     _JuvenileMass                = package._JuvenileMass;
@@ -201,7 +201,7 @@ void Cohort::PushThingsIntoPackage( AgentPackage& package ) {
 }
 //------------------------------------------------------------------------------------------------------------
 void Cohort::setupOffspring( Cohort* actingCohort, double juvenileBodyMass, double adultBodyMass, double initialBodyMass, double initialAbundance, unsigned birthTimeStep ) {
-     ResetMassFluxes( );
+     ResetAccounts( );
      _newH=NULL;
     _FunctionalGroupIndex        = actingCohort->_FunctionalGroupIndex;
     _JuvenileMass                = juvenileBodyMass;
@@ -256,7 +256,7 @@ void Cohort::step(Environment* e,vector<Cohort*>& preys,vector<Stock*>& stocks,c
     //note - passing in preys here from above ensures that new cohorts created later do not immediately get eaten.
     //since they *do* get added to the global cohort list straight away.
     //pass in of environment avoids having to find it with an expensive lookup
-    ResetMassFluxes( );
+    ResetAccounts( );
     assignTimeActive(e);
     eat(e,preys,stocks);
     metabolize(e);
@@ -313,8 +313,7 @@ void Cohort::moveIt(Environment* e,MadModel* m){
             double vAdvectiveSpeed = e->vVel();
             assert( vAdvectiveSpeed > -9999 );
 
-            // Note that this formulation drops the delta t because we set the horizontal diffusivity to be at the same temporal
-            // scale as the time step
+            // Note that this formulation drops the delta t because we set the horizontal diffusivity to be at the same temporal scale as the time step
             
             // Calculate the distance travelled in this dispersal (not global) time step. both advective and diffusive speeds need to have been converted to km / advective model time step
             double uSpeed = uAdvectiveSpeed * VelocityUnitConversion / AdvectionTimeStepsPerModelTimeStep + NJ.next() * sqrt( ( 2.0 * HorizontalDiffusivityKmSqPerADTimeStep ) );
@@ -432,7 +431,7 @@ void Cohort::TryToDisperse(double uSpeed, double vSpeed,Environment* e, MadModel
        assert(x+signu>=0);
        int xw= (x-m->_minX+signu) % (m->_maxX - m->_minX + 1) + m->_minX;//grid wrap in longitude
        Environment* E=m->_Env[xw-m->_minX+(m->_maxX-m->_minX+1)*(y+signv-m->_minY)]; //get environment of destination cell
-       if (E->_Realm==_Realm){_moved=true; _destination[0]=xw;_destination[1]=y+signv;}  // no movement if worong realm at destination
+       if (E->_Realm==_Realm){_moved=true; _destination[0]=xw;_destination[1]=y+signv;}  // no movement if wrong realm at destination
      }  //no movement across poles.
    }
 
@@ -641,10 +640,10 @@ void Cohort::eat(Environment* e,vector<Cohort*>& preys,vector<Stock*>& stocks){
 
         // Return the total  biomass of the autotroph stock eaten
        
-        if( _CohortAbundance > 0 )_MassAccounting["biomass"]["herbivory"] += BiomassesEaten * _AssimilationEfficiency_H / _CohortAbundance;
+        if( _CohortAbundance > 0 )_Accounting["biomass"]["herbivory"] += BiomassesEaten * _AssimilationEfficiency_H / _CohortAbundance;
 
    
-        _MassAccounting["organicpool"]["herbivory"] += BiomassesEaten * ( 1 - _AssimilationEfficiency_H );
+        _Accounting["organicpool"]["herbivory"] += BiomassesEaten * ( 1 - _AssimilationEfficiency_H );
        }
     }
     if (_Carnivore || _Omnivore){
@@ -666,9 +665,9 @@ void Cohort::eat(Environment* e,vector<Cohort*>& preys,vector<Stock*>& stocks){
         }
 
         // Add the biomass eaten and assimilated by an individual to the delta biomass for the acting (predator) cohort
-        _MassAccounting[ "biomass" ][ "carnivory" ] = biomassConsumed * _AssimilationEfficiency_C;
+        _Accounting[ "biomass" ][ "carnivory" ] = biomassConsumed * _AssimilationEfficiency_C;
         // Move the biomass eaten but not assimilated by an individual into the organic matter pool
-        _MassAccounting[ "organicpool" ][ "carnivory" ] = biomassConsumed * ( 1 - _AssimilationEfficiency_C ) * _CohortAbundance;
+        _Accounting[ "organicpool" ][ "carnivory" ] = biomassConsumed * ( 1 - _AssimilationEfficiency_C ) * _CohortAbundance;
     }
     }
 
@@ -698,13 +697,13 @@ void Cohort::metabolize(Environment* e){
 
     // metabolic loss in grams
     double IndividualMetabolicRate = (( _ProportionTimeActive * FieldMetabolicLosskJ ) + ( ( 1 - _ProportionTimeActive ) * ( BasalMetabolicLosskJ ) ) ) * EnergyScalar;
-    _MassAccounting["biomass"]["metabolism"] = -IndividualMetabolicRate * DeltaT;
+    _Accounting["biomass"]["metabolism"] = -IndividualMetabolicRate * DeltaT;
 
     // If metabolic loss is greater than individual body mass after herbivory and predation, then set equal to individual body mass
-    _MassAccounting["biomass"]["metabolism"] = std::max( _MassAccounting["biomass"]["metabolism"], -( _IndividualBodyMass + _MassAccounting["biomass"]["carnivory"] + _MassAccounting["biomass"]["herbivory"] ) );
+    _Accounting["biomass"]["metabolism"] = std::max( _Accounting["biomass"]["metabolism"], -( _IndividualBodyMass + _Accounting["biomass"]["carnivory"] + _Accounting["biomass"]["herbivory"] ) );
 
     // Add total metabolic loss for all individuals in the cohort to delta biomass for metabolism in the respiratory CO2 pool
-    _MassAccounting["respiratoryCO2pool"]["metabolism"] = -_MassAccounting["biomass"]["metabolism"] * _CohortAbundance;
+    _Accounting["respiratoryCO2pool"]["metabolism"] = -_Accounting["biomass"]["metabolism"] * _CohortAbundance;
 
 
     }
@@ -728,13 +727,13 @@ void Cohort::metabolize(Environment* e){
     // metabolic loss in grams
     double IndividualMetabolicRate= metabolicLosskJ * EnergyScalar;
     // Calculate metabolic loss for an individual and add the value to the delta biomass for metabolism
-    _MassAccounting[ "biomass" ][ "metabolism" ] = -IndividualMetabolicRate * DeltaT;
+    _Accounting[ "biomass" ][ "metabolism" ] = -IndividualMetabolicRate * DeltaT;
 
     // If metabolic loss is greater than individual body mass after herbivory and predation, then set equal to individual body mass
-    _MassAccounting[ "biomass" ][ "metabolism" ] = std::max( _MassAccounting[ "biomass" ][ "metabolism" ], -( _IndividualBodyMass + _MassAccounting[ "biomass" ][ "carnivory" ] + _MassAccounting[ "biomass" ][ "herbivory" ] ) );
+    _Accounting[ "biomass" ][ "metabolism" ] = std::max( _Accounting[ "biomass" ][ "metabolism" ], -( _IndividualBodyMass + _Accounting[ "biomass" ][ "carnivory" ] + _Accounting[ "biomass" ][ "herbivory" ] ) );
 
     // Add total metabolic loss for all individuals in the cohort to delta biomass for metabolism in the respiratory CO2 pool
-    _MassAccounting[ "respiratoryCO2pool" ][ "metabolism" ] = -_MassAccounting[ "biomass" ][ "metabolism" ] * _CohortAbundance;
+    _Accounting[ "respiratoryCO2pool" ][ "metabolism" ] = -_Accounting[ "biomass" ][ "metabolism" ] * _CohortAbundance;
     }
     //heterotroph - in the original model but not used */
 }
@@ -751,7 +750,7 @@ void Cohort::reproduce(Environment* e){
     NetBiomassFromOtherEcologicalFunctionsThisTimeStep = 0.0;
 
     // Loop over all items in the biomass deltas
-    for( auto& Biomass: _MassAccounting[ "biomass" ] ) {
+    for( auto& Biomass: _Accounting[ "biomass" ] ) {
         // Add the delta biomass to net biomass
         NetBiomassFromOtherEcologicalFunctionsThisTimeStep += Biomass.second;
 
@@ -772,8 +771,8 @@ void Cohort::reproduce(Environment* e){
         }
 
         // Assign the specified mass to reproductive potential mass and remove it from individual biomass
-        _MassAccounting[ "reproductivebiomass" ][ "reproduction" ] += BiomassToAssignToReproductivePotential;
-        _MassAccounting[ "biomass" ][ "reproduction" ] -= BiomassToAssignToReproductivePotential;
+        _Accounting[ "reproductivebiomass" ][ "reproduction" ] += BiomassToAssignToReproductivePotential;
+        _Accounting[ "biomass" ][ "reproduction" ] -= BiomassToAssignToReproductivePotential;
 
     } else {
         // Cohort has not gained sufficient biomass to assign any to reproductive potential, so take no action
@@ -809,7 +808,7 @@ void Cohort::reproduce(Environment* e){
     // Calculate the biomass of an individual in this cohort including changes this time step from other ecological processes  
     bodyMassIncludingChangeThisTimeStep = 0.0;
 
-    for( auto& Biomass: _MassAccounting[ "biomass" ] ) {
+    for( auto& Biomass: _Accounting[ "biomass" ] ) {
         // Add the delta biomass to net biomass
         bodyMassIncludingChangeThisTimeStep += Biomass.second;
 
@@ -819,7 +818,7 @@ void Cohort::reproduce(Environment* e){
     // Calculate the reproductive biomass of an individual in this cohort including changes this time step from other ecological processes  
     reproductiveMassIncludingChangeThisTimeStep = 0.0;
 
-    for( auto& ReproBiomass: _MassAccounting[ "reproductivebiomass" ] ) {
+    for( auto& ReproBiomass: _Accounting[ "reproductivebiomass" ] ) {
         // Add the delta reproductive biomass to net biomass
         reproductiveMassIncludingChangeThisTimeStep += ReproBiomass.second;
     }
@@ -884,8 +883,8 @@ void Cohort::reproduce(Environment* e){
 
             // Subtract all of the reproductive potential mass of the parent cohort, which has been used to generate the new
             // cohort, from the delta reproductive potential mass and delta adult body mass
-            _MassAccounting[ "reproductivebiomass" ][ "reproduction" ] -= reproductiveMassIncludingChangeThisTimeStep;
-            _MassAccounting[ "biomass" ][ "reproduction" ] -= adultMassLost;
+            _Accounting[ "reproductivebiomass" ][ "reproduction" ] -= reproductiveMassIncludingChangeThisTimeStep;
+            _Accounting[ "biomass" ][ "reproduction" ] -= adultMassLost;
         } else {
 
             // Organism is not large enough, or it is not the breeding season, so take no action
@@ -915,7 +914,7 @@ void Cohort::mort(){
 
     BodyMassIncludingChangeThisTimeStep = 0.0;
     // Loop over all items in the biomass deltas
-    for( auto Biomass: _MassAccounting[ "biomass" ] ) {
+    for( auto Biomass: _Accounting[ "biomass" ] ) {
         // Add the delta biomass to net biomass
         BodyMassIncludingChangeThisTimeStep += Biomass.second;
     }
@@ -926,7 +925,7 @@ void Cohort::mort(){
     ReproductiveMassIncludingChangeThisTimeStep = 0.0;
 
     // Loop over all items in the biomass Cohort::Deltas
-    for( auto Biomass: _MassAccounting[ "reproductivebiomass" ] ) {
+    for( auto Biomass: _Accounting[ "reproductivebiomass" ] ) {
         // Add the delta biomass to net biomass
         ReproductiveMassIncludingChangeThisTimeStep += Biomass.second;
     }
@@ -991,35 +990,35 @@ void Cohort::mort(){
         MortalityTotal = exp( -MortalityRateBackground - MortalityRateSenescence - MortalityRateStarvation );
     }
 
-    // Remove individuals that have died from the delta abundance for this cohort
-    _MassAccounting[ "abundance" ][ "mortality" ] = MortalityTotal;
+    // Remove individuals that have died from the delta abundance for this cohort in apply ecology (by multiplication)
+    _Accounting[ "abundance" ][ "mortality" ] = MortalityTotal;
 
 
     // Add the biomass of individuals that have died to the delta biomass in the organic pool (including reproductive 
     // potential mass, and mass gained through eating, and excluding mass lost through metabolism)
-    _MassAccounting[ "organicpool" ][ "mortality" ] = ( 1 - MortalityTotal ) * _CohortAbundance * ( BodyMassIncludingChangeThisTimeStep + ReproductiveMassIncludingChangeThisTimeStep );
+    _Accounting[ "organicpool" ][ "mortality" ] = ( 1 - MortalityTotal ) * _CohortAbundance * ( BodyMassIncludingChangeThisTimeStep + ReproductiveMassIncludingChangeThisTimeStep );
 }
 //------------------------------------------------------------------------------------------------------------
 void Cohort::applyEcology(Environment* e){
     // Variable to calculate net abundance change to check that cohort abundance will not become negative
     double NetAbundanceChange = 0.0;
     // Loop over all abundance deltas
-    for( auto& d: _MassAccounting["abundance"] ) {
+    for( auto& d: _Accounting["abundance"] ) {
         // Update net abundance change
         NetAbundanceChange += d.second;
     }
     // Check that cohort abundance will not become negative
     assert( NetAbundanceChange >= 0 && "Cohort abundance < 0" );
     //this is a variation from the original below - 
-    //the abundance here only changes in Mortality.h where the change was mortalityTotal=(1-exp(-sum-of-Mortalities))*abundance
-    //this is now change to mortalityTotal=exp(-sum-of-mortalities) - avoiding possibilities of negatives arising.
+    //the abundance here only changes in mort() where the change was mortalityTotal=(1-exp(-sum-of-Mortalities))*abundance
+    //this is now changed to mortalityTotal=exp(-sum-of-mortalities) - avoiding possibilities of negatives arising.
     _CohortAbundance *= NetAbundanceChange;
 
     // Variable to calculate net biomass change to check that cohort individual body mass will not become negative
     double NetBiomass = 0.0;
 
     // Loop over all biomass deltas
-    for( auto& d: _MassAccounting["biomass"] ) {
+    for( auto& d: _Accounting["biomass"] ) {
         // Update net biomass change
         NetBiomass += d.second;
 
@@ -1040,7 +1039,7 @@ void Cohort::applyEcology(Environment* e){
     //}
 
     //Loop over all keys in the deltas sorted list
-    for( auto& d: _MassAccounting["biomass"] ) {
+    for( auto& d: _Accounting["biomass"] ) {
         // If cohort abundance is zero, then set cohort individual body mass to zero and reset the biomass delta to zero, 
         // otherwise update cohort individual body mass and reset the biomass delta to zero
         if( _CohortAbundance == 0 ) {
@@ -1064,13 +1063,13 @@ void Cohort::applyEcology(Environment* e){
     double NetReproductiveBiomass = 0.0;
 
     // Loop over all reproductive biomass deltas
-    for( auto& d: _MassAccounting["reproductivebiomass"] ) {
+    for( auto& d: _Accounting["reproductivebiomass"] ) {
         // Update net reproductive biomass change
         NetReproductiveBiomass += d.second;
     }
 
     //Loop over all keys in the abundance deltas sorted list
-    for( auto& d: _MassAccounting["reproductivebiomass"] ) {
+    for( auto& d: _Accounting["reproductivebiomass"] ) {
         // If cohort abundance is zero, then set cohort reproductive body mass to zero and reset the biomass delta to zero, 
         // otherwise update cohort reproductive body mass and reset the biomass delta to zero
         if( _CohortAbundance == 0 ) {
@@ -1087,7 +1086,7 @@ void Cohort::applyEcology(Environment* e){
 
 void Cohort::updatePools( Environment* e) {
     // Loop over all keys in the organic pool deltas sorted list
-    for( auto &D: _MassAccounting["organicpool"] ) {
+    for( auto &D: _Accounting["organicpool"] ) {
         // Check that the delta value is not negative
         //if( D.second < 0 ) std::cout << "organic pool " << D.first << " " << D.second << std::endl;
 
@@ -1096,7 +1095,7 @@ void Cohort::updatePools( Environment* e) {
         e->addToOrganicPool(D.second);
     }
     // Loop over all keys in the respiratory pool deltas sorted list
-    for( auto &D: _MassAccounting["respiratoryCO2pool"] ) {
+    for( auto &D: _Accounting["respiratoryCO2pool"] ) {
         // Check that the delta value is not negative
         if( D.second < 0 ) std::cout << "respiratoryCO2pool " << D.first << " " << D.second << std::endl;
         //assert( D.second >= 0.0 && "A delta value for the respiratory CO2 pool is negative" );

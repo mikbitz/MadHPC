@@ -5,8 +5,8 @@ LengthOfSimulationInYears,100
 MinimumLongitude,-180
 MaximumLongitude,180
 MinimumLatitude,-65
-MaximumLatitude,55
-GridCellSize,10
+MaximumLatitude,60
+GridCellSize,5
 ExtinctionThreshold,1
 MaximumNumberOfCohorts,100
 PlanktonSizeThreshold,0.01

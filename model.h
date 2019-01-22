@@ -83,7 +83,7 @@ public:
     int _minX,_minY,_maxX,_maxY,_dimX,_dimY;
     int _xlo,_xhi,_ylo,_yhi;
     vector<Environment*> _Env;
-	MadModel(std::string propsFile, int argc, char** argv, boost::mpi::communicator* comm);
+	MadModel(repast::Properties& ,  boost::mpi::communicator* comm);
 	~MadModel();
 	void init();
 	void moveAgents();

@@ -7,15 +7,16 @@ cohort.count = 15
 stock.count = 3;
 
 # world definition props
+# actually x and y ranges are set aat the momnet by SimulationControlparameters.csv
 min.x = 0
 min.y = 0
-max.x = 35
-max.y = 12
-grid.buffer = 2
+max.x = 35 
+max.y = 12 
+grid.buffer = 0
 
 # these must multiply to total number of processes
-proc.per.x = 2
-proc.per.y = 2
+proc.per.x = 1 
+proc.per.y = 1 
 
 # named random number distributions
 distribution.move = int_uniform, 0, 2

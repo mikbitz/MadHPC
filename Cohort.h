@@ -96,7 +96,7 @@ public:
     const double _FeedingPreferenceStandardDeviation = 0.7;
     const double _NumberOfBins = 12;
 
-    std::map < std::string, std::map<std::string,double> > _MassAccounting;
+    std::map < std::string, std::map<std::string,double> > _Accounting;
 
 
 public:
@@ -129,6 +129,6 @@ public:
 
 void PushThingsIntoPackage( AgentPackage& );
 void PullThingsOutofPackage( const AgentPackage& );
-void ResetMassFluxes();
+void ResetAccounts();
 };
 #endif /* COHORT_H_ */

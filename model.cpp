@@ -43,10 +43,10 @@ int MadModel::_stockType=0, MadModel::_cohortType=1;
 //------------------------------------------------------------------------------------------------------------
 //Constructor and destructor
 //------------------------------------------------------------------------------------------------------------
-MadModel::MadModel(std::string propsFile, int argc, char** argv, boost::mpi::communicator* comm): _context(comm){
+MadModel::MadModel(repast::Properties& props,  boost::mpi::communicator* comm): _context(comm){
     //-----------------
     //Pull in parameter from the model.props file
-    _props = new repast::Properties(propsFile, argc, argv, comm);
+    _props = &props;
     //Number of timesteps
 	_stopAt = repast::strToInt(_props->getProperty("stop.at"));
     //extent of buffer zones in grid units - this many grid cells are shared at the boundary between cores
@@ -58,7 +58,6 @@ MadModel::MadModel(std::string propsFile, int argc, char** argv, boost::mpi::com
     _maxY=repast::strToInt(_props->getProperty("max.y"));
     _dimX=repast::strToInt(_props->getProperty("proc.per.x"));
     _dimY=repast::strToInt(_props->getProperty("proc.per.y"));
-
     //-----------------
 	//create the model grid
     repast::Point<double> origin(_minX,_minY);
@@ -99,7 +98,7 @@ MadModel::MadModel(std::string propsFile, int argc, char** argv, boost::mpi::com
 }
 //------------------------------------------------------------------------------------------------------------
 MadModel::~MadModel(){
-	delete _props;
+
 	delete provider;
 	delete receiver;
     for (size_t i = 0; i < dataSets.size(); ++i) {
@@ -256,7 +255,7 @@ void MadModel::step(){
     sync();
     //vectors length 19 initialized to 0
     vector<int> cohortBreakdown(19,0);
-    //spatial distributions - for efficiency these shoudl just the the local part, but easier initially to just keep he whole thing on each thread
+    //spatial distributions - for efficiency these should just the the local part, but easier initially to just keep the whole thing on each thread
     //with zeros for non-local, and then reduce onto thread 0
     vector<double> cohortBiomassMap( (_maxX-_minX+1) * (_maxY-_minY+1),0.0 ),cohortAbundanceMap( (_maxX-_minX+1) * (_maxY-_minY+1),0.0 );
     vector<double> stockBiomassMap( (_maxX-_minX+1) * (_maxY-_minY+1),0.0 );
@@ -280,6 +279,7 @@ void MadModel::step(){
             std::vector<Cohort*> cohorts;
             for (auto a:agentsInCell){
                if (a->getId().currentRank()==repast::RepastProcess::instance()->rank() && a->_alive){//agents must be local and living!
+                //separate out stocks (currently all plants) from cohorts(animals)
                 if (a->getId().agentType()==_stockType) stocks.push_back( (Stock*) a); else cohorts.push_back( (Cohort*) a);
                }
             }
@@ -308,7 +308,7 @@ void MadModel::step(){
             for (auto c:cohorts){c->markForDeath();if (!c->_alive)_totalDeaths++;}
             
             _totalMerged+=CohortMerger::MergeToReachThresholdFast(cohorts);
-
+            //acumulate totals and spatial maps
             for (auto c:cohorts){
                 if (c->_alive){
                     _totalCohorts++;
@@ -329,6 +329,7 @@ void MadModel::step(){
 
     //find out which agents need to move
     //_moved has been set to false for new agents
+    //NB this has to happen after above updates to individual Cohorts (otherwise some cells could get mixed before other have updated, so some cohorts could get updated twice)
     vector<Cohort*> movers;
     for(int x = _xlo; x < _xhi; x++){
         for(int y = _ylo; y < _yhi; y++){
@@ -362,7 +363,7 @@ void MadModel::step(){
             space()->moveTo(m,m->_destination);m->_moved=false;m->_location=m->_destination;
          }
     }
-    //outputs not yet available via svbuilder.  
+    //map outputs/vectors not yet available via svbuilder.  
     //numbers per functional group - here's how to add up across a vector over threads.
     MPI_Reduce(cohortBreakdown.data(), _FinalCohortBreakdown.data(), 19, MPI::INT, MPI::SUM, 0, MPI_COMM_WORLD);
     //also get the biomass maps
@@ -572,7 +573,9 @@ void MadModel::tests(){
     //get the environmental data - this is stored in the background as a DataLayerSet
     FileReader F;
     F.ReadFiles();
-    
+    //check values from Simulationcontrolparameters have got correctly placed in class grid extents
+    assert(Parameters::Get()->GetLengthUserLongitudeArray( )==_maxX-_minX+1);
+    assert(Parameters::Get()->GetLengthUserLatitudeArray( )==_maxY-_minY+1);
     //now set up the environmental cells - note at present this uses the full grid, not just local to this thread
     //so that off-thread environment can be easily queried. Currently some duplication here, but it is not a huge amount of data.
     _Env.resize( (_maxX-_minX+1) * (_maxY-_minY+1) );

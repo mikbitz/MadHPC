@@ -55,9 +55,50 @@ void usage() {
 	std::cerr << "  second string: string is the path to the model properties file" << std::endl;
 }
 //-----------------------------------------------------------------------------------------------------
-void runModel(std::string propsFile, int argc, char ** argv) {
+void runModel(Properties& props, int argc, char ** argv) {
   boost::mpi::communicator world;
-  Properties props(propsFile, argc, argv, &world);
+
+//Here is where the actual model  is setup 
+
+    //create and initialize model
+    repast::Timer timer;
+    timer.start();
+	MadModel* model = new MadModel(props,  &world);
+	repast::ScheduleRunner& runner = repast::RepastProcess::instance()->getScheduleRunner();
+	//model->tests();
+    //exit(0);
+	model->init();
+	model->initSchedule(runner);
+	//now run things
+	runner.run();
+	
+	delete model;
+
+    props.putProperty("run.time", timer.stop());
+
+
+
+}
+//-----------------------------------------------------------------------------------------------------
+int main(int argc, char **argv) {
+    //initialise MPI
+    boost::mpi::environment env(argc, argv);
+	boost::mpi::communicator world;
+
+    std::string config, propsFile;
+    //check config and proerties files present
+	if (argc >= 3) {
+		config = argv[1];
+		propsFile = argv[2];
+
+	} else {
+		if (world.rank() == 0) usage();
+		return 0;
+	}
+
+	if (config.size() > 0 && propsFile.size() > 0) {
+        //GO!
+          Properties props(propsFile, argc, argv, &world);
 
   FileReader f;
   f.ReadInputParameters( );
@@ -66,7 +107,7 @@ void runModel(std::string propsFile, int argc, char ** argv) {
   props.putProperty("min.y",0);
   props.putProperty("max.x",Parameters::Get()->GetLengthUserLongitudeArray( )-1);
   props.putProperty("max.y",Parameters::Get()->GetLengthUserLatitudeArray( )-1);
-  cout<<Parameters::Get()->GetLengthUserLongitudeArray( )<<" "<<Parameters::Get()->GetLengthUserLatitudeArray( )<<endl;
+
   std::string time;
   repast::timestamp(time);
   props.putProperty("date_time.run", time);
@@ -74,28 +115,13 @@ void runModel(std::string propsFile, int argc, char ** argv) {
   props.putProperty("process.count", world.size());
 
   if(world.rank() == 0) std::cout << " Starting... " << std::endl;
-  repast::Timer timer;
-  timer.start();
-    
 
-//Here is where the actual model  is setup 
-    //initialize default random number generator
-    initializeRandom(props, &world);
-    //create and initialize model
-	MadModel* model = new MadModel(propsFile, argc, argv, &world);
-	repast::ScheduleRunner& runner = repast::RepastProcess::instance()->getScheduleRunner();
-	model->tests();
-    exit(0);
-	model->init();
-	model->initSchedule(runner);
-	//now run things
-	runner.run();
-	
-	delete model;
-
-  props.putProperty("run.time", timer.stop());
-
-//write properties of this run to output file
+  //initialize default random number generator
+  initializeRandom(props, &world);
+  
+		RepastProcess::init(config, &world);
+		runModel(props, argc, argv);
+        //write properties of this run to output file
   if(world.rank() == 0){
     std::vector<std::string> keysToWrite;
     keysToWrite.push_back("run.number");
@@ -119,29 +145,6 @@ void runModel(std::string propsFile, int argc, char ** argv) {
 
 
   }
-
-}
-//-----------------------------------------------------------------------------------------------------
-int main(int argc, char **argv) {
-    //initialise MPI
-    boost::mpi::environment env(argc, argv);
-	boost::mpi::communicator world;
-
-    std::string config, props;
-    //check config and proerties files present
-	if (argc >= 3) {
-		config = argv[1];
-		props = argv[2];
-
-	} else {
-		if (world.rank() == 0) usage();
-		return 0;
-	}
-
-	if (config.size() > 0 && props.size() > 0) {
-        //GO!
-		RepastProcess::init(config, &world);
-		runModel(props, argc, argv);
 	} else {
 		if (world.rank() == 0) usage();
 		return 0;
