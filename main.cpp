@@ -58,20 +58,21 @@ void usage() {
 void runModel(Properties& props, int argc, char ** argv) {
   boost::mpi::communicator world;
 
-//Here is where the actual model  is setup 
+    //Here is where the actual model  is setup and run
 
     //create and initialize model
     repast::Timer timer;
     timer.start();
 	MadModel* model = new MadModel(props,  &world);
 	repast::ScheduleRunner& runner = repast::RepastProcess::instance()->getScheduleRunner();
-	//model->tests();
-    //exit(0);
-	model->init();
-	model->initSchedule(runner);
-	//now run things
-	runner.run();
-	
+    if (props.getProperty("run.tests")=="true"){
+	  model->tests();
+    }else{
+	  model->init();
+	  model->initSchedule(runner);
+	  //now run things
+	  runner.run();
+    }
 	delete model;
 
     props.putProperty("run.time", timer.stop());
@@ -97,9 +98,11 @@ int main(int argc, char **argv) {
 	}
 
 	if (config.size() > 0 && propsFile.size() > 0) {
-        //GO!
-          Properties props(propsFile, argc, argv, &world);
-
+    //GO!
+    //read repast Properties file.
+    Properties props(propsFile, argc, argv, &world);
+          
+  //read separate Madingley input parameter file
   FileReader f;
   f.ReadInputParameters( );
   //make sure the dimensions are consistent with the environmental data files
@@ -118,10 +121,14 @@ int main(int argc, char **argv) {
 
   //initialize default random number generator
   initializeRandom(props, &world);
-  
-		RepastProcess::init(config, &world);
-		runModel(props, argc, argv);
-        //write properties of this run to output file
+  //start Repast  
+  RepastProcess::init(config, &world);
+
+  //run the model!
+  runModel(props, argc, argv);
+
+
+  //write properties of this run to output file
   if(world.rank() == 0){
     std::vector<std::string> keysToWrite;
     keysToWrite.push_back("run.number");

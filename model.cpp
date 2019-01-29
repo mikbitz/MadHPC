@@ -33,6 +33,7 @@
 #include "TimeStep.h"
 #include "Constants.h"
 #include "randomizer.h"
+#include "RandomRepast.h"
 #include "AgentPackage.h"
 
 using namespace std;
@@ -161,9 +162,10 @@ void MadModel::init(){
     unsigned cohortCount = strToInt(_props->getProperty("cohort.count"));
     unsigned numStockGroups = StockDefinitions::Get()->size();
     
-    randomizer random;
-    random.SetSeed(100);
-    
+    randomizer* random=new RandomRepast;
+    //random->SetSeed(100); seed is set from model.props file - see main.cpp
+
+ 
     //explicitly use the local bounds of the grid on this thread to create countOfAgents per cell.
     //Not doing this can lead to problems with agents in distant cells not within the local thread neighbourhood
     //see SharedBaseGrid.h moveTo method
@@ -371,7 +373,7 @@ void MadModel::step(){
     MPI_Reduce(cohortAbundanceMap.data(), _FinalCohortAbundanceMap.data(), (_maxX-_minX+1) * (_maxY-_minY+1), MPI::DOUBLE, MPI::SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(stockBiomassMap.data(), _FinalStockBiomassMap.data(), (_maxX-_minX+1) * (_maxY-_minY+1), MPI::DOUBLE, MPI::SUM, 0, MPI_COMM_WORLD);
 
-    if(repast::RepastProcess::instance()->rank() == 0){asciiOutput(CurrentTimeStep);}
+    //if(repast::RepastProcess::instance()->rank() == 0){asciiOutput(CurrentTimeStep);}
 
 }
 
@@ -541,7 +543,6 @@ void MadModel::setupOutputs(){
      Biomaout<<endl;
      Stockout<<endl;
      }
-       //     for (auto& k:finalCohortBreakdown){cout<<k<<" ";}cout<<endl;cout.flush();}
     }
 //------------------------------------------------------------------------------------------------------------
 
@@ -566,8 +567,8 @@ void MadModel::addDataSet(repast::DataSet* dataSet) {
 //---------------------------------------------------------------------------------------------------------------------------
 void MadModel::tests(){
     int rank = repast::RepastProcess::instance()->rank();
-    randomizer random;
-    random.SetSeed(100);
+    randomizer* random=new RandomRepast;
+    //random->SetSeed(100); seed is set from model.props file - see main.cpp
     int nranks=_dimX*_dimY;
     
     //get the environmental data - this is stored in the background as a DataLayerSet
@@ -791,7 +792,7 @@ void MadModel::tests(){
     if (rank==0)cout<<"Test9: move agents to random location: "<<endl;
     
     for (auto a:agents){
-        vector<int> loc{int(random.GetUniform()*1000.),int(random.GetUniform()*1000.)};
+        vector<int> loc{int(random->GetUniform()*1000.),int(random->GetUniform()*1000.)};
         space()->moveTo(a,loc);
     }
     sync();
@@ -817,21 +818,21 @@ void MadModel::tests(){
     int nr=0,globalAdded,globalRemoved;
     //remove up to 10 agents locally: move other agents around randomly
     for (auto a:agents){
-        if (nr<int(random.GetUniform()*10.)){a->_alive=false;_context.removeAgent(a->getId());nr++;}
+        if (nr<int(random->GetUniform()*10.)){a->_alive=false;_context.removeAgent(a->getId());nr++;}
         if (a->_alive){
-            vector<int> loc{int(random.GetUniform()*781.),int(random.GetUniform()*500.-250)};
+            vector<int> loc{int(random->GetUniform()*781.),int(random->GetUniform()*500.-250)};
             space()->moveTo(a,loc);
         }
     }
     //addup to 100 new agents on this thread and then move these at random 
-    int nnew=int(random.GetUniform()*100.);
+    int nnew=int(random->GetUniform()*100.);
     for (int i=0;i<nnew;i++){
       repast::AgentId id(Cohort::_NextID, rank, _cohortType);
       id.currentRank(rank);
       Cohort* c = new Cohort(id);
       c->setup(0,1, E,random);
       _context.addAgent(c);
-      vector<int> loc{int(random.GetUniform()*37.-99),int(random.GetUniform()*188.)};
+      vector<int> loc{int(random->GetUniform()*37.-99),int(random->GetUniform()*188.)};
       space()->moveTo(c,loc);
     }
     
@@ -880,7 +881,7 @@ void MadModel::tests(){
     agents.clear();
     _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
     for (auto a:agents){
-            vector<int> loc{int(random.GetUniform()*237.-125),int(random.GetUniform()*981.-250)};
+            vector<int> loc{int(random->GetUniform()*237.-125),int(random->GetUniform()*981.-250)};
             space()->moveTo(a,loc);
     }
     sync();}
@@ -896,7 +897,7 @@ void MadModel::tests(){
     }
 
     for (auto a:agents){
-            vector<int> loc{int(random.GetUniform()*237.-125),int(random.GetUniform()*981.-250)};
+            vector<int> loc{int(random->GetUniform()*237.-125),int(random->GetUniform()*981.-250)};
             space()->moveTo(a,loc);
     }
     sync();
@@ -911,6 +912,37 @@ void MadModel::tests(){
 
     cout.flush();
     sync();
+    //---------------------------------------------------
+    //***-------------------TEST 12-------------------***//
+    //---------------------------------------------------
+    //check out the RNG speed
+    typedef std::chrono::high_resolution_clock Clock;
+    auto t0 = Clock::now();
+    //slightly faster to use a pointer to the singleton instance than re-create it each time
+    repast::Random* R=repast::Random::instance();
+    repast::DoubleUniformGenerator gen = R->createUniDoubleGenerator(0, 1);
+    for (int i=0;i<1000000;i++){
+
+        R->nextDouble();
+        //gen.next( );
+        repast::NormalGenerator NJ= R->createNormalGenerator(0,1);
+        NJ.next();
+        repast::LogNormalGenerator LNJ= R->createLogNormalGenerator(1,2.7);
+        LNJ.next();
+        //Unfortunately using the wrapper class RandomRepast - as in
+        //random->GetUniform();
+        //random->GetNormal();
+        //random->GetLogNormal(1,2.7);
+        //currently seems to slow the RNG calls down by more than a factor of two
+        //using g++ -O3 in stead of -O2 also seems to have a negative effect (!)
+    }
+
+
+    
+    auto t1 = Clock::now();
+    assert(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count()<160000000);
+    cout<<"Test 12 succeeded: elapsed time"<<std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count()<<"ns: RNG alternative in subdirectory randomizers get about 140000000"<<endl;
+
 }
 //---------------------------------------------------------------------------------------------------------------------------
 //define some data values for the Cohort to check whether they are preserved on moving across threads

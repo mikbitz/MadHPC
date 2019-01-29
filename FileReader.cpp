@@ -40,7 +40,7 @@ bool FileReader::ReadTextFile( const std::string& filePath ) {
 
     ClearMetadata( );
 
-    std::cout << "Reading text file \"" << filePath << "\"..." << std::endl;
+    //std::cout << "Reading text file \"" << filePath << "\"..." << std::endl;
     std::ifstream fileStream( filePath.c_str( ), std::ios::in );
 
     if( fileStream.is_open( ) ) {
@@ -101,7 +101,7 @@ bool FileReader::ReadInputDataFiles( ) {
                 filePath.append( Convertor::Get( )->ToString( Parameters::Get( )->GetGridCellSize( ) ) );
                 filePath.append( "deg/" );
                 filePath.append( mMetadata[ environmentalDataFileIndex ][ Constants::eFilePath ] );
-                std::cout << "Reading NetCDF file \"" << filePath << "\"..." << std::endl;
+                //std::cout << "Reading NetCDF file \"" << filePath << "\"..." << std::endl;
 
                 try {
                     netCDF::NcFile inputNcFile( filePath, netCDF::NcFile::read ); // Open the file for read access

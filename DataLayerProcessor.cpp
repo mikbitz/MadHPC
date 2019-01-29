@@ -26,7 +26,7 @@ Types::DataLayerMap DataLayerProcessor::ConvertReadDataIntoLayers( const Types::
     for( unsigned index = 0; index < inputData->GetNumberOfInputDatums( ); ++index ) {
         Types::InputDatumPointer inputDatum = inputData->GetInputDatum( index );
 
-        std::cout << "Processing read data for datum \"" << inputDatum->GetName( ) << "\"..." << std::endl;
+        //std::cout << "Processing read data for datum \"" << inputDatum->GetName( ) << "\"..." << std::endl;
 
         Types::DataLayerPointer dataLayer = MakeDataLayer( inputDatum );
         dataLayerMap.insert( std::pair< std::string, Types::DataLayerPointer >( inputDatum->GetName( ), dataLayer ) );
