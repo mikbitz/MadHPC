@@ -96,8 +96,62 @@ public:
     static const double _FeedingPreferenceStandardDeviation ;//= 0.7;
     static const double _NumberOfBins                       ;//= 12;
 
+    //Dispersal constants
+    static const double _DispersalSpeedBodyMassScalar       ;//= 0.0278;
+    static const double _DispersalSpeedBodyMassExponent     ;//= 0.48;
+    //Advective dispersal
+    static const double _HorizontalDiffusivity                       ;//= 100;
+    static const double _AdvectiveModelTimeStepLengthHours           ;//= 18;
+    static const double _HorizontalDiffusivityKmSqPerADTimeStep      ;//= _HorizontalDiffusivity / ( 1000 * 1000 ) * 60 * 60 * AdvectiveModelTimeStepLengthHours;
+    static const double _AdvectionTimeStepsPerModelTimeStep          ;//= Constants::cDay * 24 / _AdvectiveModelTimeStepLengthHours;
+    static const double _VelocityUnitConversion                      ;//= 60 * 60 * 24 * Constants::cDay * Constants::cMonth  / 1000;
+    //Responsive dispersal
+    static const double _DensityThresholdScaling                     ;//= 50000;
+    static const double _StarvationDispersalBodyMassThreshold        ;//=0.8;
+
+    //ectotherms
+    static const double _TerrestrialWarmingToleranceIntercept ;//= 6.61;
+    static const double _TerrestrialWarmingToleranceSlope     ;//= 1.6;
+    static const double _TerrestrialTSMIntercept              ;//= 1.51;
+    static const double _TerrestrialTSMSlope                  ;//= 1.53;
+
+    //metabolism
+    //Ectotherms
+    static const double _MetabolismMassExponentEcto            ;//= 0.88;
+    static const double _NormalizationConstantEcto             ;//= 148984000000; //1.4898373851E+11;
+    static const double _ActivationEnergyEcto                  ;//= 0.69; // includes endotherms in hibernation and torpor
+    static const double _NormalizationConstantBMR              ;//= 41918272883; //exp( 20 )*60 * 60 * 24 / 1000;
+    static const double _BasalMetabolismMassExponent           ;//= 0.69;
+    static const double _EnergyScalarEcto                      ;//= 0.036697248; //1 / 27.25;
+    //Endotherrms
+    static const double _MetabolismMassExponentEndo           ;//= 0.7;
+    static const double _NormalizationConstantEndo            ;//= 9.0809083973E+11;
+    static const double _ActivationEnergyEndo                 ;//= 0.69; // includes endotherms in hibernation and torpor
+    static const double _EnergyScalarEndo                     ;//= 1 / 27.25;
+
+    static const double _BoltzmannConstant                    ;//= 8.617e-5;
+    static const double _TemperatureUnitsConvert              ;// = 273.0;
+
+    //reproduction
+    static const double _MassRatioThreshold                   ;//= 1.5;
+    static const double _MassEvolutionProbabilityThreshold    ;//= 0.95;
+    static const double _MassEvolutionStandardDeviation       ;//= 0.05;
+    static const double _SemelparityAdultMassAllocation       ;//= 0.5;
+    //mortality
+    static const double _MortalityRateBackground              ;//= 0.001;
+    static const double _MortalityRateMature                  ;//= 0.003;
+    static const double _LogisticInflectionPoint              ;//= 0.6;
+    static const double _LogisticScalingParameter             ;//= 0.05;
+    static const double _MaximumStarvationRate                ;//= 1;
+    
+    //Pi!
+    static const double _Pi ;//=acos(-1.);
+    //area units conversion
+    static const double _CellAreaToHectares;//=100;
+    
+    //temporary store for within timestep changes
     static std::map < std::string, std::map<std::string,double> > _Accounting;
-    //std::map < std::string, std::map<std::string,double> > _Accounting;
+
 
 
 public:

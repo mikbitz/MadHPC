@@ -8,8 +8,7 @@
 #include "Parameters.h"
 #include "DataCoords.h"
 
-#include "../NetCDF/include/netcdf.h"
-#include "../NetCDF-cxx/include/netcdfcpp.h"
+#include <netcdf>
 
 FileReader::FileReader( ) {
 

@@ -169,7 +169,7 @@ void MadModel::init(){
     //explicitly use the local bounds of the grid on this thread to create countOfAgents per cell.
     //Not doing this can lead to problems with agents in distant cells not within the local thread neighbourhood
     //see SharedBaseGrid.h moveTo method
-
+    //although latest updates I have made to RHPC should have fixed this...
     unsigned totalCohorts=0,totalStocks=0;
 
     unsigned cNum=0,sNum=0;

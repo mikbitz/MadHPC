@@ -23,17 +23,17 @@ using namespace repast;
     //shared constants - should really be in a parameter file.
     //herbivores
 
-    const double Cohort::_edibleFractionMarine            =1.0;
-    const double Cohort::_AttackRateExponentMarine        =2.0;
-    const double Cohort::_HandlingTimeExponentMarine      =0.7;
-    const double Cohort::_HandlingTimeScalarMarine        =0.7;
-    const double Cohort::_edibleFractionTerrestrial       =0.1;
-    const double Cohort::_AttackRateExponentTerrestrial   =2.0;
-    const double Cohort::_HandlingTimeExponentTerrestrial =0.7;
-    const double Cohort::_HandlingTimeScalarTerrestrial   =0.7;
-    const double Cohort::_HerbivoryRateMassExponent       =1.0;
-    const double Cohort::_HerbivoryRateConstant           =1.0e-11;
-    const double Cohort::_ReferenceMass                   =1.0;
+    const double Cohort::_edibleFractionMarine               =1.0;
+    const double Cohort::_AttackRateExponentMarine           =2.0;
+    const double Cohort::_HandlingTimeExponentMarine         =0.7;
+    const double Cohort::_HandlingTimeScalarMarine           =0.7;
+    const double Cohort::_edibleFractionTerrestrial          =0.1;
+    const double Cohort::_AttackRateExponentTerrestrial      =2.0;
+    const double Cohort::_HandlingTimeExponentTerrestrial    =0.7;
+    const double Cohort::_HandlingTimeScalarTerrestrial      =0.7;
+    const double Cohort::_HerbivoryRateMassExponent          =1.0;
+    const double Cohort::_HerbivoryRateConstant              =1.0e-11;
+    const double Cohort::_ReferenceMass                      =1.0;
  
     //Carnivores
 
@@ -43,35 +43,99 @@ using namespace repast;
     const double Cohort::_FeedingPreferenceStandardDeviation = 0.7;
     const double Cohort::_NumberOfBins                       = 12;
     
+    //dispersal constants
+    const double Cohort::_DispersalSpeedBodyMassScalar       = 0.0278;
+    const double Cohort::_DispersalSpeedBodyMassExponent     = 0.48;
+    //advective dispersal
+    const double Cohort::_HorizontalDiffusivity                       = 100;
+    const double Cohort::_AdvectiveModelTimeStepLengthHours           = 18;
+    const double Cohort::_HorizontalDiffusivityKmSqPerADTimeStep      = _HorizontalDiffusivity / ( 1000 * 1000 ) * 60 * 60 * _AdvectiveModelTimeStepLengthHours;
+    // Initialise the advective dispersal temporal scaling to adjust between time steps appropriately
+    const double Cohort::_AdvectionTimeStepsPerModelTimeStep          = Constants::cDay * 24 / _AdvectiveModelTimeStepLengthHours;
+    // Convert velocity from m/s to km/month. Note that if the _TimeUnitImplementation changes, this will also have to change.
+    const double Cohort::_VelocityUnitConversion                      = 60 * 60 * 24 * Constants::cDay * Constants::cMonth  / 1000;
+    //responsive dispersal
+    const double Cohort::_DensityThresholdScaling                     = 50000;
+    const double Cohort::_StarvationDispersalBodyMassThreshold        = 0.8;
+    
+    // Initialise ecological parameters for ectotherms
+    // Source: Deutsch et al (2008), Impacts of climate warming on terrestrial ectotherms across latitude, PNAS.
+    const double Cohort::_TerrestrialWarmingToleranceIntercept = 6.61;
+    const double Cohort::_TerrestrialWarmingToleranceSlope     = 1.6;
+    const double Cohort::_TerrestrialTSMIntercept              = 1.51;
+    const double Cohort::_TerrestrialTSMSlope                  = 1.53;
+    
+    //Pi!
+    const double Cohort::_Pi = acos(-1);
+    //cell areas are in sq. km.
+    const double Cohort::_CellAreaToHectares=100;
+    
+    //metabolism
+    //Ectotherms
+    // Parameters from fitting to Nagy 1999 Field Metabolic Rates for reptiles - assumes that reptile FMR was measured with animals at their optimal temp of 30degC
+    const double Cohort::_MetabolismMassExponentEcto = 0.88;
+    const double Cohort::_NormalizationConstantEcto = 148984000000; //1.4898373851E+11;
+    const double Cohort::_ActivationEnergyEcto = 0.69; // includes endotherms in hibernation and torpor
+    // BMR normalisation constant from Brown et al 2004 - original units of J/s so scale to kJ/d
+    const double Cohort::_NormalizationConstantBMR = 41918272883; //exp( 20 )*60 * 60 * 24 / 1000;
+    const double Cohort::_BasalMetabolismMassExponent = 0.69;
+    // Currently a very rough estimate based on calorific values of fat, protein and carbohydrate - assumes organism is metabolising mass of 1/4 protein, 1/4 carbohydrate and 1/2 fat 
+    const double Cohort::_EnergyScalarEcto = 0.036697248; //1 / 27.25;
+    
+    //Endotherms
+    // Parameters from fitting to Nagy 1999 Field Metabolic Rates for mammals and birds, and assuming that these endotherms are metabolising with a body temperature of 310K (37C)
+    const double Cohort::_MetabolismMassExponentEndo = 0.7;
+    const double Cohort::_NormalizationConstantEndo = 9.0809083973E+11;
+    const double Cohort::_ActivationEnergyEndo = 0.69; // includes endotherms in hibernation and torpor
+    const double Cohort::_BoltzmannConstant = 8.617e-5;
+    // Currently a very rough estimate based on calorific values of fat, protein and carbohydrate - assumes organism is metabolising mass of 1/4 protein, 1/4 carbohydrate and 1/2 fat 
+    const double Cohort::_EnergyScalarEndo = 1 / 27.25;
+    // Set the constant to convert temperature in degrees Celsius to Kelvin
+    const double Cohort::_TemperatureUnitsConvert = 273.0;
+
+    //reproduction
+    
+    const double Cohort::_MassRatioThreshold = 1.5;
+    const double Cohort::_MassEvolutionProbabilityThreshold = 0.95;
+    const double Cohort::_MassEvolutionStandardDeviation = 0.05;
+    const double Cohort::_SemelparityAdultMassAllocation = 0.5;
+    
+    //mortality
+    const double Cohort::_MortalityRateBackground  = 0.001;
+    const double Cohort::_MortalityRateMature      = 0.003;
+    const double Cohort::_LogisticInflectionPoint  = 0.6;
+    const double Cohort::_LogisticScalingParameter = 0.05;
+    const double Cohort::_MaximumStarvationRate    = 1;
+    
     //needs to be class variable so that Cohorts can have unique numbers
     unsigned Cohort::_NextID=0;
-//_Accounting is shared by all cohorts - saves *a lot* of memory
-//only works as these are temporaries used only and completely within each call to step() by a cohort
-//NB do not reset within step() (e.g. by having newly reproduced cohorts call ResetAccounts() in setupOffspring() !)
-    std::map < std::string, std::map<std::string,double> > Cohort::Cohort::_Accounting;
+    //_Accounting is shared by all cohorts - saves *a lot* of memory
+    //only works as these are temporaries used only and completely within each call to step() by a cohort
+    //NB do not reset within step() (e.g. by having newly reproduced cohorts call ResetAccounts() in setupOffspring() !)
+    std::map < std::string, std::map<std::string,double> > Cohort::_Accounting;
 //------------------------------------------------------------------------------------------------------------
 void Cohort::ResetAccounts( ) {
     // Initialize delta abundance sorted list with appropriate processes
 
-    Cohort::_Accounting["abundance"]["mortality"] = 1.0;//NB this applies because of a change from the original model - this value is now a multiplier (reduces possibility of negatives)
+    _Accounting["abundance"]["mortality"] = 1.0;//NB this applies because of a change from the original model - this value is now a multiplier (reduces possibility of negatives)
 
     // Initialize delta biomass sorted list with appropriate processes
-    Cohort::_Accounting["biomass"]["metabolism"] = 0.0;
-    Cohort::_Accounting["biomass"]["carnivory"] = 0.0;
-    Cohort::_Accounting["biomass"]["herbivory"] = 0.0;
-    Cohort::_Accounting["biomass"]["reproduction"] = 0.0;
+    _Accounting["biomass"]["metabolism"] = 0.0;
+    _Accounting["biomass"]["carnivory"] = 0.0;
+    _Accounting["biomass"]["herbivory"] = 0.0;
+    _Accounting["biomass"]["reproduction"] = 0.0;
 
     // Initialize delta reproductive biomass vector with appropriate processes
 
-    Cohort::_Accounting["reproductivebiomass"]["reproduction"] = 0.0;
+    _Accounting["reproductivebiomass"]["reproduction"] = 0.0;
 
     // Initialize organic pool delta vector with appropriate processes
-    Cohort::_Accounting["organicpool"]["herbivory"] = 0.0;
-    Cohort::_Accounting["organicpool"]["carnivory"] = 0.0;
-    Cohort::_Accounting["organicpool"]["mortality"] = 0.0;
+    _Accounting["organicpool"]["herbivory"] = 0.0;
+    _Accounting["organicpool"]["carnivory"] = 0.0;
+    _Accounting["organicpool"]["mortality"] = 0.0;
 
     // Initialize respiratory CO2 pool delta vector with appropriate processes
-    Cohort::_Accounting["respiratoryCO2pool"]["metabolism"] = 0.0;
+    _Accounting["respiratoryCO2pool"]["metabolism"] = 0.0;
 }
 //used to create an initial set of cohorts at the start of a run
 //------------------------------------------------------------------------------------------------------------
@@ -286,7 +350,7 @@ void Cohort::step(Environment* e,vector<Cohort*>& preys,vector<Stock*>& stocks,c
     //since they *do* get added to the global cohort list straight away.
     //pass in of environment avoids having to find it with an expensive lookup
     ResetAccounts( );
-    for (auto A: Cohort::_Accounting)for (auto B: A.second)if(B.first!="mortality")assert(B.second==0);
+    for (auto A: _Accounting)for (auto B: A.second)if(B.first!="mortality")assert(B.second==0);
     assignTimeActive(e);
     eat(e,preys,stocks);
     metabolize(e);
@@ -317,25 +381,14 @@ void Cohort::moveIt(Environment* e,MadModel* m){
         double lonCellLength = e->Width();
         double CellArea      = e->Area();
 
-        double DispersalSpeedBodyMassScalar = 0.0278;
-        double DispersalSpeedBodyMassExponent = 0.48;
-
         
         double dispersalSpeed=0.;
         if( _IsPlanktonic || (_Realm=="marine" &&  (_IndividualBodyMass <= Parameters::Get( )->GetPlanktonSizeThreshold( ))))  {
           NormalGenerator NJ= repast::Random::instance()->createNormalGenerator(0,1);
           // Advective dispersal
           //dispersalName = "advective";
-          double HorizontalDiffusivity = 100;
-          double AdvectiveModelTimeStepLengthHours = 18;
-          double HorizontalDiffusivityKmSqPerADTimeStep = HorizontalDiffusivity / ( 1000 * 1000 ) * 60 * 60 * AdvectiveModelTimeStepLengthHours;
 
-          // Initialise the advective dispersal temporal scaling to adjust between time steps appropriately
-          double AdvectionTimeStepsPerModelTimeStep = Constants::cDay * 24 / AdvectiveModelTimeStepLengthHours;
-
-          // Convert velocity from m/s to km/month. Note that if the _TimeUnitImplementation changes, this will also have to change.
-          double VelocityUnitConversion = 60 * 60 * 24 * Constants::cDay * Constants::cMonth  / 1000;
-          for( int mm = 0; mm < AdvectionTimeStepsPerModelTimeStep; mm++ ) {
+          for( int mm = 0; mm < _AdvectionTimeStepsPerModelTimeStep; mm++ ) {
             // Get the u speed and the v speed from the cell data
             double uAdvectiveSpeed = e->uVel();
             assert( uAdvectiveSpeed > -9999 );
@@ -346,8 +399,8 @@ void Cohort::moveIt(Environment* e,MadModel* m){
             // Note that this formulation drops the delta t because we set the horizontal diffusivity to be at the same temporal scale as the time step
             
             // Calculate the distance travelled in this dispersal (not global) time step. both advective and diffusive speeds need to have been converted to km / advective model time step
-            double uSpeed = uAdvectiveSpeed * VelocityUnitConversion / AdvectionTimeStepsPerModelTimeStep + NJ.next() * sqrt( ( 2.0 * HorizontalDiffusivityKmSqPerADTimeStep ) );
-            double vSpeed = vAdvectiveSpeed * VelocityUnitConversion / AdvectionTimeStepsPerModelTimeStep + NJ.next() * sqrt( ( 2.0 * HorizontalDiffusivityKmSqPerADTimeStep ) );
+            double uSpeed = uAdvectiveSpeed * _VelocityUnitConversion / _AdvectionTimeStepsPerModelTimeStep + NJ.next() * sqrt( ( 2.0 * _HorizontalDiffusivityKmSqPerADTimeStep ) );
+            double vSpeed = vAdvectiveSpeed * _VelocityUnitConversion / _AdvectionTimeStepsPerModelTimeStep + NJ.next() * sqrt( ( 2.0 * _HorizontalDiffusivityKmSqPerADTimeStep ) );
             TryToDisperse( uSpeed,vSpeed,e,m );
 
           }
@@ -356,9 +409,8 @@ void Cohort::moveIt(Environment* e,MadModel* m){
         else if( _IsMature ) {
 
           //dispersalName = "responsive";
-          double DensityThresholdScaling = 50000;
-          double StarvationDispersalBodyMassThreshold = 0.8;
-          dispersalSpeed=DispersalSpeedBodyMassScalar * pow( _AdultMass, DispersalSpeedBodyMassExponent);
+
+          dispersalSpeed=_DispersalSpeedBodyMassScalar * pow( _AdultMass, _DispersalSpeedBodyMassExponent);
 
           // Check for starvation-driven dispersal
           // A boolean to check whether a cohort has dispersed
@@ -369,7 +421,7 @@ void Cohort::moveIt(Environment* e,MadModel* m){
           if( _IndividualBodyMass < _AdultMass ) {
 
              // If the body mass loss is greater than the starvation dispersal body mass threshold, then the cohort tries to disperse
-             if( _IndividualBodyMass / _AdultMass < StarvationDispersalBodyMassThreshold ) {
+             if( _IndividualBodyMass / _AdultMass < _StarvationDispersalBodyMassThreshold ) {
                 // Cohort tries to disperse
                 TryToDisperse( dispersalSpeed,e,m );
                 // Note that regardless of whether or not it succeeds,  it is counted as having dispersed for the purposes of not then allowing it to disperse based on its density.
@@ -377,7 +429,7 @@ void Cohort::moveIt(Environment* e,MadModel* m){
                 // Otherwise, the cohort has a chance of trying to disperse proportional to its mass lass
              } else {
                // Cohort tries to disperse with a particular probability
-               if( ( ( 1.0 - _IndividualBodyMass / _AdultMass ) / ( 1.0 - StarvationDispersalBodyMassThreshold ) ) > repast::Random::instance()->nextDouble() ) {
+               if( ( ( 1.0 - _IndividualBodyMass / _AdultMass ) / ( 1.0 - _StarvationDispersalBodyMassThreshold ) ) > repast::Random::instance()->nextDouble() ) {
                  TryToDisperse( dispersalSpeed,e,m );
                  cohortHasDispersed = true;
                }
@@ -386,14 +438,14 @@ void Cohort::moveIt(Environment* e,MadModel* m){
           //not starvation - density driven?
           if( !cohortHasDispersed ) {
             // If below the density threshold
-            if( ( _CohortAbundance / CellArea ) < DensityThresholdScaling / _AdultMass ) {
+            if( ( _CohortAbundance / CellArea ) < _DensityThresholdScaling / _AdultMass ) {
                 TryToDisperse( dispersalSpeed,e,m );
 
            }
           }
         }// If the cohort is immature, run diffusive dispersal
         else {
-           dispersalSpeed=DispersalSpeedBodyMassScalar * pow( _IndividualBodyMass, DispersalSpeedBodyMassExponent);
+           dispersalSpeed=_DispersalSpeedBodyMassScalar * pow( _IndividualBodyMass, _DispersalSpeedBodyMassExponent);
 
                 TryToDisperse( dispersalSpeed,e,m );
         }
@@ -402,7 +454,7 @@ void Cohort::moveIt(Environment* e,MadModel* m){
 }
 //------------------------------------------------------------------------------------------------------------
 void Cohort::TryToDisperse(double dispersalSpeed, Environment* e,MadModel* m){
-    double randomDirection = repast::Random::instance()->nextDouble()* 2 * acos( -1. );
+    double randomDirection = repast::Random::instance()->nextDouble()* 2 * _Pi;
 
     // Calculate the u and v components given the dispersal speed
     double uSpeed = dispersalSpeed * cos( randomDirection );
@@ -476,13 +528,7 @@ void Cohort::assignTimeActive(Environment* e){
     double CTmin = 0;
     double AmbientTemp = 0;
     double DTR = 0;
-    // Initialise ecological parameters for 
-    // Source: Deutsch et al (2008), Impacts of climate warming on terrestrial ectotherms across latitude, PNAS.
-    double TerrestrialWarmingToleranceIntercept = 6.61;
-    double TerrestrialWarmingToleranceSlope = 1.6;
-    double TerrestrialTSMIntercept = 1.51;
-    double TerrestrialTSMSlope = 1.53;
-    double Pi = acos(-1);
+
 
     //Only work on heterotroph cohorts
     if( _Heterotroph ) {
@@ -500,8 +546,8 @@ void Cohort::assignTimeActive(Environment* e){
                DTR         = e->DiurnalTemperatureRange();
 
                //Calculate the Warming tolerance and thermal safety margin given standard deviation of monthly temperature
-               WarmingTolerance =    TerrestrialWarmingToleranceSlope * e->SDTemperature() + TerrestrialWarmingToleranceIntercept;
-               ThermalSafetyMargin = TerrestrialTSMSlope *              e->SDTemperature() + TerrestrialTSMIntercept;
+               WarmingTolerance =    _TerrestrialWarmingToleranceSlope * e->SDTemperature() + _TerrestrialWarmingToleranceIntercept;
+               ThermalSafetyMargin = _TerrestrialTSMSlope *              e->SDTemperature() + _TerrestrialTSMIntercept;
 
                Topt  = ThermalSafetyMargin + e->AnnualTemperature();
                CTmax = WarmingTolerance    + e->AnnualTemperature();
@@ -522,7 +568,7 @@ void Cohort::assignTimeActive(Environment* e){
                }
 
                //Proportion of time for which ambient temperatures are greater than the critical upper temperature
-               double POver = ( ( Pi / 2.0 ) - asin( temp ) ) / Pi;
+               double POver = ( ( _Pi / 2.0 ) - asin( temp ) ) / _Pi;
 
                if( CTmin - DTmax > 0.0 ) {
                   temp = 1.0;
@@ -533,7 +579,7 @@ void Cohort::assignTimeActive(Environment* e){
                }
                //Proportion of time for which ambient temperatures are below the critical lower temperature
 
-               double PBelow = 1 - ( ( Pi / 2.0 ) - asin( temp ) ) / Pi;
+               double PBelow = 1 - ( ( _Pi / 2.0 ) - asin( temp ) ) / _Pi;
 
                double  ProportionDaySuitable = 1 - ( POver + PBelow );
                double ProportionTimeSuitableTerrestrial= ProportionDaySuitable;
@@ -550,8 +596,7 @@ void Cohort::eat(Environment* e,vector<Cohort*>& preys,vector<Stock*>& stocks){
     double edibleFraction=0,AttackRateExponent=0, HandlingTimeExponent=0,HandlingTimeScalar=0;
     double _DaysInATimeStep=Constants::cDay;
     double PredatorAbundanceMultipliedByTimeEating=0;
-    double CellAreaHectares=e->Area() * 100;
-    unsigned _NumberOfBins=12;
+    double CellAreaHectares=e->Area() * _CellAreaToHectares;
 
     if (_Herbivore || _Omnivore){
 
@@ -635,11 +680,12 @@ void Cohort::eat(Environment* e,vector<Cohort*>& preys,vector<Stock*>& stocks){
                             // Calculate the potential abundance from this cohort eaten by the acting cohort
                             
                                 // Calculate the relative feeding preference from a log-normal distribution with mean equal to the optimal prey to predator ratio and standard deviation as specified
-    double preferenceForPrey = std::exp( -( std::pow( ( ( std::log( prey->_IndividualBodyMass / _IndividualBodyMass ) - LogOptimalPreySizeRatio ) / _FeedingPreferenceStandardDeviation ), 2 ) ) ); // Ref: Text S1, eq 36.
-    // Calculate the killing rate of an individual predator per unit prey density per hectare per time unit
-    double searchRate = _MaximumSearchRate * preferenceForPrey; // Ref: Text S1, eq 35.
-    // Calculate the potential number of prey killed given the number of prey detections
-    double potentialAbundanceEaten = searchRate * ( prey->_CohortAbundance / CellAreaHectares ) * BinnedPreyDensities[ prey->_FunctionalGroupIndex ][ binIndex ]; // Ref: Text S1, eq. 34.
+   
+                            double preferenceForPrey = std::exp( -( std::pow( ( ( std::log( prey->_IndividualBodyMass / _IndividualBodyMass ) - LogOptimalPreySizeRatio ) / _FeedingPreferenceStandardDeviation ), 2 ) ) ); // Ref: Text S1, eq 36.
+                            // Calculate the killing rate of an individual predator per unit prey density per hectare per time unit
+                            double searchRate = _MaximumSearchRate * preferenceForPrey; // Ref: Text S1, eq 35.
+                            // Calculate the potential number of prey killed given the number of prey detections
+                            double potentialAbundanceEaten = searchRate * ( prey->_CohortAbundance / CellAreaHectares ) * BinnedPreyDensities[ prey->_FunctionalGroupIndex ][ binIndex ]; // Ref: Text S1, eq. 34.
                             
                             
                             prey->_PotentialAbundanceEaten = potentialAbundanceEaten;
@@ -670,10 +716,10 @@ void Cohort::eat(Environment* e,vector<Cohort*>& preys,vector<Stock*>& stocks){
 
         // Return the total  biomass of the autotroph stock eaten
        
-        if( _CohortAbundance > 0 )Cohort::_Accounting["biomass"]["herbivory"] += BiomassesEaten * _AssimilationEfficiency_H / _CohortAbundance;
+        if( _CohortAbundance > 0 )_Accounting["biomass"]["herbivory"] += BiomassesEaten * _AssimilationEfficiency_H / _CohortAbundance;
 
    
-        Cohort::_Accounting["organicpool"]["herbivory"] += BiomassesEaten * ( 1 - _AssimilationEfficiency_H );
+        _Accounting["organicpool"]["herbivory"] += BiomassesEaten * ( 1 - _AssimilationEfficiency_H );
        }
     }
     if (_Carnivore || _Omnivore){
@@ -698,9 +744,9 @@ void Cohort::eat(Environment* e,vector<Cohort*>& preys,vector<Stock*>& stocks){
         }
 
         // Add the biomass eaten and assimilated by an individual to the delta biomass for the acting (predator) cohort
-        Cohort::_Accounting[ "biomass" ][ "carnivory" ] = biomassConsumed * _AssimilationEfficiency_C;
+        _Accounting[ "biomass" ][ "carnivory" ] = biomassConsumed * _AssimilationEfficiency_C;
         // Move the biomass eaten but not assimilated by an individual into the organic matter pool
-        Cohort::_Accounting[ "organicpool" ][ "carnivory" ] = biomassConsumed * ( 1 - _AssimilationEfficiency_C ) * _CohortAbundance;
+        _Accounting[ "organicpool" ][ "carnivory" ] = biomassConsumed * ( 1 - _AssimilationEfficiency_C ) * _CohortAbundance;
     }
     }
 
@@ -709,63 +755,44 @@ void Cohort::eat(Environment* e,vector<Cohort*>& preys,vector<Stock*>& stocks){
 void Cohort::metabolize(Environment* e){
     if (_Ectotherm){
     
-    // Parameters from fitting to Nagy 1999 Field Metabolic Rates for reptiles - assumes that reptile FMR was measured with animals at their optimal temp of 30degC
-    double MetabolismMassExponent = 0.88;
-    double NormalizationConstant = 148984000000; //1.4898373851E+11;
-    double ActivationEnergy = 0.69; // includes endotherms in hibernation and torpor
-    double BoltzmannConstant = 8.617e-5;
-    // BMR normalisation constant from Brown et al 2004 - original units of J/s so scale to kJ/d
-    double NormalizationConstantBMR = 41918272883; //exp( 20 )*60 * 60 * 24 / 1000;
-    double BasalMetabolismMassExponent = 0.69;
-    // Currently a very rough estimate based on calorific values of fat, protein and carbohydrate - assumes organism is metabolising mass of 1/4 protein, 1/4 carbohydrate and 1/2 fat 
-    double EnergyScalar = 0.036697248; //1 / 27.25;
-    // Set the constant to convert temperature in degrees Celsius to Kelvin
-    double TemperatureUnitsConvert = 273.0;
+
     // Calculate the scalar to convert from the time step units used by this implementation of metabolism to the global  model time step units
     double DeltaT = Constants::cDay;
-    double temperature=e->Temperature() + TemperatureUnitsConvert;
+    double temperature=e->Temperature() + _TemperatureUnitsConvert;
     bool ProportionTimeActiveCalculatedThisTimestep = false;
-    double FieldMetabolicLosskJ = NormalizationConstant    * pow( _IndividualBodyMass, MetabolismMassExponent )      * exp( -( ActivationEnergy / ( BoltzmannConstant * temperature ) ) );
-    double BasalMetabolicLosskJ = NormalizationConstantBMR * pow( _IndividualBodyMass, BasalMetabolismMassExponent ) * exp( -( ActivationEnergy / ( BoltzmannConstant * temperature ) ) );
+    double FieldMetabolicLosskJ = _NormalizationConstantEcto    * pow( _IndividualBodyMass, _MetabolismMassExponentEcto )      * exp( -( _ActivationEnergyEcto / ( _BoltzmannConstant * temperature ) ) );
+    double BasalMetabolicLosskJ = _NormalizationConstantBMR * pow( _IndividualBodyMass, _BasalMetabolismMassExponent ) * exp( -( _ActivationEnergyEcto / ( _BoltzmannConstant * temperature ) ) );
 
     // metabolic loss in grams
-    double IndividualMetabolicRate = (( _ProportionTimeActive * FieldMetabolicLosskJ ) + ( ( 1 - _ProportionTimeActive ) * ( BasalMetabolicLosskJ ) ) ) * EnergyScalar;
-    Cohort::_Accounting["biomass"]["metabolism"] = -IndividualMetabolicRate * DeltaT;
+    double IndividualMetabolicRate = (( _ProportionTimeActive * FieldMetabolicLosskJ ) + ( ( 1 - _ProportionTimeActive ) * ( BasalMetabolicLosskJ ) ) ) * _EnergyScalarEcto;
+    _Accounting["biomass"]["metabolism"] = -IndividualMetabolicRate * DeltaT;
 
     // If metabolic loss is greater than individual body mass after herbivory and predation, then set equal to individual body mass
-    Cohort::_Accounting["biomass"]["metabolism"] = std::max( Cohort::_Accounting["biomass"]["metabolism"], -( _IndividualBodyMass + Cohort::_Accounting["biomass"]["carnivory"] + Cohort::_Accounting["biomass"]["herbivory"] ) );
+    _Accounting["biomass"]["metabolism"] = std::max( _Accounting["biomass"]["metabolism"], -( _IndividualBodyMass + _Accounting["biomass"]["carnivory"] + _Accounting["biomass"]["herbivory"] ) );
 
     // Add total metabolic loss for all individuals in the cohort to delta biomass for metabolism in the respiratory CO2 pool
-    Cohort::_Accounting["respiratoryCO2pool"]["metabolism"] = -Cohort::_Accounting["biomass"]["metabolism"] * _CohortAbundance;
+    _Accounting["respiratoryCO2pool"]["metabolism"] = -_Accounting["biomass"]["metabolism"] * _CohortAbundance;
 
     }
     if (_Endotherm){
 
-    // Parameters from fitting to Nagy 1999 Field Metabolic Rates for mammals and birds, and assuming that these endotherms are metabolising with a body temperature of 310K (37C)
-    double MetabolismMassExponent = 0.7;
-    double NormalizationConstant = 9.0809083973E+11;
-    double ActivationEnergy = 0.69; // includes endotherms in hibernation and torpor
-    double BoltzmannConstant = 8.617e-5;
-    // Currently a very rough estimate based on calorific values of fat, protein and carbohydrate - assumes organism is metabolising mass of 1/4 protein, 1/4 carbohydrate and 1/2 fat 
-    double EnergyScalar = 1 / 27.25;
-    // Set the constant to convert temperature in degrees Celsius to Kelvin
-    double TemperatureUnitsConvert = 273.0;
+
     // Assume all endotherms have a constant body temperature of 37degC
-    double EndothermBodyTemperature = 37.0 + TemperatureUnitsConvert;
+    double EndothermBodyTemperature = 37.0 + _TemperatureUnitsConvert;
     // Calculate the scalar to convert from the time step units used by this implementation of metabolism to the global  model time step units
     double DeltaT = Constants::cDay;
     // Calculate metabolic loss in kJ
-    double metabolicLosskJ = NormalizationConstant * pow( _IndividualBodyMass, MetabolismMassExponent ) * exp( -( ActivationEnergy / ( BoltzmannConstant * EndothermBodyTemperature ) ) );
+    double metabolicLosskJ = _NormalizationConstantEndo * pow( _IndividualBodyMass, _MetabolismMassExponentEndo ) * exp( -( _ActivationEnergyEndo / ( _BoltzmannConstant * EndothermBodyTemperature ) ) );
     // metabolic loss in grams
-    double IndividualMetabolicRate= metabolicLosskJ * EnergyScalar;
+    double IndividualMetabolicRate= metabolicLosskJ * _EnergyScalarEndo;
     // Calculate metabolic loss for an individual and add the value to the delta biomass for metabolism
-    Cohort::_Accounting[ "biomass" ][ "metabolism" ] = -IndividualMetabolicRate * DeltaT;
+    _Accounting[ "biomass" ][ "metabolism" ] = -IndividualMetabolicRate * DeltaT;
 
     // If metabolic loss is greater than individual body mass after herbivory and predation, then set equal to individual body mass
-    Cohort::_Accounting[ "biomass" ][ "metabolism" ] = std::max( Cohort::_Accounting[ "biomass" ][ "metabolism" ], -( _IndividualBodyMass + Cohort::_Accounting[ "biomass" ][ "carnivory" ] + Cohort::_Accounting[ "biomass" ][ "herbivory" ] ) );
+    _Accounting[ "biomass" ][ "metabolism" ] = std::max( _Accounting[ "biomass" ][ "metabolism" ], -( _IndividualBodyMass + _Accounting[ "biomass" ][ "carnivory" ] + _Accounting[ "biomass" ][ "herbivory" ] ) );
 
     // Add total metabolic loss for all individuals in the cohort to delta biomass for metabolism in the respiratory CO2 pool
-    Cohort::_Accounting[ "respiratoryCO2pool" ][ "metabolism" ] = -Cohort::_Accounting[ "biomass" ][ "metabolism" ] * _CohortAbundance;
+    _Accounting[ "respiratoryCO2pool" ][ "metabolism" ] = -_Accounting[ "biomass" ][ "metabolism" ] * _CohortAbundance;
     }
     //heterotroph - in the original model but not used */
 }
@@ -782,7 +809,7 @@ void Cohort::reproduce(Environment* e){
     NetBiomassFromOtherEcologicalFunctionsThisTimeStep = 0.0;
 
     // Loop over all items in the biomass deltas
-    for( auto& Biomass: Cohort::_Accounting[ "biomass" ] ) {
+    for( auto& Biomass: _Accounting[ "biomass" ] ) {
         // Add the delta biomass to net biomass
         NetBiomassFromOtherEcologicalFunctionsThisTimeStep += Biomass.second;
 
@@ -803,8 +830,8 @@ void Cohort::reproduce(Environment* e){
         }
 
         // Assign the specified mass to reproductive potential mass and remove it from individual biomass
-        Cohort::_Accounting[ "reproductivebiomass" ][ "reproduction" ] += BiomassToAssignToReproductivePotential;
-        Cohort::_Accounting[ "biomass" ][ "reproduction" ] -= BiomassToAssignToReproductivePotential;
+        _Accounting[ "reproductivebiomass" ][ "reproduction" ] += BiomassToAssignToReproductivePotential;
+        _Accounting[ "biomass" ][ "reproduction" ] -= BiomassToAssignToReproductivePotential;
 
     } else {
         // Cohort has not gained sufficient biomass to assign any to reproductive potential, so take no action
@@ -813,12 +840,7 @@ void Cohort::reproduce(Environment* e){
     // Run reproductive events. Note that we can't skip juveniles here as they could conceivably grow to adulthood and get enough biomass to reproduce in a single time step
     // due to other ecological processes
 
-    std:: string TimeUnitImplementation = "month";
-    double MassRatioThreshold = 1.5;
-    double MassEvolutionProbabilityThreshold = 0.95;
-    double MassEvolutionStandardDeviation = 0.05;
-    double SemelparityAdultMassAllocation = 0.5;
-
+    const std:: string _TimeUnitImplementation = "month";
     // Calculate the scalar to convert from the time step units used by this implementation of dispersal to the global model time step units
     double DeltaT = Constants::cMonth;
 
@@ -840,7 +862,7 @@ void Cohort::reproduce(Environment* e){
     // Calculate the biomass of an individual in this cohort including changes this time step from other ecological processes  
     bodyMassIncludingChangeThisTimeStep = 0.0;
 
-    for( auto& Biomass: Cohort::_Accounting[ "biomass" ] ) {
+    for( auto& Biomass: _Accounting[ "biomass" ] ) {
         // Add the delta biomass to net biomass
         bodyMassIncludingChangeThisTimeStep += Biomass.second;
 
@@ -850,7 +872,7 @@ void Cohort::reproduce(Environment* e){
     // Calculate the reproductive biomass of an individual in this cohort including changes this time step from other ecological processes  
     reproductiveMassIncludingChangeThisTimeStep = 0.0;
 
-    for( auto& ReproBiomass: Cohort::_Accounting[ "reproductivebiomass" ] ) {
+    for( auto& ReproBiomass: _Accounting[ "reproductivebiomass" ] ) {
         // Add the delta reproductive biomass to net biomass
         reproductiveMassIncludingChangeThisTimeStep += ReproBiomass.second;
     }
@@ -861,7 +883,7 @@ void Cohort::reproduce(Environment* e){
         currentMassRatio = ( bodyMassIncludingChangeThisTimeStep + reproductiveMassIncludingChangeThisTimeStep ) / _AdultMass;
 
         // Must have enough mass to hit reproduction threshold criterion, and either (1) be in breeding season, or (2) be a marine cell (no breeding season in marine cells)
-        if ( ( currentMassRatio > MassRatioThreshold ) && (e->Breeding_Season() == 1.0  ||  _Realm=="marine"  ) ) {
+        if ( ( currentMassRatio > _MassRatioThreshold ) && (e->Breeding_Season() == 1.0  ||  _Realm=="marine"  ) ) {
             // Iteroparous and semelparous organisms have different strategies
 
             if ( _Iteroparous ) {
@@ -874,7 +896,7 @@ void Cohort::reproduce(Environment* e){
 
             } else {
                 // Semelparous organisms allocate a proportion of their current non-reproductive biomass (including the effects of other ecological processes) to reproduction
-                adultMassLost = SemelparityAdultMassAllocation * bodyMassIncludingChangeThisTimeStep;
+                adultMassLost = _SemelparityAdultMassAllocation * bodyMassIncludingChangeThisTimeStep;
 
                 // Calculate the number of offspring that could be produced given the reproductive potential mass of individuals
                 offspringCohortAbundance = ( ( _CohortAbundance ) * ( adultMassLost + reproductiveMassIncludingChangeThisTimeStep ) ) / _JuvenileMass;
@@ -891,14 +913,14 @@ void Cohort::reproduce(Environment* e){
             double newJuvenileMass = _JuvenileMass;
             double newAdultMass    = _AdultMass;
                          
-            if( RandomValue > MassEvolutionProbabilityThreshold ) {
+            if( RandomValue > _MassEvolutionProbabilityThreshold ) {
              // Determine the new juvenile body mass
-             NormalGenerator NJ= repast::Random::instance()->createNormalGenerator(_JuvenileMass,MassEvolutionStandardDeviation * _JuvenileMass);
+             NormalGenerator NJ= repast::Random::instance()->createNormalGenerator(_JuvenileMass,_MassEvolutionStandardDeviation * _JuvenileMass);
              double RandomValueJ = NJ.next();
              newJuvenileMass = std::max( RandomValueJ, _MinimumMass );
 
              // Determine the new adult body mass
-             NormalGenerator NA= repast::Random::instance()->createNormalGenerator(_AdultMass,MassEvolutionStandardDeviation * _AdultMass);
+             NormalGenerator NA= repast::Random::instance()->createNormalGenerator(_AdultMass,_MassEvolutionStandardDeviation * _AdultMass);
 
              double RandomValueA = NA.next();
              newAdultMass = std::min( RandomValueA, _MaximumMass );
@@ -915,8 +937,8 @@ void Cohort::reproduce(Environment* e){
 
             // Subtract all of the reproductive potential mass of the parent cohort, which has been used to generate the new
             // cohort, from the delta reproductive potential mass and delta adult body mass
-            Cohort::_Accounting["reproductivebiomass"]["reproduction"] -= reproductiveMassIncludingChangeThisTimeStep;
-            Cohort::_Accounting["biomass"]["reproduction"] -= adultMassLost;
+            _Accounting["reproductivebiomass"]["reproduction"] -= reproductiveMassIncludingChangeThisTimeStep;
+            _Accounting["biomass"]["reproduction"] -= adultMassLost;
         } else {
 
             // Organism is not large enough, or it is not the breeding season, so take no action
@@ -928,9 +950,9 @@ void Cohort::reproduce(Environment* e){
 void Cohort::mort(){
 
     // Variables to hold the mortality rates
-    double MortalityRateBackground;
-    double MortalityRateSenescence;
-    double MortalityRateStarvation;
+    double MortalityBackground;
+    double MortalitySenescence;
+    double MortalityStarvation;
 
     // Variable to hold the total abundance lost to all forms of mortality
     double MortalityTotal;
@@ -946,7 +968,7 @@ void Cohort::mort(){
 
     BodyMassIncludingChangeThisTimeStep = 0.0;
     // Loop over all items in the biomass deltas
-    for( auto Biomass: Cohort::_Accounting[ "biomass" ] ) {
+    for( auto Biomass: _Accounting[ "biomass" ] ) {
         // Add the delta biomass to net biomass
         BodyMassIncludingChangeThisTimeStep += Biomass.second;
     }
@@ -957,14 +979,14 @@ void Cohort::mort(){
     ReproductiveMassIncludingChangeThisTimeStep = 0.0;
 
     // Loop over all items in the biomass Cohort::Deltas
-    for( auto Biomass: Cohort::_Accounting[ "reproductivebiomass" ] ) {
+    for( auto Biomass: _Accounting[ "reproductivebiomass" ] ) {
         // Add the delta biomass to net biomass
         ReproductiveMassIncludingChangeThisTimeStep += Biomass.second;
     }
     std::string TimeUnitImplementation = "Day";
     // Calculate the scalar to convert from the time step units used by this implementation of mortality to the global model time step units
     double DeltaT = Constants::cDay;
-    double MortalityRate;
+    
     
     ReproductiveMassIncludingChangeThisTimeStep += _IndividualReproductivePotentialMass;
     // Check to see if the cohort has already been killed by predation etc
@@ -978,13 +1000,12 @@ void Cohort::mort(){
         //BodyMassIncludingChangeThisTimeStep = 0; //MB would be a kludge to exclude negative values below - need mass checking throughout the code
     } else {
         // Calculate background mortality rate
-        MortalityRate = 0.001;
-        MortalityRateBackground = MortalityRate * DeltaT;
+
+        MortalityBackground = _MortalityRateBackground * DeltaT;
 
         // If the cohort has matured, then calculate senescence mortality rate, otherwise set rate to zero
         if( _MaturityTimeStep < std::numeric_limits< unsigned >::max( ) ) {
-            
-          MortalityRate = 0.003;
+
 
           double TimeToMaturity = _MaturityTimeStep - _BirthTimeStep;
 
@@ -995,47 +1016,45 @@ void Cohort::mort(){
           double FractionalAgePostMaturity = AgePostMaturity / ( TimeToMaturity + 1 );
 
           // Calculate the mortality rate per mortality formulation time step as a function of the exponential of the previous fraction
-          double AgeRelatedMortalityRate = MortalityRate * exp( FractionalAgePostMaturity );
+          double AgeRelatedMortalityRate = _MortalityRateMature * exp( FractionalAgePostMaturity );
 
           // Convert the mortality rate from formulation time step units to model time step units
-          MortalityRateSenescence= AgeRelatedMortalityRate * DeltaT;
+          MortalitySenescence= AgeRelatedMortalityRate * DeltaT;
 
         } else {
-            MortalityRateSenescence = 0.0;
+            MortalitySenescence = 0.0;
         }
         // Calculate the starvation mortality rate based on individual body mass and maximum body mass ever
         // achieved by this cohort
-        MortalityRate = 0.;
+        double MortalityRateStarvation = 0.;
 
         if( BodyMassIncludingChangeThisTimeStep - _MaximumAchievedBodyMass < 1.e-15 ) {
-          double LogisticInflectionPoint = 0.6;
-          double LogisticScalingParameter = 0.05;
-          double MaximumStarvationRate = 1;
+
           // Calculate the first part of the relationship between body mass and mortality rate
-          double k = -( BodyMassIncludingChangeThisTimeStep - LogisticInflectionPoint * _MaximumAchievedBodyMass ) / ( LogisticScalingParameter * _MaximumAchievedBodyMass );
+          double k = -( BodyMassIncludingChangeThisTimeStep - _LogisticInflectionPoint * _MaximumAchievedBodyMass ) / ( _LogisticScalingParameter * _MaximumAchievedBodyMass );
           // Calculate mortality rate
-          MortalityRate = MaximumStarvationRate / ( 1 + exp( -k ) );
+          MortalityRateStarvation = _MaximumStarvationRate / ( 1 + exp( -k ) );
         }
-        MortalityRateStarvation = MortalityRate * DeltaT;
+        MortalityStarvation = MortalityRateStarvation * DeltaT;
 
         // Calculate the number of individuals that suffer mortality this time step from all sources of mortality
-        MortalityTotal = exp( -MortalityRateBackground - MortalityRateSenescence - MortalityRateStarvation );
+        MortalityTotal = exp( -MortalityBackground - MortalitySenescence - MortalityStarvation );
     }
 
     // Remove individuals that have died from the delta abundance for this cohort in apply ecology (by multiplication)
-    Cohort::_Accounting[ "abundance" ][ "mortality" ] = MortalityTotal;
+    _Accounting[ "abundance" ][ "mortality" ] = MortalityTotal;
 
 
     // Add the biomass of individuals that have died to the delta biomass in the organic pool (including reproductive 
     // potential mass, and mass gained through eating, and excluding mass lost through metabolism)
-    Cohort::_Accounting[ "organicpool" ][ "mortality" ] = ( 1 - MortalityTotal ) * _CohortAbundance * ( BodyMassIncludingChangeThisTimeStep + ReproductiveMassIncludingChangeThisTimeStep );
+    _Accounting[ "organicpool" ][ "mortality" ] = ( 1 - MortalityTotal ) * _CohortAbundance * ( BodyMassIncludingChangeThisTimeStep + ReproductiveMassIncludingChangeThisTimeStep );
 }
 //------------------------------------------------------------------------------------------------------------
 void Cohort::applyEcology(Environment* e){
     // Variable to calculate net abundance change to check that cohort abundance will not become negative
     double NetAbundanceChange = 0.0;
     // Loop over all abundance deltas
-    for( auto& d: Cohort::_Accounting["abundance"] ) {
+    for( auto& d: _Accounting["abundance"] ) {
         // Update net abundance change
         NetAbundanceChange += d.second;
     }
@@ -1050,7 +1069,7 @@ void Cohort::applyEcology(Environment* e){
     double NetBiomass = 0.0;
 
     // Loop over all biomass deltas
-    for( auto& d: Cohort::_Accounting["biomass"] ) {
+    for( auto& d: _Accounting["biomass"] ) {
         // Update net biomass change
         NetBiomass += d.second;
 
@@ -1070,7 +1089,7 @@ void Cohort::applyEcology(Environment* e){
     //}
 
     //Loop over all keys in the deltas sorted list
-    for( auto& d: Cohort::_Accounting["biomass"] ) {
+    for( auto& d: _Accounting["biomass"] ) {
         // If cohort abundance is zero, then set cohort individual body mass to zero and reset the biomass delta to zero, 
         // otherwise update cohort individual body mass and reset the biomass delta to zero
         if( _CohortAbundance == 0 ) {
@@ -1096,13 +1115,13 @@ void Cohort::applyEcology(Environment* e){
     double NetReproductiveBiomass = 0.0;
 
     // Loop over all reproductive biomass deltas
-    for( auto& d: Cohort::_Accounting["reproductivebiomass"] ) {
+    for( auto& d: _Accounting["reproductivebiomass"] ) {
         // Update net reproductive biomass change
         NetReproductiveBiomass += d.second;
     }
 
     //Loop over all keys in the abundance deltas sorted list
-    for( auto& d: Cohort::_Accounting["reproductivebiomass"] ) {
+    for( auto& d: _Accounting["reproductivebiomass"] ) {
         // If cohort abundance is zero, then set cohort reproductive body mass to zero and reset the biomass delta to zero, 
         // otherwise update cohort reproductive body mass and reset the biomass delta to zero
         if( _CohortAbundance == 0 ) {
@@ -1120,7 +1139,7 @@ void Cohort::applyEcology(Environment* e){
 
 void Cohort::updatePools( Environment* e) {
     // Loop over all keys in the organic pool deltas sorted list
-    for( auto &D: Cohort::_Accounting["organicpool"] ) {
+    for( auto &D: _Accounting["organicpool"] ) {
         // Check that the delta value is not negative
         //if( D.second < 0 ) std::cout << "organic pool " << D.first << " " << D.second << std::endl;
 
@@ -1129,7 +1148,7 @@ void Cohort::updatePools( Environment* e) {
         e->addToOrganicPool(D.second);
     }
     // Loop over all keys in the respiratory pool deltas sorted list
-    for( auto &D: Cohort::_Accounting["respiratoryCO2pool"] ) {
+    for( auto &D: _Accounting["respiratoryCO2pool"] ) {
         // Check that the delta value is not negative
         if( D.second < 0 ) std::cout << "respiratoryCO2pool " << D.first << " " << D.second << std::endl;
         //assert( D.second >= 0.0 && "A delta value for the respiratory CO2 pool is negative" );
