@@ -20,92 +20,92 @@
 #include "model.h"
 
 using namespace repast;
-    //shared constants - should really be in a parameter file.
+    //shared constants - these are defaults - Cohorts::setParameters will get these from model.props
     //herbivores
 
-    const double Cohort::_edibleFractionMarine               =1.0;
-    const double Cohort::_AttackRateExponentMarine           =2.0;
-    const double Cohort::_HandlingTimeExponentMarine         =0.7;
-    const double Cohort::_HandlingTimeScalarMarine           =0.7;
-    const double Cohort::_edibleFractionTerrestrial          =0.1;
-    const double Cohort::_AttackRateExponentTerrestrial      =2.0;
-    const double Cohort::_HandlingTimeExponentTerrestrial    =0.7;
-    const double Cohort::_HandlingTimeScalarTerrestrial      =0.7;
-    const double Cohort::_HerbivoryRateMassExponent          =1.0;
-    const double Cohort::_HerbivoryRateConstant              =1.0e-11;
-    const double Cohort::_ReferenceMass                      =1.0;
+    double Cohort::_edibleFractionMarine               =1.0;
+    double Cohort::_AttackRateExponentMarine           =2.0;
+    double Cohort::_HandlingTimeExponentMarine         =0.7;
+    double Cohort::_HandlingTimeScalarMarine           =0.7;
+    double Cohort::_edibleFractionTerrestrial          =0.1;
+    double Cohort::_AttackRateExponentTerrestrial      =2.0;
+    double Cohort::_HandlingTimeExponentTerrestrial    =0.7;
+    double Cohort::_HandlingTimeScalarTerrestrial      =0.7;
+    double Cohort::_HerbivoryRateMassExponent          =1.0;
+    double Cohort::_HerbivoryRateConstant              =1.0e-11;
+    double Cohort::_ReferenceMass                      =1.0;
  
     //Carnivores
 
-    const double Cohort::_HandlingTimeScalar_C               = 0.5;
-    const double Cohort::_HandlingTimeExponent_C             = 0.7;
-    const double Cohort::_SearchRateConstant                 = 1E-6;
-    const double Cohort::_FeedingPreferenceStandardDeviation = 0.7;
-    const double Cohort::_NumberOfBins                       = 12;
+    double Cohort::_HandlingTimeScalar_C               = 0.5;
+    double Cohort::_HandlingTimeExponent_C             = 0.7;
+    double Cohort::_SearchRateConstant                 = 1E-6;
+    double Cohort::_FeedingPreferenceStandardDeviation = 0.7;
+    double Cohort::_NumberOfBins                       = 12;
     
     //dispersal constants
-    const double Cohort::_DispersalSpeedBodyMassScalar       = 0.0278;
-    const double Cohort::_DispersalSpeedBodyMassExponent     = 0.48;
+    double Cohort::_DispersalSpeedBodyMassScalar       = 0.0278;
+    double Cohort::_DispersalSpeedBodyMassExponent     = 0.48;
     //advective dispersal
-    const double Cohort::_HorizontalDiffusivity                       = 100;
-    const double Cohort::_AdvectiveModelTimeStepLengthHours           = 18;
-    const double Cohort::_HorizontalDiffusivityKmSqPerADTimeStep      = _HorizontalDiffusivity / ( 1000 * 1000 ) * 60 * 60 * _AdvectiveModelTimeStepLengthHours;
+    double Cohort::_HorizontalDiffusivity                       = 100;
+    double Cohort::_AdvectiveModelTimeStepLengthHours           = 18;
+    double Cohort::_HorizontalDiffusivityKmSqPerADTimeStep      = _HorizontalDiffusivity / ( 1000 * 1000 ) * 60 * 60 * _AdvectiveModelTimeStepLengthHours;
     // Initialise the advective dispersal temporal scaling to adjust between time steps appropriately
-    const double Cohort::_AdvectionTimeStepsPerModelTimeStep          = Constants::cDay * 24 / _AdvectiveModelTimeStepLengthHours;
+    double Cohort::_AdvectionTimeStepsPerModelTimeStep          = Constants::cDay * 24 / _AdvectiveModelTimeStepLengthHours;
     // Convert velocity from m/s to km/month. Note that if the _TimeUnitImplementation changes, this will also have to change.
-    const double Cohort::_VelocityUnitConversion                      = 60 * 60 * 24 * Constants::cDay * Constants::cMonth  / 1000;
+    double Cohort::_VelocityUnitConversion                      = 60 * 60 * 24 * Constants::cDay * Constants::cMonth  / 1000;
     //responsive dispersal
-    const double Cohort::_DensityThresholdScaling                     = 50000;
-    const double Cohort::_StarvationDispersalBodyMassThreshold        = 0.8;
+    double Cohort::_DensityThresholdScaling                     = 50000;
+    double Cohort::_StarvationDispersalBodyMassThreshold        = 0.8;
     
     // Initialise ecological parameters for ectotherms
     // Source: Deutsch et al (2008), Impacts of climate warming on terrestrial ectotherms across latitude, PNAS.
-    const double Cohort::_TerrestrialWarmingToleranceIntercept = 6.61;
-    const double Cohort::_TerrestrialWarmingToleranceSlope     = 1.6;
-    const double Cohort::_TerrestrialTSMIntercept              = 1.51;
-    const double Cohort::_TerrestrialTSMSlope                  = 1.53;
+    double Cohort::_TerrestrialWarmingToleranceIntercept = 6.61;
+    double Cohort::_TerrestrialWarmingToleranceSlope     = 1.6;
+    double Cohort::_TerrestrialTSMIntercept              = 1.51;
+    double Cohort::_TerrestrialTSMSlope                  = 1.53;
     
     //Pi!
-    const double Cohort::_Pi = acos(-1);
+    double Cohort::_Pi = acos(-1);
     //cell areas are in sq. km.
-    const double Cohort::_CellAreaToHectares=100;
+    double Cohort::_CellAreaToHectares=100;
     
     //metabolism
     //Ectotherms
     // Parameters from fitting to Nagy 1999 Field Metabolic Rates for reptiles - assumes that reptile FMR was measured with animals at their optimal temp of 30degC
-    const double Cohort::_MetabolismMassExponentEcto = 0.88;
-    const double Cohort::_NormalizationConstantEcto = 148984000000; //1.4898373851E+11;
-    const double Cohort::_ActivationEnergyEcto = 0.69; // includes endotherms in hibernation and torpor
+    double Cohort::_MetabolismMassExponentEcto = 0.88;
+    double Cohort::_NormalizationConstantEcto = 148984000000; //1.4898373851E+11;
+    double Cohort::_ActivationEnergyEcto = 0.69; // includes endotherms in hibernation and torpor
     // BMR normalisation constant from Brown et al 2004 - original units of J/s so scale to kJ/d
-    const double Cohort::_NormalizationConstantBMR = 41918272883; //exp( 20 )*60 * 60 * 24 / 1000;
-    const double Cohort::_BasalMetabolismMassExponent = 0.69;
+    double Cohort::_NormalizationConstantBMR = 41918272883; //exp( 20 )*60 * 60 * 24 / 1000;
+    double Cohort::_BasalMetabolismMassExponent = 0.69;
     // Currently a very rough estimate based on calorific values of fat, protein and carbohydrate - assumes organism is metabolising mass of 1/4 protein, 1/4 carbohydrate and 1/2 fat 
-    const double Cohort::_EnergyScalarEcto = 0.036697248; //1 / 27.25;
+    double Cohort::_EnergyScalarEcto = 0.036697248; //1 / 27.25;
     
     //Endotherms
     // Parameters from fitting to Nagy 1999 Field Metabolic Rates for mammals and birds, and assuming that these endotherms are metabolising with a body temperature of 310K (37C)
-    const double Cohort::_MetabolismMassExponentEndo = 0.7;
-    const double Cohort::_NormalizationConstantEndo = 9.0809083973E+11;
-    const double Cohort::_ActivationEnergyEndo = 0.69; // includes endotherms in hibernation and torpor
-    const double Cohort::_BoltzmannConstant = 8.617e-5;
+    double Cohort::_MetabolismMassExponentEndo = 0.7;
+    double Cohort::_NormalizationConstantEndo = 9.0809083973E+11;
+    double Cohort::_ActivationEnergyEndo = 0.69; // includes endotherms in hibernation and torpor
+    double Cohort::_BoltzmannConstant = 8.617e-5;
     // Currently a very rough estimate based on calorific values of fat, protein and carbohydrate - assumes organism is metabolising mass of 1/4 protein, 1/4 carbohydrate and 1/2 fat 
-    const double Cohort::_EnergyScalarEndo = 1 / 27.25;
+    double Cohort::_EnergyScalarEndo = 1 / 27.25;
     // Set the constant to convert temperature in degrees Celsius to Kelvin
-    const double Cohort::_TemperatureUnitsConvert = 273.0;
+    double Cohort::_TemperatureUnitsConvert = 273.0;
 
     //reproduction
     
-    const double Cohort::_MassRatioThreshold = 1.5;
-    const double Cohort::_MassEvolutionProbabilityThreshold = 0.95;
-    const double Cohort::_MassEvolutionStandardDeviation = 0.05;
-    const double Cohort::_SemelparityAdultMassAllocation = 0.5;
+    double Cohort::_MassRatioThreshold = 1.5;
+    double Cohort::_MassEvolutionProbabilityThreshold = 0.95;
+    double Cohort::_MassEvolutionStandardDeviation = 0.05;
+    double Cohort::_SemelparityAdultMassAllocation = 0.5;
     
     //mortality
-    const double Cohort::_MortalityRateBackground  = 0.001;
-    const double Cohort::_MortalityRateMature      = 0.003;
-    const double Cohort::_LogisticInflectionPoint  = 0.6;
-    const double Cohort::_LogisticScalingParameter = 0.05;
-    const double Cohort::_MaximumStarvationRate    = 1;
+    double Cohort::_MortalityRateBackground  = 0.001;
+    double Cohort::_MortalityRateMature      = 0.003;
+    double Cohort::_LogisticInflectionPoint  = 0.6;
+    double Cohort::_LogisticScalingParameter = 0.05;
+    double Cohort::_MaximumStarvationRate    = 1;
     
     //needs to be class variable so that Cohorts can have unique numbers
     unsigned Cohort::_NextID=0;
@@ -113,6 +113,85 @@ using namespace repast;
     //only works as these are temporaries used only and completely within each call to step() by a cohort
     //NB do not reset within step() (e.g. by having newly reproduced cohorts call ResetAccounts() in setupOffspring() !)
     std::map < std::string, std::map<std::string,double> > Cohort::_Accounting;
+//------------------------------------------------------------------------------------------------------------
+void Cohort::setParameters(repast::Properties* props){
+    //shared constants - static function to read these from parameter file
+    //herbivores
+
+     _edibleFractionMarine               = repast::strToDouble(props->getProperty("CohortParameters.edibleFractionMarine"));
+     _AttackRateExponentMarine           = repast::strToDouble(props->getProperty("CohortParameters.AttackRateExponentMarine"));
+     _HandlingTimeExponentMarine         = repast::strToDouble(props->getProperty("CohortParameters.HandlingTimeExponentMarine"));
+     _HandlingTimeScalarMarine           = repast::strToDouble(props->getProperty("CohortParameters.HandlingTimeScalarMarine"));
+     _edibleFractionTerrestrial          = repast::strToDouble(props->getProperty("CohortParameters.edibleFractionTerrestrial"));
+     _AttackRateExponentTerrestrial      = repast::strToDouble(props->getProperty("CohortParameters.AttackRateExponentTerrestrial"));
+     _HandlingTimeExponentTerrestrial    = repast::strToDouble(props->getProperty("CohortParameters.HandlingTimeExponentTerrestrial"));
+     _HandlingTimeScalarTerrestrial      = repast::strToDouble(props->getProperty("CohortParameters.HandlingTimeScalarTerrestrial"));
+     _HerbivoryRateMassExponent          = repast::strToDouble(props->getProperty("CohortParameters.HerbivoryRateMassExponent"));
+     _HerbivoryRateConstant              = repast::strToDouble(props->getProperty("CohortParameters.HerbivoryRateConstant"));
+     _ReferenceMass                      = repast::strToDouble(props->getProperty("CohortParameters.ReferenceMass"));
+ 
+    //Carnivores
+
+     _HandlingTimeScalar_C               = repast::strToDouble(props->getProperty("CohortParameters.HandlingTimeScalar_C"));
+     _HandlingTimeExponent_C             = repast::strToDouble(props->getProperty("CohortParameters.HandlingTimeExponent_C"));
+     _SearchRateConstant                 = repast::strToDouble(props->getProperty("CohortParameters.SearchRateConstant"));
+     _FeedingPreferenceStandardDeviation = repast::strToDouble(props->getProperty("CohortParameters.FeedingPreferenceStandardDeviation"));
+     _NumberOfBins                       = repast::strToDouble(props->getProperty("CohortParameters.NumberOfBins"));
+    
+    //dispersal constants
+     _DispersalSpeedBodyMassScalar                = repast::strToDouble(props->getProperty("CohortParameters.DispersalSpeedBodyMassScalar"));
+     _DispersalSpeedBodyMassExponent              = repast::strToDouble(props->getProperty("CohortParameters.DispersalSpeedBodyMassExponent"));
+     _HorizontalDiffusivity                       = repast::strToDouble(props->getProperty("CohortParameters.HorizontalDiffusivity"));
+     _AdvectiveModelTimeStepLengthHours           = repast::strToDouble(props->getProperty("CohortParameters.AdvectiveModelTimeStepLengthHours"));
+     _HorizontalDiffusivityKmSqPerADTimeStep      = _HorizontalDiffusivity / ( 1000 * 1000 ) * 60 * 60 * _AdvectiveModelTimeStepLengthHours;
+     // Initialise the advective dispersal temporal scaling to adjust between time steps appropriately
+     _AdvectionTimeStepsPerModelTimeStep          = Constants::cDay * 24 / _AdvectiveModelTimeStepLengthHours;
+     // Convert velocity from m/s to km/month. Note that if the _TimeUnitImplementation changes, this will also have to change.
+     _VelocityUnitConversion                      = 60 * 60 * 24 * Constants::cDay * Constants::cMonth  / 1000; 
+     _DensityThresholdScaling                     = repast::strToDouble(props->getProperty("CohortParameters.DensityThresholdScaling"));
+     _StarvationDispersalBodyMassThreshold        = repast::strToDouble(props->getProperty("CohortParameters.StarvationDispersalBodyMassThreshold"));
+
+     // Initialise ecological parameters for ectotherms
+     _TerrestrialWarmingToleranceIntercept        = repast::strToDouble(props->getProperty("CohortParameters.TerrestrialWarmingToleranceIntercept"));
+     _TerrestrialWarmingToleranceSlope            = repast::strToDouble(props->getProperty("CohortParameters.TerrestrialWarmingToleranceSlope"));
+     _TerrestrialTSMIntercept                     = repast::strToDouble(props->getProperty("CohortParameters.TerrestrialTSMIntercept"));
+     _TerrestrialTSMSlope                         = repast::strToDouble(props->getProperty("CohortParameters.TerrestrialTSMSlope"));
+    
+     _Pi                                          = acos(-1.);
+     _CellAreaToHectares                          = repast::strToDouble(props->getProperty("CohortParameters.CellAreaToHectares"));
+
+     //metabolim
+     //Ectotherms
+
+     _MetabolismMassExponentEcto  = repast::strToDouble(props->getProperty("CohortParameters.MetabolismMassExponentEcto"));
+     _NormalizationConstantEcto   = repast::strToDouble(props->getProperty("CohortParameters.NormalizationConstantEcto"));
+     _ActivationEnergyEcto        = repast::strToDouble(props->getProperty("CohortParameters.ActivationEnergyEcto")); 
+     _NormalizationConstantBMR    = repast::strToDouble(props->getProperty("CohortParameters.NormalizationConstantBMR"));
+     _BasalMetabolismMassExponent = repast::strToDouble(props->getProperty("CohortParameters.BasalMetabolismMassExponent"));
+     _EnergyScalarEcto            = repast::strToDouble(props->getProperty("CohortParameters.EnergyScalarEcto"));
+    
+    //Endotherms
+     _MetabolismMassExponentEndo  = repast::strToDouble(props->getProperty("CohortParameters.MetabolismMassExponentEndo"));
+     _NormalizationConstantEndo   = repast::strToDouble(props->getProperty("CohortParameters.NormalizationConstantEndo"));
+     _ActivationEnergyEndo        = repast::strToDouble(props->getProperty("CohortParameters.ActivationEnergyEndo")); 
+     _BoltzmannConstant           = repast::strToDouble(props->getProperty("CohortParameters.BoltzmannConstant"));
+     _EnergyScalarEndo            = repast::strToDouble(props->getProperty("CohortParameters.EnergyScalarEndo"));
+     _TemperatureUnitsConvert     = repast::strToDouble(props->getProperty("CohortParameters.TemperatureUnitsConvert"));
+
+    //reproduction
+    
+     _MassRatioThreshold                = repast::strToDouble(props->getProperty("CohortParameters.MassRatioThreshold"));
+     _MassEvolutionProbabilityThreshold = repast::strToDouble(props->getProperty("CohortParameters.MassEvolutionProbabilityThreshold"));
+     _MassEvolutionStandardDeviation    = repast::strToDouble(props->getProperty("CohortParameters.MassEvolutionStandardDeviation"));
+     _SemelparityAdultMassAllocation    = repast::strToDouble(props->getProperty("CohortParameters.SemelparityAdultMassAllocation"));
+    
+    //mortality
+     _MortalityRateBackground  = repast::strToDouble(props->getProperty("CohortParameters.MortalityRateBackground"));
+     _MortalityRateMature      = repast::strToDouble(props->getProperty("CohortParameters.MortalityRateMature"));
+     _LogisticInflectionPoint  = repast::strToDouble(props->getProperty("CohortParameters.LogisticInflectionPoint"));
+     _LogisticScalingParameter = repast::strToDouble(props->getProperty("CohortParameters.LogisticScalingParameter"));
+     _MaximumStarvationRate    = repast::strToDouble(props->getProperty("CohortParameters.MaximumStarvationRate"));
+}
 //------------------------------------------------------------------------------------------------------------
 void Cohort::ResetAccounts( ) {
     // Initialize delta abundance sorted list with appropriate processes
@@ -509,11 +588,16 @@ void Cohort::TryToDisperse(double uSpeed, double vSpeed,Environment* e, MadModel
      //only move if realm matches and we haven't exceeded upper and lower latitude bounds (currently no movement across the pole)
 
      if (y+signv >= m->_minY && y+signv <= m->_maxY){
-       if (x + signu < 0)x=x+ m->_maxX-m->_minX+1;
-       assert(x+signu>=0);
-       int xw= (x-m->_minX+signu) % (m->_maxX - m->_minX + 1) + m->_minX;//grid wrap in longitude
-       Environment* E=m->_Env[xw-m->_minX+(m->_maxX-m->_minX+1)*(y+signv-m->_minY)]; //get environment of destination cell
-       if (E->_Realm==_Realm){_moved=true; _destination[0]=xw;_destination[1]=y+signv;}  // no movement if wrong realm at destination
+       if (m->_noLongitudeWrap && (x+signu >= m->_minX && x+signu <= m->_maxX) ){
+        Environment* E=m->_Env[x+signu-m->_minX+(m->_maxX-m->_minX+1)*(y+signv-m->_minY)]; //get environment of destination cell
+        if (E->_Realm==_Realm){_moved=true; _destination[0]=x+signu;_destination[1]=y+signv;}  // no movement if wrong realm at destination
+       }else{
+        if (x + signu < 0)x=x+ m->_maxX-m->_minX+1;
+        assert(x+signu>=0);
+        int xw= (x-m->_minX+signu) % (m->_maxX - m->_minX + 1) + m->_minX;//grid wrap in longitude
+        Environment* E=m->_Env[xw-m->_minX+(m->_maxX-m->_minX+1)*(y+signv-m->_minY)]; //get environment of destination cell
+        if (E->_Realm==_Realm){_moved=true; _destination[0]=xw;_destination[1]=y+signv;}  // no movement if wrong realm at destination
+       }
      }  //no movement across poles.
    }
 
@@ -1042,12 +1126,12 @@ void Cohort::mort(){
     }
 
     // Remove individuals that have died from the delta abundance for this cohort in apply ecology (by multiplication)
-    _Accounting[ "abundance" ][ "mortality" ] = MortalityTotal;
+    _Accounting["abundance" ]["mortality"] = MortalityTotal;
 
 
     // Add the biomass of individuals that have died to the delta biomass in the organic pool (including reproductive 
     // potential mass, and mass gained through eating, and excluding mass lost through metabolism)
-    _Accounting[ "organicpool" ][ "mortality" ] = ( 1 - MortalityTotal ) * _CohortAbundance * ( BodyMassIncludingChangeThisTimeStep + ReproductiveMassIncludingChangeThisTimeStep );
+    _Accounting["organicpool"]["mortality"] = ( 1 - MortalityTotal ) * _CohortAbundance * ( BodyMassIncludingChangeThisTimeStep + ReproductiveMassIncludingChangeThisTimeStep );
 }
 //------------------------------------------------------------------------------------------------------------
 void Cohort::applyEcology(Environment* e){

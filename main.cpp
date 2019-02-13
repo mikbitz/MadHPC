@@ -101,15 +101,11 @@ int main(int argc, char **argv) {
     //GO!
     //read repast Properties file.
     Properties props(propsFile, argc, argv, &world);
-          
-  //read separate Madingley input parameter file
+        
+  //initialise parameters and read datafiles
+  //data will be held in a singleton for later use
   FileReader f;
-  f.ReadInputParameters( );
-  //make sure the dimensions are consistent with the environmental data files
-  props.putProperty("min.x",0);
-  props.putProperty("min.y",0);
-  props.putProperty("max.x",Parameters::Get()->GetLengthUserLongitudeArray( )-1);
-  props.putProperty("max.y",Parameters::Get()->GetLengthUserLatitudeArray( )-1);
+  f.ReadFiles( props );
 
   std::string time;
   repast::timestamp(time);
@@ -131,6 +127,7 @@ int main(int argc, char **argv) {
   //write properties of this run to output file
   if(world.rank() == 0){
     std::vector<std::string> keysToWrite;
+    keysToWrite.push_back("experiment.name");
     keysToWrite.push_back("run.number");
     keysToWrite.push_back("date_time.run");
     keysToWrite.push_back("process.count");
@@ -149,8 +146,6 @@ int main(int argc, char **argv) {
     keysToWrite.push_back("run.time");
     props.log("root");
     props.writeToSVFile("ModelOutput.csv", keysToWrite);
-
-
   }
 	} else {
 		if (world.rank() == 0) usage();

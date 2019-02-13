@@ -3,13 +3,15 @@
 
 #include "Types.h"
 
+#include "repast_hpc/Properties.h"
+
 class Parameters {
 public:
     ~Parameters( );
     static Types::ParametersPointer Get( );
 
     bool Initialise( const Types::StringMatrix& );
-
+    bool Initialise( repast::Properties& );
     // User defined parameters
     std::string GetRootDataDirectory( ) const;
     std::string GetTimeStepUnits( ) const;

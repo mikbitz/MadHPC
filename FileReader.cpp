@@ -17,7 +17,20 @@ FileReader::FileReader( ) {
 FileReader::~FileReader( ) {
 
 }
+bool FileReader::ReadFiles(repast::Properties& props ) {
 
+    bool success = false;
+
+    success = Parameters::Get()->Initialise( props );
+
+    if( success == true )
+        success = SetUpOutputVariables( );
+
+    if( success == true )
+        success = ReadInputDataFiles( );
+    
+    return success;
+}
 bool FileReader::ReadFiles( ) {
 
     bool success = false;

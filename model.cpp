@@ -35,6 +35,7 @@
 #include "randomizer.h"
 #include "RandomRepast.h"
 #include "AgentPackage.h"
+#include <netcdf>
 
 using namespace std;
 using namespace repast;
@@ -59,6 +60,8 @@ MadModel::MadModel(repast::Properties& props,  boost::mpi::communicator* comm): 
     _maxY=repast::strToInt(_props->getProperty("max.y"));
     _dimX=repast::strToInt(_props->getProperty("proc.per.x"));
     _dimY=repast::strToInt(_props->getProperty("proc.per.y"));
+    _noLongitudeWrap=repast::strToInt(_props->getProperty("noLongitudeWrap"));
+
     //-----------------
 	//create the model grid
     repast::Point<double> origin(_minX,_minY);
@@ -70,9 +73,11 @@ MadModel::MadModel(repast::Properties& props,  boost::mpi::communicator* comm): 
     processDims.push_back(_dimX);
     processDims.push_back(_dimY);
   
-    discreteSpace = new repast::SharedDiscreteSpace<MadAgent, repast::WrapAroundBorders, repast::SimpleAdder<MadAgent> >("AgentDiscreteSpace", gd, processDims, gridBuffer, comm);
+    //because RHPC uses templates for grid wrapping, if you want any wrapping at all , you have to 
+    //use a space that is wrapped in both x and y - to use a non-wrapped space implies templating all occurrences of
+    //"model" - far too much like hard work.
+    discreteSpace = new wrappedSpaceType("AgentDiscreteSpace", gd, processDims, gridBuffer, comm);
 	
-   
     //The agent container is a context. Add the grid to it.
    	_context.addProjection(discreteSpace);
     
@@ -141,8 +146,8 @@ void MadModel::init(){
     int rank = repast::RepastProcess::instance()->rank();
     
     //get the environmental data - this is stored in the background as a DataLayerSet
-    FileReader F;
-    F.ReadFiles();
+    //FileReader F;
+    //F.ReadFiles();
     
     //now set up the environmental cells - note at present this uses the full grid, not just local to this thread
     //so that off-thread environment can be easily queried. Currently some duplication here, but it is not a huge amount of data.
@@ -153,6 +158,8 @@ void MadModel::init(){
             _Env[x-_minX+(_maxX-_minX+1)*(y-_minY)]=E;
         }
     }
+    //set up the static (i.e. shared) parameters for the Cohorts
+    Cohort::setParameters(_props);
  
     //get the definitions of stocks and cohorts
     StockDefinitions::Initialise(Constants::cStockDefinitionsFileName);
@@ -222,7 +229,7 @@ void MadModel::init(){
         }
     cout<<"rank "<<rank<<" totalCohorts "<<_totalCohorts<<" totalStocks "<<s<<endl;
     setupOutputs();
-
+    if (rank==0)setupNcOutput();
 
     long double t = initTimer.stop();
 	std::stringstream ss;
@@ -365,16 +372,17 @@ void MadModel::step(){
             space()->moveTo(m,m->_destination);m->_moved=false;m->_location=m->_destination;
          }
     }
-    //map outputs/vectors not yet available via svbuilder.  
+    //map outputs/vectors not yet available via svbuilder or netcdf builder.  
     //numbers per functional group - here's how to add up across a vector over threads.
     MPI_Reduce(cohortBreakdown.data(), _FinalCohortBreakdown.data(), 19, MPI::INT, MPI::SUM, 0, MPI_COMM_WORLD);
+
     //also get the biomass maps
     MPI_Reduce(cohortBiomassMap.data(), _FinalCohortBiomassMap.data(), (_maxX-_minX+1) * (_maxY-_minY+1), MPI::DOUBLE, MPI::SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(cohortAbundanceMap.data(), _FinalCohortAbundanceMap.data(), (_maxX-_minX+1) * (_maxY-_minY+1), MPI::DOUBLE, MPI::SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(stockBiomassMap.data(), _FinalStockBiomassMap.data(), (_maxX-_minX+1) * (_maxY-_minY+1), MPI::DOUBLE, MPI::SUM, 0, MPI_COMM_WORLD);
 
     //if(repast::RepastProcess::instance()->rank() == 0){asciiOutput(CurrentTimeStep);}
-
+    if(repast::RepastProcess::instance()->rank() == 0){netcdfOutput( CurrentTimeStep );}
 }
 
 
@@ -450,8 +458,14 @@ void MadAgentPackageReceiver::updateAgent(AgentPackage package){
 //------------------------------------------------------------------------------------------------------------
 void MadModel::setupOutputs(){
     
-	//The things added to the datasetbuilder will be accumulated over cores each timestep and output to data.csv
-	SVDataSetBuilder svbuilder("./output/data.csv", ",", repast::RepastProcess::instance()->getScheduleRunner().schedule());
+	//The things added to the datasetbuilder will be accumulated over cores each timestep and output to file filename
+
+string filename=                   _props->getProperty("experiment.output.directory")+
+                "/experiment."    +_props->getProperty("experiment.name")+
+                "_run_"           +_props->getProperty("run.number")+
+                "_global.outputs_"+_props->getProperty("date_time.run")+".csv";
+
+	SVDataSetBuilder svbuilder(filename, ",", repast::RepastProcess::instance()->getScheduleRunner().schedule());
 
     DispersalSum* DSum = new DispersalSum(this);
     svbuilder.addDataSource(repast::createSVDataSource("Dispersals", DSum, std::plus<int>()));
@@ -496,13 +510,13 @@ void MadModel::setupOutputs(){
 //	addDataSet(builder.createDataSet());
 
 }
-    //----------------------------------------------------------------------------------------------
-    void MadModel::asciiOutput( unsigned step ) {
+//----------------------------------------------------------------------------------------------
+void MadModel::asciiOutput( unsigned step ) {
     stringstream A,B,C;
     string fAname,fBname,fCname;
-    A<<"output/cohortAbundance_SqKm_"<<(step+1)<<".asc";
-    B<<"output/cohortBiomassKg_SqKm_"<<(step+1)<<".asc";
-    C<<"output/stockBiomassKg_SqKm_"<<(step+1)<<".asc";
+    A<<"./output/cohortAbundance_SqKm_"<<(step+1)<<".asc";
+    B<<"./output/cohortBiomassKg_SqKm_"<<(step+1)<<".asc";
+    C<<"./output/stockBiomassKg_SqKm_"<<(step+1)<<".asc";
     A>>fAname;
     B>>fBname;
     C>>fCname;
@@ -543,7 +557,119 @@ void MadModel::setupOutputs(){
      Biomaout<<endl;
      Stockout<<endl;
      }
-    }
+}
+//------------------------------------------------------------------------------------------------------------
+void MadModel::setupNcOutput(){
+        std::string filePrefix=               _props->getProperty("experiment.output.directory")+
+                               "/experiment."+_props->getProperty("experiment.name")+
+                               "_run_"       +_props->getProperty("run.number")+"_";
+                          
+        std::string filePostfix="_"          +_props->getProperty("date_time.run")+".nc";
+        
+        std::string filePath = filePrefix+"totalCohortBreakdown"+filePostfix;
+        
+        netCDF::NcFile cohortBreakdownFile( filePath, netCDF::NcFile::replace ); // Creates file
+        netCDF::NcDim TimeNcDim = cohortBreakdownFile.addDim( "time", _stopAt ); // Creates dimension
+        netCDF::NcVar TimeNcVar = cohortBreakdownFile.addVar( "time", netCDF::ncUint, TimeNcDim ); // Creates variable
+        TimeNcVar.putVar( Parameters::Get( )->GetMonthlyTimeStepArray( ) );
+        TimeNcVar.putAtt( "units", "month" );
+                
+        netCDF::NcDim FGroupDim = cohortBreakdownFile.addDim("functionalGroupNumber" , _FinalCohortBreakdown.size() );
+        netCDF::NcVar FGNcVar = cohortBreakdownFile.addVar( "functionalGroupNumber", netCDF::ncInt, FGroupDim );
+        int* FGnums=new int[_FinalCohortBreakdown.size()];
+        for (int i=0;i<_FinalCohortBreakdown.size();i++)FGnums[i]=i+1;
+        FGNcVar.putVar( FGnums );
+        FGNcVar.putAtt( "units", "number" );
+            
+        std::vector< netCDF::NcDim > dataDimensions={TimeNcDim,FGroupDim};
+        //dataDimensions.push_back( TimeNcDim );
+        //dataDimensions.push_back( FGroupDim );
+        netCDF::NcVar FGNumNcVar = cohortBreakdownFile.addVar(  "numberOfCohortsInFunctionalGroup", netCDF::ncInt, dataDimensions );
+        FGNumNcVar.putAtt("units", "number" );
+
+        //***//
+        setNcGridFile(filePrefix,"totalCohortBiomass",filePostfix, "kg/sq. km.");
+        setNcGridFile(filePrefix,"totalStockBiomass",filePostfix, "kg/sq. km.");
+        setNcGridFile(filePrefix,"totalCohortAbundance",filePostfix, "number/sq. km.");
+
+
+}
+//------------------------------------------------------------------------------------------------------------
+void MadModel::setNcGridFile(std::string filePrefix,std::string GridName,std::string filePostfix, std::string units){
+
+        std::string filePath = filePrefix+GridName+filePostfix;
+        
+        netCDF::NcFile gridFile( filePath, netCDF::NcFile::replace ); // Creates file
+
+        netCDF::NcDim gTimeNcDim = gridFile.addDim( "time", _stopAt ); // Creates dimension
+        netCDF::NcVar gTimeNcVar = gridFile.addVar( "time", netCDF::ncUint, gTimeNcDim ); // Creates variable
+        gTimeNcVar.putVar( Parameters::Get( )->GetMonthlyTimeStepArray( ) );
+        gTimeNcVar.putAtt( "units", "month" );
+                
+        netCDF::NcDim longitudeDim =   gridFile.addDim( "Longitude", Parameters::Get( )->GetLengthUserLongitudeArray( ) );
+        netCDF::NcVar longitudeNcVar = gridFile.addVar( "Longitude", netCDF::ncFloat, longitudeDim );
+        longitudeNcVar.putVar( Parameters::Get( )->GetUserLongitudeArray( ) );
+        longitudeNcVar.putAtt( "units", "degrees" );
+
+        netCDF::NcDim latitudeDim =   gridFile.addDim( "Latitude", Parameters::Get( )->GetLengthUserLatitudeArray( ) );
+        netCDF::NcVar latitudeNcVar = gridFile.addVar( "Latitude", netCDF::ncFloat, latitudeDim );
+        latitudeNcVar.putVar( Parameters::Get( )->GetUserLatitudeArray( ) );
+        latitudeNcVar.putAtt( "units", "degrees" );
+                
+        std::vector< netCDF::NcDim > gridDimensions={gTimeNcDim,latitudeDim,longitudeDim};
+
+        netCDF::NcVar gridVar = gridFile.addVar(  GridName, netCDF::ncDouble, gridDimensions );
+        gridVar.putAtt("units", units );
+}
+//------------------------------------------------------------------------------------------------------------
+void MadModel::netcdfOutput( unsigned step ){
+        std::string filePrefix=               _props->getProperty("experiment.output.directory")+
+                               "/experiment."+_props->getProperty("experiment.name")+
+                               "_run_"       +_props->getProperty("run.number")+"_";
+                          
+        std::string filePostfix="_"          +_props->getProperty("date_time.run")+".nc";
+        std::string filePath = filePrefix+"totalCohortBreakdown"+filePostfix;
+
+        try {
+
+            netCDF::NcFile cohortBreakdownFile( filePath, netCDF::NcFile::write );
+            netCDF::NcVar FGNumNcVar=cohortBreakdownFile.getVar( "numberOfCohortsInFunctionalGroup" );
+
+            vector<size_t> pos={step,0};vector<size_t> num={1,_FinalCohortBreakdown.size()};
+            FGNumNcVar.putVar(pos, num,_FinalCohortBreakdown.data() );
+
+
+        } catch( netCDF::exceptions::NcException& e ) {
+                e.what( );
+                std::cout << "ERROR> Write to \"" << filePath << "\" failed." << std::endl;
+        }
+        writeNcGridFile(step,filePrefix,_FinalCohortBiomassMap,"totalCohortBiomass",filePostfix);
+        writeNcGridFile(step,filePrefix,_FinalStockBiomassMap,"totalStockBiomass",filePostfix);
+        writeNcGridFile(step,filePrefix,_FinalCohortAbundanceMap,"totalCohortAbundance",filePostfix);
+
+
+}
+//------------------------------------------------------------------------------------------------------------
+
+void MadModel::writeNcGridFile(unsigned step, std::string filePrefix,vector<double>& GridDoubleVector,std::string GridName,std::string filePostfix){
+        
+        std::string filePath = filePrefix+GridName+filePostfix;
+        try {
+
+            netCDF::NcFile gridFile( filePath, netCDF::NcFile::write );
+            netCDF::NcVar gridVar=gridFile.getVar( GridName );
+
+            vector<size_t> pos={step,0,0};vector<size_t> num={1,Parameters::Get( )->GetLengthUserLatitudeArray( ),Parameters::Get( )->GetLengthUserLongitudeArray( )};
+            gridVar.putVar(pos, num,GridDoubleVector.data() );
+                    
+
+        } catch( netCDF::exceptions::NcException& e ) {
+                e.what( );
+                std::cout << "ERROR> Write to \"" << filePath << "\" failed." << std::endl;
+        }
+                
+}
+
 //------------------------------------------------------------------------------------------------------------
 
 void MadModel::dataSetClose() {
@@ -940,10 +1066,71 @@ void MadModel::tests(){
 
     
     auto t1 = Clock::now();
-    assert(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count()<160000000);
-    cout<<"Test 12 succeeded: elapsed time"<<std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count()<<"ns: RNG alternative in subdirectory randomizers get about 140000000"<<endl;
+    //assert(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count()<160000000);
+    cout<<"Test 12 : elapsed time"<<std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count()<<"ns: RNG alternative in subdirectory randomizers get about 140000000"<<endl;
 
-}
+    //---------------------------------------------------
+    //***-------------------TEST 13-------------------***//
+    //---------------------------------------------------
+    //values from model.props.tests read into Cohort should match those in the parameter file
+    Cohort::setParameters(_props);
+    if (rank==0)cout<<"Test 13 : check values read into Cohort parmeters match those in model.props.tests"<<endl;
+
+assert(1== Cohort::_edibleFractionMarine);
+assert(2== Cohort::_AttackRateExponentMarine);
+assert(0.7== Cohort::_HandlingTimeExponentMarine);
+assert(0.7== Cohort::_HandlingTimeScalarMarine);
+assert(0.1== Cohort::_edibleFractionTerrestrial);
+assert(2== Cohort::_AttackRateExponentTerrestrial);
+assert(0.7== Cohort::_HandlingTimeExponentTerrestrial);
+assert(0.7== Cohort::_HandlingTimeScalarTerrestrial);
+assert(1== Cohort::_HerbivoryRateMassExponent);
+assert(1e-11== Cohort::_HerbivoryRateConstant);
+assert(1== Cohort::_ReferenceMass);
+assert(0.5== Cohort::_HandlingTimeScalar_C);
+assert(0.7== Cohort::_HandlingTimeExponent_C);
+assert(1e-06== Cohort::_SearchRateConstant);
+assert(0.7== Cohort::_FeedingPreferenceStandardDeviation);
+assert(12== Cohort::_NumberOfBins);
+assert(0.0278== Cohort::_DispersalSpeedBodyMassScalar);
+assert(0.48== Cohort::_DispersalSpeedBodyMassExponent);
+assert(100== Cohort::_HorizontalDiffusivity);
+assert(18== Cohort::_AdvectiveModelTimeStepLengthHours);
+assert(abs(6.48- Cohort::_HorizontalDiffusivityKmSqPerADTimeStep)<1.e-14);
+assert(40== Cohort::_AdvectionTimeStepsPerModelTimeStep);
+assert(2592== Cohort::_VelocityUnitConversion);
+assert(50000== Cohort::_DensityThresholdScaling);
+assert(0.8== Cohort::_StarvationDispersalBodyMassThreshold);
+assert(6.61== Cohort::_TerrestrialWarmingToleranceIntercept);
+assert(1.6== Cohort::_TerrestrialWarmingToleranceSlope);
+assert(1.51== Cohort::_TerrestrialTSMIntercept);
+assert(1.53== Cohort::_TerrestrialTSMSlope);
+assert(abs(3.14159265358979- Cohort::_Pi)<1.e-14);
+assert(100== Cohort::_CellAreaToHectares);
+assert(0.88== Cohort::_MetabolismMassExponentEcto);
+assert(148984000000== Cohort::_NormalizationConstantEcto);
+assert(0.69== Cohort::_ActivationEnergyEcto);
+assert(41918272883== Cohort::_NormalizationConstantBMR);
+assert(0.69== Cohort::_BasalMetabolismMassExponent);
+assert(0.0366972477064== Cohort::_EnergyScalarEcto);
+assert(0.7== Cohort::_MetabolismMassExponentEndo);
+assert(908090839730== Cohort::_NormalizationConstantEndo);
+assert(0.69== Cohort::_ActivationEnergyEndo);
+assert(8.617e-05== Cohort::_BoltzmannConstant);
+assert(0.0366972477064== Cohort::_EnergyScalarEndo);
+assert(273== Cohort::_TemperatureUnitsConvert);
+assert(1.5== Cohort::_MassRatioThreshold);
+assert(0.95== Cohort::_MassEvolutionProbabilityThreshold);
+assert(0.05== Cohort::_MassEvolutionStandardDeviation);
+assert(0.5== Cohort::_SemelparityAdultMassAllocation);
+assert(0.001== Cohort::_MortalityRateBackground);
+assert(0.003== Cohort::_MortalityRateMature);
+assert(0.6== Cohort::_LogisticInflectionPoint);
+assert(0.05== Cohort::_LogisticScalingParameter);
+assert(1== Cohort::_MaximumStarvationRate);
+cout<<"Test 13 : succeeded"<<endl;
+
+}    
 //---------------------------------------------------------------------------------------------------------------------------
 //define some data values for the Cohort to check whether they are preserved on moving across threads
 //see Cohort::setup

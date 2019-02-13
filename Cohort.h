@@ -15,6 +15,9 @@
 #include "repast_hpc/AgentId.h"
 #include "repast_hpc/SharedContext.h"
 #include "repast_hpc/SharedDiscreteSpace.h"
+#include "repast_hpc/Properties.h"
+#include "repast_hpc/Utilities.h"
+
 #include "AgentPackage.h"
 #include "Environment.h"
 #include "randomizer.h"
@@ -74,80 +77,82 @@ public:
     double _PotentialAbundanceEaten;
     unsigned _CurrentTimeStep;
     
+    static void setParameters(repast::Properties*);
+
     //herbivores
 
-    static const double _edibleFractionMarine           ;// =1.0;
-    static const double _AttackRateExponentMarine       ;// =2.0;
-    static const double _HandlingTimeExponentMarine     ;// =0.7;
-    static const double _HandlingTimeScalarMarine       ;// =0.7;
-    static const double _edibleFractionTerrestrial      ;// =0.1;
-    static const double _AttackRateExponentTerrestrial  ;// =2.0;
-    static const double _HandlingTimeExponentTerrestrial;// =0.7;
-    static const double _HandlingTimeScalarTerrestrial  ;// =0.7;
-    static const double _HerbivoryRateMassExponent      ;// =1.0;
-    static const double _HerbivoryRateConstant          ;// =1.0e-11;
-    static const double _ReferenceMass                  ;// =1.0;
+    static double _edibleFractionMarine           ;
+    static double _AttackRateExponentMarine       ;
+    static double _HandlingTimeExponentMarine     ;
+    static double _HandlingTimeScalarMarine       ;
+    static double _edibleFractionTerrestrial      ;
+    static double _AttackRateExponentTerrestrial  ;
+    static double _HandlingTimeExponentTerrestrial;
+    static double _HandlingTimeScalarTerrestrial  ;
+    static double _HerbivoryRateMassExponent      ;
+    static double _HerbivoryRateConstant          ;
+    static double _ReferenceMass                  ;
  
     //Carnivores
 
-    static const double _HandlingTimeScalar_C               ;//= 0.5;
-    static const double _HandlingTimeExponent_C             ;//= 0.7;
-    static const double _SearchRateConstant                 ;//= 1E-6;
-    static const double _FeedingPreferenceStandardDeviation ;//= 0.7;
-    static const double _NumberOfBins                       ;//= 12;
+    static double _HandlingTimeScalar_C               ;
+    static double _HandlingTimeExponent_C             ;
+    static double _SearchRateConstant                 ;
+    static double _FeedingPreferenceStandardDeviation ;
+    static double _NumberOfBins                       ;
 
     //Dispersal constants
-    static const double _DispersalSpeedBodyMassScalar       ;//= 0.0278;
-    static const double _DispersalSpeedBodyMassExponent     ;//= 0.48;
+    static double _DispersalSpeedBodyMassScalar       ;
+    static double _DispersalSpeedBodyMassExponent     ;
     //Advective dispersal
-    static const double _HorizontalDiffusivity                       ;//= 100;
-    static const double _AdvectiveModelTimeStepLengthHours           ;//= 18;
-    static const double _HorizontalDiffusivityKmSqPerADTimeStep      ;//= _HorizontalDiffusivity / ( 1000 * 1000 ) * 60 * 60 * AdvectiveModelTimeStepLengthHours;
-    static const double _AdvectionTimeStepsPerModelTimeStep          ;//= Constants::cDay * 24 / _AdvectiveModelTimeStepLengthHours;
-    static const double _VelocityUnitConversion                      ;//= 60 * 60 * 24 * Constants::cDay * Constants::cMonth  / 1000;
+    static double _HorizontalDiffusivity                       ;
+    static double _AdvectiveModelTimeStepLengthHours           ;
+    static double _HorizontalDiffusivityKmSqPerADTimeStep      ;
+    static double _AdvectionTimeStepsPerModelTimeStep          ;
+    static double _VelocityUnitConversion                      ;
     //Responsive dispersal
-    static const double _DensityThresholdScaling                     ;//= 50000;
-    static const double _StarvationDispersalBodyMassThreshold        ;//=0.8;
+    static double _DensityThresholdScaling                     ;
+    static double _StarvationDispersalBodyMassThreshold        ;
 
     //ectotherms
-    static const double _TerrestrialWarmingToleranceIntercept ;//= 6.61;
-    static const double _TerrestrialWarmingToleranceSlope     ;//= 1.6;
-    static const double _TerrestrialTSMIntercept              ;//= 1.51;
-    static const double _TerrestrialTSMSlope                  ;//= 1.53;
+    static double _TerrestrialWarmingToleranceIntercept ;
+    static double _TerrestrialWarmingToleranceSlope     ;
+    static double _TerrestrialTSMIntercept              ;
+    static double _TerrestrialTSMSlope                  ;
 
     //metabolism
     //Ectotherms
-    static const double _MetabolismMassExponentEcto            ;//= 0.88;
-    static const double _NormalizationConstantEcto             ;//= 148984000000; //1.4898373851E+11;
-    static const double _ActivationEnergyEcto                  ;//= 0.69; // includes endotherms in hibernation and torpor
-    static const double _NormalizationConstantBMR              ;//= 41918272883; //exp( 20 )*60 * 60 * 24 / 1000;
-    static const double _BasalMetabolismMassExponent           ;//= 0.69;
-    static const double _EnergyScalarEcto                      ;//= 0.036697248; //1 / 27.25;
+    static double _MetabolismMassExponentEcto            ;
+    static double _NormalizationConstantEcto             ;
+    static double _ActivationEnergyEcto                  ; 
+    static double _NormalizationConstantBMR              ;
+    static double _BasalMetabolismMassExponent           ;
+    static double _EnergyScalarEcto                      ;
     //Endotherrms
-    static const double _MetabolismMassExponentEndo           ;//= 0.7;
-    static const double _NormalizationConstantEndo            ;//= 9.0809083973E+11;
-    static const double _ActivationEnergyEndo                 ;//= 0.69; // includes endotherms in hibernation and torpor
-    static const double _EnergyScalarEndo                     ;//= 1 / 27.25;
+    static double _MetabolismMassExponentEndo           ;
+    static double _NormalizationConstantEndo            ;
+    static double _ActivationEnergyEndo                 ; 
+    static double _EnergyScalarEndo                     ;
 
-    static const double _BoltzmannConstant                    ;//= 8.617e-5;
-    static const double _TemperatureUnitsConvert              ;// = 273.0;
+    static double _BoltzmannConstant                    ;
+    static double _TemperatureUnitsConvert              ;
 
     //reproduction
-    static const double _MassRatioThreshold                   ;//= 1.5;
-    static const double _MassEvolutionProbabilityThreshold    ;//= 0.95;
-    static const double _MassEvolutionStandardDeviation       ;//= 0.05;
-    static const double _SemelparityAdultMassAllocation       ;//= 0.5;
+    static double _MassRatioThreshold                   ;
+    static double _MassEvolutionProbabilityThreshold    ;
+    static double _MassEvolutionStandardDeviation       ;
+    static double _SemelparityAdultMassAllocation       ;
     //mortality
-    static const double _MortalityRateBackground              ;//= 0.001;
-    static const double _MortalityRateMature                  ;//= 0.003;
-    static const double _LogisticInflectionPoint              ;//= 0.6;
-    static const double _LogisticScalingParameter             ;//= 0.05;
-    static const double _MaximumStarvationRate                ;//= 1;
+    static double _MortalityRateBackground              ;
+    static double _MortalityRateMature                  ;
+    static double _LogisticInflectionPoint              ;
+    static double _LogisticScalingParameter             ;
+    static double _MaximumStarvationRate                ;
     
     //Pi!
-    static const double _Pi ;//=acos(-1.);
+    static double _Pi ;
     //area units conversion
-    static const double _CellAreaToHectares;//=100;
+    static double _CellAreaToHectares;
     
     //temporary store for within timestep changes
     static std::map < std::string, std::map<std::string,double> > _Accounting;

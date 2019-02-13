@@ -6,6 +6,8 @@
 #include "Processor.h"
 #include "DataCoords.h"
 #include "DataIndices.h"
+#include "repast_hpc/Utilities.h"
+#include <iostream>
 
 Types::ParametersPointer Parameters::mThis = NULL;
 
@@ -32,14 +34,68 @@ Parameters::~Parameters( ) {
 
 Parameters::Parameters( ) {
 }
+bool Parameters::Initialise( repast::Properties& props ) {
+    bool success=false;
+    try {
+        
+        SetLengthOfSimulationInMonths(repast::strToDouble(props.getProperty("simulation.LengthOfSimulationInYears")));
+        SetUserMinimumLongitude      (repast::strToDouble(props.getProperty("simulation.minimumLongitude")));
+        SetUserMaximumLongitude      (repast::strToDouble(props.getProperty("simulation.maximumLongitude")));
+        SetUserMinimumLatitude       (repast::strToDouble(props.getProperty("simulation.minimumLatitude")));
+        SetUserMaximumLatitude       (repast::strToDouble(props.getProperty("simulation.maximumLatitude")));
+        SetGridCellSize              (repast::strToDouble(props.getProperty("simulation.GridCellSize")));
+        SetExtinctionThreshold       (repast::strToDouble(props.getProperty("simulation.ExtinctionThreshold")));
+        SetMaximumNumberOfCohorts    (repast::strToDouble(props.getProperty("simulation.MaximumNumberOfCohorts")));
+        SetPlanktonSizeThreshold     (repast::strToDouble(props.getProperty("simulation.PlanktonSizeThreshold")));
+        SetHumanNPPExtractionScale   (repast::strToDouble(props.getProperty("simulation.HumanNPPExtractionScale")));
+        SetHumanNPPScenarioDuration  (repast::strToDouble(props.getProperty("simulation.HumanNPPScenarioDuration")));
+        SetBurninSteps               (repast::strToDouble(props.getProperty("simulation.BurninSteps")));
+        SetImpactSteps               (repast::strToDouble(props.getProperty("simulation.ImpactSteps")));
+        SetRecoverySteps             (repast::strToDouble(props.getProperty("simulation.RecoverySteps")));
+        SetDrawRandomly              (                    props.getProperty("simulation.DrawRandomly"));
+        SetHumanNPPScenarioType      (                    props.getProperty("simulation.HumanNPPScenarioType"));
+        SetRootDataDirectory         (                    props.getProperty("simulation.RootDataDirectory"));
+        SetTimeStepUnits             (                    props.getProperty("simulation.TimeStepUnits"));
 
+        
+        //assume timestep is a month consistent with below!
+        //stop.at may be used in determining the number of model timesteps to run for
+        if (props.getProperty("stop.at").length()==0){
+            props.putProperty("stop.at",unsigned(mLengthOfSimulationInYears * 12));
+        }else{
+            mLengthOfSimulationInMonths=repast::strToInt(props.getProperty("stop.at"));
+            mLengthOfSimulationInYears=repast::strToInt(props.getProperty("stop.at"))/12;
+        }
+        
+        
+        
+        CalculateParameters( );
+        //throw "Parameters.cpp: Something bad happened when trying to read or calculate input parameters: check the model.props file? Can't continue. Exiting...";
+        //make sure the dimensions are consistent with the environmental data files
+        props.putProperty("min.x",0);
+        props.putProperty("min.y",0);
+        props.putProperty("max.x",Parameters::Get()->GetLengthUserLongitudeArray( )-1);
+        props.putProperty("max.y",Parameters::Get()->GetLengthUserLatitudeArray( )-1);
+        //only wrap in longitude if the domain size is exactly 360 degrees! Not super robust...
+        props.putProperty("noLongitudeWrap",((mUserMaximumLongitude-mUserMinimumLongitude)%360 !=0));
+
+  
+        success = true;
+    }catch(char* e){
+        std::cout<<e<<std::endl;
+        exit(1);
+    }
+    return success;
+}
 bool Parameters::Initialise( const Types::StringMatrix& rawInputParameterData ) {
     bool success = false;
 
     if( rawInputParameterData.size( ) > 0 ) {
         if( rawInputParameterData[ 0 ].size( ) == Constants::eParameterValue + 1 ) {
             for( unsigned rowIndex = 0; rowIndex < rawInputParameterData.size( ); ++rowIndex ) {
-                
+
+
+
                 std::string parameterName = Convertor::Get( )->RemoveWhiteSpace( Convertor::Get( )->ToLowercase( rawInputParameterData[ rowIndex ][ Constants::eParameterName ] ) );
                 if( parameterName == "rootdatadirectory" ) SetRootDataDirectory( Convertor::Get( )->RemoveWhiteSpace( rawInputParameterData[ rowIndex ][ Constants::eParameterValue ] ) );
                 else if( parameterName == "timestepunits" ) SetTimeStepUnits( Convertor::Get( )->RemoveWhiteSpace( Convertor::Get( )->ToLowercase( rawInputParameterData[ rowIndex ][ Constants::eParameterValue ] ) ) );
@@ -72,8 +128,6 @@ bool Parameters::Initialise( const Types::StringMatrix& rawInputParameterData ) 
 
 void Parameters::CalculateParameters( ) {
 
-    // Calculate temporal parameters
-    mLengthOfSimulationInMonths = mLengthOfSimulationInYears * 12;
 
     mMonthlyTimeStepArray = new unsigned[ mLengthOfSimulationInMonths ];
     for( unsigned monthIndex = 0; monthIndex < mLengthOfSimulationInMonths; ++monthIndex ) {
@@ -88,7 +142,7 @@ void Parameters::CalculateParameters( ) {
     // Calculate spatial parameters
     mLengthDataLongitudeArray = 360 / mGridCellSize;
 
-
+    //there are some assumptions here about lat. and long ranges - this code may not work for grid boxes spanning the dateline.
     mDataLongitudeArray = new float[ mLengthDataLongitudeArray ];
     for( unsigned longitudeIndex = 0; longitudeIndex < mLengthDataLongitudeArray; ++longitudeIndex ) {
         mDataLongitudeArray[ longitudeIndex ] = ( -180 + ( ( float )mGridCellSize / 2 ) ) + ( longitudeIndex * ( float )mGridCellSize );
@@ -217,6 +271,8 @@ void Parameters::SetTimeStepUnits( const std::string& timeStepUnits ) {
 
 void Parameters::SetLengthOfSimulationInMonths( const unsigned& lengthOfSimulationInYears ) {
     mLengthOfSimulationInYears = lengthOfSimulationInYears;
+    // Calculate temporal parameters - there's something of an assumption the timestep is a month!!
+    mLengthOfSimulationInMonths = mLengthOfSimulationInYears * 12;
 }
 
 void Parameters::SetUserMinimumLongitude( const int& userMinimumLongitude ) {
@@ -338,7 +394,6 @@ float Parameters::GetUserLongitudeAtIndex( const unsigned& index ) const {
 }
 
 float Parameters::GetUserLatitudeAtIndex( const unsigned& index ) const {
-    //if (index==168){std::cout<<mLengthUserLatitudeArray<<std::endl;exit(1);}
     return mUserLatitudeArray[ index ];
 }
 

@@ -20,7 +20,7 @@
 class MadModel;
 class AgentPackage;
 //This is an alias for the background discrete grid
-typedef repast::SharedDiscreteSpace<MadAgent, repast::WrapAroundBorders, repast::SimpleAdder<MadAgent> > modelSpaceType;
+typedef repast::SharedDiscreteSpace<MadAgent, repast::WrapAroundBorders, repast::SimpleAdder<MadAgent> > wrappedSpaceType;
 
 
 //------------------------------------------------------------------------------------------
@@ -69,19 +69,26 @@ class MadModel{
 	MadAgentPackageProvider* provider;
 	MadAgentPackageReceiver* receiver;
 
-    modelSpaceType* discreteSpace;
+    wrappedSpaceType* discreteSpace;
     int _totalCohorts,_totalStocks;
     double _totalCohortAbundance,_totalCohortBiomass,_totalStockBiomass,_totalOrganciPool,_totalRespiratoryCO2Pool;
     int    _totalMerged,_totalReproductions,_totalDeaths,_totalMoved;
-    vector<double> _FinalCohortBiomassMap,_FinalCohortAbundanceMap,_FinalCohortBreakdown;
+    vector<double> _FinalCohortBiomassMap,_FinalCohortAbundanceMap;
+    vector<int> _FinalCohortBreakdown;
     vector<double> _FinalStockBiomassMap;
 
     void dataSetClose();
     void addDataSet(repast::DataSet*) ;
-    void asciiOutput( unsigned step ); 
+    void setupNcOutput();
+    void asciiOutput( unsigned step );
+    void netcdfOutput( unsigned step );
+    void setNcGridFile(std::string,std::string ,std::string , std::string);
+    void writeNcGridFile(unsigned,std::string,vector<double>&,std::string ,std::string);
+
 public:
     int _minX,_minY,_maxX,_maxY,_dimX,_dimY;
     int _xlo,_xhi,_ylo,_yhi;
+    int _noLongitudeWrap; //1 if domain does not span the global latitude range
     vector<Environment*> _Env;
 	MadModel(repast::Properties& ,  boost::mpi::communicator* comm);
 	~MadModel();
@@ -91,7 +98,7 @@ public:
     void sync();
 	void initSchedule(repast::ScheduleRunner& runner);
 	void recordResults();
-    modelSpaceType* space(){return discreteSpace;}
+    wrappedSpaceType* space(){return discreteSpace;}
 
     static int _stockType, _cohortType;
     //outputs
