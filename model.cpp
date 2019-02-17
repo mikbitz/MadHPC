@@ -61,6 +61,13 @@ MadModel::MadModel(repast::Properties& props,  boost::mpi::communicator* comm): 
     _dimX=repast::strToInt(_props->getProperty("proc.per.x"));
     _dimY=repast::strToInt(_props->getProperty("proc.per.y"));
     _noLongitudeWrap=repast::strToInt(_props->getProperty("noLongitudeWrap"));
+    //naming convention for output files
+    _filePrefix=                  _props->getProperty("experiment.output.directory")+
+                   "/experiment."+_props->getProperty("experiment.name")+
+                   "_run_"       +_props->getProperty("run.number")+"_";
+
+    _filePostfix="_"             +_props->getProperty("date_time.run");
+    cout<<"Outputfiles will be named "<<_filePrefix<<"<Data Name>"<<_filePostfix<<".<filenameExtension>"<<endl;
 
     //-----------------
 	//create the model grid
@@ -123,6 +130,7 @@ void MadModel::initSchedule(repast::ScheduleRunner& runner){
 }
 //------------------------------------------------------------------------------------------------------------
 void MadModel::init(){
+    
     _totalCohorts=0;
     _totalStocks=0;
     _totalCohortAbundance=0;
@@ -460,11 +468,9 @@ void MadModel::setupOutputs(){
     
 	//The things added to the datasetbuilder will be accumulated over cores each timestep and output to file filename
 
-string filename=                   _props->getProperty("experiment.output.directory")+
-                "/experiment."    +_props->getProperty("experiment.name")+
-                "_run_"           +_props->getProperty("run.number")+
-                "_global.outputs_"+_props->getProperty("date_time.run")+".csv";
-
+        
+    std::string filename = _filePrefix+"global.outputs"+_filePostfix+".csv";        
+                
 	SVDataSetBuilder svbuilder(filename, ",", repast::RepastProcess::instance()->getScheduleRunner().schedule());
 
     DispersalSum* DSum = new DispersalSum(this);
@@ -560,15 +566,10 @@ void MadModel::asciiOutput( unsigned step ) {
 }
 //------------------------------------------------------------------------------------------------------------
 void MadModel::setupNcOutput(){
-        std::string filePrefix=               _props->getProperty("experiment.output.directory")+
-                               "/experiment."+_props->getProperty("experiment.name")+
-                               "_run_"       +_props->getProperty("run.number")+"_";
-                          
-        std::string filePostfix="_"          +_props->getProperty("date_time.run")+".nc";
         
-        std::string filePath = filePrefix+"totalCohortBreakdown"+filePostfix;
+        std::string filePath = _filePrefix+"totalCohortBreakdown"+_filePostfix+".nc";
         
-        netCDF::NcFile cohortBreakdownFile( filePath, netCDF::NcFile::replace ); // Creates file
+        netCDF::NcFile cohortBreakdownFile( filePath.c_str(), netCDF::NcFile::replace ); // Creates file
         netCDF::NcDim TimeNcDim = cohortBreakdownFile.addDim( "time", _stopAt ); // Creates dimension
         netCDF::NcVar TimeNcVar = cohortBreakdownFile.addVar( "time", netCDF::ncUint, TimeNcDim ); // Creates variable
         TimeNcVar.putVar( Parameters::Get( )->GetMonthlyTimeStepArray( ) );
@@ -582,24 +583,23 @@ void MadModel::setupNcOutput(){
         FGNcVar.putAtt( "units", "number" );
             
         std::vector< netCDF::NcDim > dataDimensions={TimeNcDim,FGroupDim};
-        //dataDimensions.push_back( TimeNcDim );
-        //dataDimensions.push_back( FGroupDim );
+
         netCDF::NcVar FGNumNcVar = cohortBreakdownFile.addVar(  "numberOfCohortsInFunctionalGroup", netCDF::ncInt, dataDimensions );
         FGNumNcVar.putAtt("units", "number" );
 
         //***//
-        setNcGridFile(filePrefix,"totalCohortBiomass",filePostfix, "kg/sq. km.");
-        setNcGridFile(filePrefix,"totalStockBiomass",filePostfix, "kg/sq. km.");
-        setNcGridFile(filePrefix,"totalCohortAbundance",filePostfix, "number/sq. km.");
+        setNcGridFile("totalCohortBiomass", "kg/sq. km.");
+        setNcGridFile("totalStockBiomass", "kg/sq. km.");
+        setNcGridFile("totalCohortAbundance", "number/sq. km.");
 
 
 }
 //------------------------------------------------------------------------------------------------------------
-void MadModel::setNcGridFile(std::string filePrefix,std::string GridName,std::string filePostfix, std::string units){
+void MadModel::setNcGridFile(std::string GridName, std::string units){
 
-        std::string filePath = filePrefix+GridName+filePostfix;
+        std::string filePath = _filePrefix+GridName+_filePostfix+".nc";
         
-        netCDF::NcFile gridFile( filePath, netCDF::NcFile::replace ); // Creates file
+        netCDF::NcFile gridFile( filePath.c_str(), netCDF::NcFile::replace ); // Creates file
 
         netCDF::NcDim gTimeNcDim = gridFile.addDim( "time", _stopAt ); // Creates dimension
         netCDF::NcVar gTimeNcVar = gridFile.addVar( "time", netCDF::ncUint, gTimeNcDim ); // Creates variable
@@ -623,16 +623,12 @@ void MadModel::setNcGridFile(std::string filePrefix,std::string GridName,std::st
 }
 //------------------------------------------------------------------------------------------------------------
 void MadModel::netcdfOutput( unsigned step ){
-        std::string filePrefix=               _props->getProperty("experiment.output.directory")+
-                               "/experiment."+_props->getProperty("experiment.name")+
-                               "_run_"       +_props->getProperty("run.number")+"_";
-                          
-        std::string filePostfix="_"          +_props->getProperty("date_time.run")+".nc";
-        std::string filePath = filePrefix+"totalCohortBreakdown"+filePostfix;
+
+        std::string filePath = _filePrefix+"totalCohortBreakdown"+_filePostfix+".nc";
 
         try {
 
-            netCDF::NcFile cohortBreakdownFile( filePath, netCDF::NcFile::write );
+            netCDF::NcFile cohortBreakdownFile( filePath.c_str(), netCDF::NcFile::write );
             netCDF::NcVar FGNumNcVar=cohortBreakdownFile.getVar( "numberOfCohortsInFunctionalGroup" );
 
             vector<size_t> pos={step,0};vector<size_t> num={1,_FinalCohortBreakdown.size()};
@@ -643,20 +639,20 @@ void MadModel::netcdfOutput( unsigned step ){
                 e.what( );
                 std::cout << "ERROR> Write to \"" << filePath << "\" failed." << std::endl;
         }
-        writeNcGridFile(step,filePrefix,_FinalCohortBiomassMap,"totalCohortBiomass",filePostfix);
-        writeNcGridFile(step,filePrefix,_FinalStockBiomassMap,"totalStockBiomass",filePostfix);
-        writeNcGridFile(step,filePrefix,_FinalCohortAbundanceMap,"totalCohortAbundance",filePostfix);
+        writeNcGridFile(step,_FinalCohortBiomassMap,"totalCohortBiomass");
+        writeNcGridFile(step,_FinalStockBiomassMap,"totalStockBiomass");
+        writeNcGridFile(step,_FinalCohortAbundanceMap,"totalCohortAbundance");
 
 
 }
 //------------------------------------------------------------------------------------------------------------
 
-void MadModel::writeNcGridFile(unsigned step, std::string filePrefix,vector<double>& GridDoubleVector,std::string GridName,std::string filePostfix){
+void MadModel::writeNcGridFile(unsigned step, vector<double>& GridDoubleVector,std::string GridName){
         
-        std::string filePath = filePrefix+GridName+filePostfix;
+        std::string filePath = _filePrefix+GridName+_filePostfix+".nc";
         try {
 
-            netCDF::NcFile gridFile( filePath, netCDF::NcFile::write );
+            netCDF::NcFile gridFile( filePath.c_str(), netCDF::NcFile::write );
             netCDF::NcVar gridVar=gridFile.getVar( GridName );
 
             vector<size_t> pos={step,0,0};vector<size_t> num={1,Parameters::Get( )->GetLengthUserLatitudeArray( ),Parameters::Get( )->GetLengthUserLongitudeArray( )};

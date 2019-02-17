@@ -1,7 +1,8 @@
 #Lines following a # are comments and will be ignored
 
 #What code version was this model run with?
-code.version=0.1
+#This shoudl not be altered but will be set by main.cpp
+#code.version=0.1
 
 #Unique name for this set of model runs, if desired
 experiment.name=default

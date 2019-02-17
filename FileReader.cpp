@@ -116,7 +116,7 @@ bool FileReader::ReadInputDataFiles( ) {
                 //std::cout << "Reading NetCDF file \"" << filePath << "\"..." << std::endl;
 
                 try {
-                    netCDF::NcFile inputNcFile( filePath, netCDF::NcFile::read ); // Open the file for read access
+                    netCDF::NcFile inputNcFile( filePath.c_str(), netCDF::NcFile::read ); // Open the file for read access
 
                     std::multimap< std::string, netCDF::NcVar > multiMap = inputNcFile.getVars( );
 

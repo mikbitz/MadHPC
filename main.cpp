@@ -112,7 +112,7 @@ int main(int argc, char **argv) {
   props.putProperty("date_time.run", time);
 
   props.putProperty("process.count", world.size());
-
+  props.putProperty ("code.version","02_2019_v0.1");
   if(world.rank() == 0) std::cout << " Starting... " << std::endl;
 
   //initialize default random number generator

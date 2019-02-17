@@ -77,13 +77,14 @@ class MadModel{
     vector<int> _FinalCohortBreakdown;
     vector<double> _FinalStockBiomassMap;
 
+    std::string _filePrefix, _filePostfix;
     void dataSetClose();
     void addDataSet(repast::DataSet*) ;
     void setupNcOutput();
     void asciiOutput( unsigned step );
     void netcdfOutput( unsigned step );
-    void setNcGridFile(std::string,std::string ,std::string , std::string);
-    void writeNcGridFile(unsigned,std::string,vector<double>&,std::string ,std::string);
+    void setNcGridFile(std::string,std::string );
+    void writeNcGridFile(unsigned,vector<double>&,std::string);
 
 public:
     int _minX,_minY,_maxX,_maxY,_dimX,_dimY;
