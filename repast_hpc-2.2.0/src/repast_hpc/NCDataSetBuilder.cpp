@@ -60,17 +60,17 @@ NCDataSet* NCDataSetBuilder::createDataSet() {
 	returned = true;
 	if (RepastProcess::instance()->rank() == 0) {
 
-		NcFile* ncfile = new NcFile(dataSet->file_.c_str(), NcFile::Replace, NULL, 0, NcFile::Offset64Bits);
-		NcDim* runDim = ncfile->add_dim("run", 1);
-		NcDim* tickDim = ncfile->add_dim("tick");
+		//NcFile* ncfile = new NcFile(dataSet->file_.c_str(), NcFile::Replace, NULL, 0, NcFile::Offset64Bits);
+		//NcDim* runDim = ncfile->add_dim("run", 1);
+		//NcDim* tickDim = ncfile->add_dim("tick");
 
-		ncfile->add_var("tick", ncDouble, tickDim);
+		//ncfile->add_var("tick", ncDouble, tickDim);
 
 		for (size_t i = 0; i < dataSet->dataSources.size(); i++) {
 			NCDataSource* ds = dataSet->dataSources[i];
-			ncfile->add_var(ds->name().c_str(), ds->ncType(), tickDim, runDim);
+			//ncfile->add_var(ds->name().c_str(), ds->ncType(), tickDim, runDim);
 		}
-		dataSet->ncfile = ncfile;
+		//dataSet->ncfile = ncfile;
 	}
 
 	return dataSet;

@@ -2,11 +2,11 @@
 
 set -eu
 
-# Note: Currently installs MPICH, NetCDF, NetCDF-CXX, and Boost version 1.58
+# Note: Currently installs MPICH, HDF, NetCDF, NetCDF-CXX, and Boost version 1.58
 
 BASE_DIR=$HOME/repastHPC
 VERSION=2.2.0
-REPAST_DIR=$BASE_DIR/repast_hpc-$VERSION
+REPAST_DIR=$BASE_DIR/repastHPC/mad_modified/repast_hpc-$VERSION
 
 mkdir -p $REPAST_DIR/lib $REPAST_DIR/include
 
@@ -64,34 +64,56 @@ fi
 
 if [[ $1 == *netcdf* ]]
 then
+  if [ -e $BASE_DIR/HDF ]
+  then
+    echo "A directory named $BASE_DIR/HDF already exists; you must delete it before it can be rebuilt."
+    exit
+  fi
+  if [ ! -e hdf5-1.8.15-patch1.tar.gz ]
+  then
+    echo "NetCDF requires HDF: tar file (hdf5-1.8.15-patch1.tar.gz) not found; you must download this and put it in this directory to continue."
+    exit
+  fi
+
+  mkdir $BASE_DIR/HDF
+  tar -xvf hdf5-1.8.15-patch1.tar.gz
+  cd hdf5-1.8.15-patch1
+  env CPPFLAGS=-std=c++11 ./configure --prefix=$BASE_DIR/HDF 
+  make
+  make install
+  cd ..
+  
   if [ -e $BASE_DIR/NetCDF ]
   then
     echo "A directory named $BASE_DIR/NetCDF already exists; you must delete it before it can be rebuilt."
     exit
   fi
-  if [ ! -e netcdf-4.2.1.1.tar.gz ]
+  if [ ! -e netcdf-4.3.3.1.tar.gz ]
   then
-    echo "NetCDF tar file (netcdf-4.2.1.1.tar.gz) not found; you must download this and put it in this directory to continue."
+    echo "NetCDF tar file (netcdf-4.3.3.1.tar.gz) not found; you must download this and put it in this directory to continue."
     exit
   fi
+  
   mkdir $BASE_DIR/NetCDF
-  tar -xvf netcdf-4.2.1.1.tar.gz
-  cd netcdf-4.2.1.1
-  env CPPFLAGS=-I$BASE_DIR/CURL/include LDFLAGS=-L$BASE_DIR/CURL/lib ./configure --disable-netcdf-4 --prefix=$BASE_DIR/NetCDF
+  tar -xvf netcdf-4.3.3.1.tar.gz
+  cd netcdf-4.3.3.1
+  #env CPPFLAGS=-I$BASE_DIR/HDF/include -I$BASE_DIR/CURL/include LDFLAGS=-L$BASE_DIR/HDF/lib -L$BASE_DIR/CURL/lib ./configure --enable-netcdf-4 --prefix=$BASE_DIR/NetCDF
+  env CPPFLAGS="-I$BASE_DIR/HDF/include -std=c++11" LDFLAGS=-L$BASE_DIR/HDF/lib64 ./configure --enable-netcdf-4 --prefix=$BASE_DIR/NetCDF
   make
   make install
   #ln -s $BASE_DIR/NetCDF/include/*.h $REPAST_DIR/include/
   #ln -s $BASE_DIR/NetCDF/lib/libnetcdf* $REPAST_DIR/lib/
   cd ..
 
-  if [ ! -e netcdf-cxx-4.2.tar.gz ]
+  if [ ! -e netcdf-cxx4-4.2.1.tar.gz ]
   then
-    echo "NetCDF cpp tar file (netcdf-cxx-4.2.tar.gz) not found; you must download this and put it in this directory to continue."
+    echo "NetCDF cpp tar file (netcdf-cxx4-4.2.1.tar.gz) not found; you must download this and put it in this directory to continue."
     exit
   fi
-  tar -xvf netcdf-cxx-4.2.tar.gz
-  cd netcdf-cxx-4.2
-  env CPPFLAGS=-I$BASE_DIR/NetCDF/include LDFLAGS=-L$BASE_DIR/NetCDF/lib ./configure --prefix=$BASE_DIR/NetCDF-cxx
+
+  tar -xvf netcdf-cxx4-4.2.1.tar.gz
+  cd netcdf-cxx4-4.2.1 
+  env CPPFLAGS="-I$BASE_DIR/NetCDF/include -std=c++11" LDFLAGS=-L$BASE_DIR/NetCDF/lib64 ./configure --prefix=$BASE_DIR/NetCDF-cxx
   make
   make install
   cd ..
@@ -117,7 +139,7 @@ then
     exit
   fi
   echo "Extracting archive ..."
-  tar -xjf boost_1_61_0.tar.bz2
+  #tar -xjf boost_1_61_0.tar.bz2
   mkdir -p $BASE_DIR/Boost/Boost_1.61/include
   cp -r ./boost_1_61_0/boost $BASE_DIR/Boost/Boost_1.61/include
   cd boost_1_61_0

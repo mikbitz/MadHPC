@@ -37,10 +37,13 @@
  *  Created on: Jan 5, 2009
  *      Author: nick
  */
+
 #include <map>
 #include <algorithm>
 #include <utility>
 #include <exception>
+//MB 2019 next line modified to allow for running on Cambridge HPC
+#define MPICH_IGNORE_CXX_SEEK 1
 #include <mpi.h>
 #include <boost/mpi.hpp>
 #include <boost/lexical_cast.hpp>

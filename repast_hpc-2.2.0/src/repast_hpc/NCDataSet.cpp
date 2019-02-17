@@ -85,8 +85,8 @@ void NCDataSet::close() {
 			delete ds;
 		}
 		if (rank == 0) {
-			ncfile->close();
-			delete ncfile;
+			//ncfile->close();
+			//delete ncfile;
 		}
 		open = false;
 	}
@@ -109,9 +109,9 @@ void NCDataSet::write() {
 	//Timer timer;
 	//timer.start();
 	if (rank == 0) {
-		NcVar* tickVar = ncfile->get_var("tick");
-		tickVar->set_cur(start);
-		tickVar->put(&ticks[0], ticks.size());
+		//NcVar* tickVar = ncfile->get_var("tick");
+		//tickVar->set_cur(start);
+		//tickVar->put(&ticks[0], ticks.size());
 		start += ticks.size();
 
 		ticks.clear();
@@ -119,10 +119,10 @@ void NCDataSet::write() {
 
 	for (size_t i = 0; i < dataSources.size(); i++) {
 		NCDataSource * ds = dataSources[i];
-		NcVar* var = 0;
-		if (rank == 0)
-			var = ncfile->get_var(ds->name().c_str());
-		ds->write(var);
+		//NcVar* var = 0;
+		//if (rank == 0)
+			//var = ncfile->get_var(ds->name().c_str());
+		//ds->write(var);
 	}
 
 	//Log4CL::instance()->get_logger("root").log(INFO, "dataset write, time: " + boost::lexical_cast<std::string>(timer.stop()));

@@ -42,6 +42,8 @@
 #define CARTESIANTOPOLOGY_H_
 
 #include <map>
+//MB 2019 next line modified to allow for running on Cambridge HPC
+#define MPICH_IGNORE_CXX_SEEK 1
 #include "mpi.h"
 #include <boost/mpi.hpp>
 
@@ -75,7 +77,13 @@ public:
    * for the specified rank
    */
   void getCoordinates(int rank, std::vector<int>& coords);
-
+  
+  /**
+   * Gets the rank of a process given a location in the BaseGrid (NOT a location in the cartesian processor grid!)
+   * added MB 09/01/2019
+   */
+  int getRankFromPosition(const vector<int>& pos, GridDimensions globalBoundaries);
+  int getRankFromPosition(const vector<double>& pos, GridDimensions globalBoundaries);
   /**
    * Gets the GridDimensions boundaries for the specified
    * rank

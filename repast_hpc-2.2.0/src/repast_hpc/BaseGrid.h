@@ -369,6 +369,7 @@ bool BaseGrid<T, CellAccessor, GPTransformer, Adder, GPType>::moveTo(const Agent
 	gpTransformer.transform(newLocation, transformedCoords);
 
 	if (iter->second->point.coords() == transformedCoords)  return true;
+
 	return doMove(transformedCoords, iter->second);
 }
 
@@ -416,6 +417,7 @@ std::pair<bool, Point<GPType> > BaseGrid<T, CellAccessor, GPTransformer, Adder, 
 	gpTransformer.transform(newPos, transformedCoords);
 	if (iter->second->point.coords() == transformedCoords)
 		return std::make_pair(true, Point<GPType> (transformedCoords));
+
 	return std::make_pair(moveTo(agent->getId(), transformedCoords), Point<GPType> (transformedCoords));
 }
 

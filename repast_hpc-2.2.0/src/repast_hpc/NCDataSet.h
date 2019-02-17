@@ -43,7 +43,7 @@
 
 #include <vector>
 #include <boost/mpi.hpp>
-#include <netcdfcpp.h>
+//#include <netcdf>
 
 #include "Schedule.h"
 #include "RepastProcess.h"
@@ -73,7 +73,7 @@ private:
 	int rank, start;
 	bool open;
 
-	NcFile* ncfile;
+	//NcFile* ncfile;
 
 	// private so can only be created using an NCDataSetBuilder
 	NCDataSet(std::string file, const Schedule& schedule);

@@ -536,7 +536,9 @@ void selectNElementsAtRandom(I iterator, int size, unsigned int count, std::set<
   }
 
   // There is no way to satisfy the request; copy all and return
-  if(count > minAvailable){
+  //if(count > minAvailable){
+  //EDIT MB 22/5/18 stop a crash (in the boost randomIntGenerator below) if the size is 1 or zero
+  if(count > minAvailable || size<=1){
     I it = iterator;
     for(int i = 0; i < size; i++){
       selectedElements.insert(&**it);

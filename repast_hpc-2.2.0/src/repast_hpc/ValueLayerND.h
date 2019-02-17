@@ -42,7 +42,8 @@
 #define VALUELAYERND_H_
 
 #include <fstream>
-
+//MB 2019 next line modified to allow for running on Cambridge HPC
+#define MPICH_IGNORE_CXX_SEEK 1
 #include "mpi.h"
 
 #include "Point.h"

@@ -47,7 +47,7 @@
 
 #include <boost/mpi.hpp>
 #include <vector>
-#include <netcdfcpp.h>
+#include <netcdf>
 
 namespace repast {
 
@@ -68,10 +68,10 @@ public:
 	NCReducibleDataSource(std::string name, TDataSource<T>* dataSource, Op op);
 	~NCReducibleDataSource();
 
-	virtual NcType ncType();
+	//virtual NcType ncType();
 
 	virtual void record();
-	virtual void write(NcVar* var);
+	//virtual void write(NcVar* var);
 
 };
 
@@ -85,17 +85,18 @@ template<typename Op, typename T>
 NCReducibleDataSource<Op, T>::~NCReducibleDataSource() {
 	delete dataSource_;
 }
+/*
 template<typename Op, typename T>
 NcType NCReducibleDataSource<Op, T>::ncType() {
 	return NcTypeTrait<T>::type;
 }
-
+*/
 template<typename Op, typename T>
 void NCReducibleDataSource<Op, T>::record() {
 	data.push_back(dataSource_->getData());
 }
 
-template<typename Op, typename T>
+/*template<typename Op, typename T>
 void NCReducibleDataSource<Op, T>::write(NcVar* var) {
 	boost::mpi::communicator* comm = RepastProcess::instance()->getCommunicator();
 	if (rank == 0) {
@@ -103,11 +104,11 @@ void NCReducibleDataSource<Op, T>::write(NcVar* var) {
 		T* results = new T[size];
 		reduce(*comm, &data[0], size, results, op_, 0);
 
-		var->set_cur(start, 0);
+		//var->set_cur(start, 0);
 		// writing results along the tick dimension
 		// and run dimension -- each result is indexed by the
 		// the tick values of the tick dimension and the single run dimension
-		var->put(results, size, 1);
+		//var->put(results, size, 1);
 		start += size;
 
 		delete[] results;
@@ -117,7 +118,7 @@ void NCReducibleDataSource<Op, T>::write(NcVar* var) {
 	data.clear();
 }
 
-
+*/
 
 }
 

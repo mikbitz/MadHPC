@@ -286,6 +286,7 @@ SharedBaseGrid<T, GPTransformer, Adder, GPType>::SharedBaseGrid(std::string name
     int rankOfNeighbor = cartTopology->getRank(coords, currentVal);
     if(rankOfNeighbor != rank && rankOfNeighbor != MPI_PROC_NULL){ // Note: the test for MPI_PROC_NULL is vestigial; by trimming the Relative Location, there should never be any
       Neighbor* ngh = new Neighbor(rankOfNeighbor, cartTopology->getDimensions(rankOfNeighbor, gridDims));
+      assert(ngh!=0);
       nghs->addNeighbor(ngh, relLoc);
     }
   }while(relLoc.increment());
@@ -344,18 +345,28 @@ template<typename T, typename GPTransformer, typename Adder, typename GPType>
 void SharedBaseGrid<T, GPTransformer, Adder, GPType>::balance() {
   int r = comm->rank();
   typename GridBaseType::LocationMapConstIter iterEnd = GridBaseType::locationsEnd();
+
   for (typename GridBaseType::LocationMapConstIter iter = GridBaseType::locationsBegin(); iter != iterEnd; ++iter) {
+
     AgentId id = iter->second->ptr->getId();
     if(id.currentRank() == r){                                   // Local agents only
       Point<GPType> loc = iter->second->point;
-      if(!localBounds.contains(loc)){                            // If inside bounds, ignore
-        Neighbor* ngh = nghs->findNeighbor(loc.coords());
-        RepastProcess::instance()->moveAgent(id, ngh->rank());
+
+      // If inside bounds, ignore
+      if(!localBounds.contains(loc)){
+
+        //Are coords here guaranteed wrapped? 
+        //Will be OK agents are mocve using BaseGrid::moveTo (which transforms the coords)
+        int rank=cartTopology->getRankFromPosition(loc.coords(), globalBounds);
+        RepastProcess::instance()->moveAgent(id, rank);
+        //original code - does not work if new location is outside the set of neighbours!
+        //segmentation faults because nghs returns from findNeighbour as 0
+        //Neighbor* ngh = nghs->findNeighbor(loc.coords());
+        //RepastProcess::instance()->moveAgent(id, ngh->rank());
       }
     }
   }
 }
-
 template<typename T, typename GPTransformer, typename Adder, typename GPType>
 bool SharedBaseGrid<T, GPTransformer, Adder, GPType>::moveTo(const AgentId& id, const Point<GPType>& newLocation) {
 	return SharedBaseGrid<T, GPTransformer, Adder, GPType>::moveTo(id, newLocation.coords());

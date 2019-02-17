@@ -40,7 +40,8 @@
 
 #ifndef NCDATASOURCE_H_
 #define NCDATASOURCE_H_
-
+//#include <netcdf>
+//using namespace netCDF;
 namespace repast {
 
 /**
@@ -55,9 +56,9 @@ public:
 	NCDataSource(std::string name) : _name(name) {}
 	virtual ~NCDataSource() {};
 	virtual void record() = 0;
-	virtual void write(NcVar* var) = 0;
+	//virtual void write(NcVar* var) = 0;
 
-	virtual NcType ncType() = 0;
+	//virtual NcType ncType() = 0;
 
 	const std::string name() const {
 		return _name;
@@ -75,7 +76,7 @@ struct NcTypeTrait;
  */
 template<>
 struct NcTypeTrait<double> {
-	const static NcType type = ncDouble;
+//	const static NcType type;// = ncDouble;
 };
 
 /**
@@ -83,10 +84,12 @@ struct NcTypeTrait<double> {
  */
 template<>
 struct NcTypeTrait<int> {
-	const static NcType type = ncInt;
+//	const static NcType type;// = ncInt;
 };
-
-
+///template<>
+//NcTypeTrait<int>::type = ncInt;
+//template<>
+//NcTypeTrait<double>::type = ncDouble;
 
 }
 

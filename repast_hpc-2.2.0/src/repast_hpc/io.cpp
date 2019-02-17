@@ -97,7 +97,7 @@ void timestamp(string& str) {
 	os << (tmp->tm_mon + 1) << ".";
 
 	os << setw(4);
-	os << (tmp->tm_year + 1900) << " ";
+	os << (tmp->tm_year + 1900) << "_";
 
 	os << setw(2) << setfill('0');
 	os << tmp->tm_hour << ":";

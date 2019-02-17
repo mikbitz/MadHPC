@@ -12,7 +12,7 @@ NETCDF_CXX_INCLUDE_DIR=/usr/local/include
 NETCDF_CXX_LIB_DIR=/usr/local/lib
 CURL_INCLUDE_DIR=./
 CURL_LIB_DIR=./
-INSTALL_DIR=$HOME/sfw/repast_hpc-2.2.0
+#INSTALL_DIR=$HOME/sfw/repast_hpc-2.2.0
 
 # change to true to build static libraries
 STATIC=false

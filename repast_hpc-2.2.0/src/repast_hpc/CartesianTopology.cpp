@@ -90,11 +90,39 @@ GridDimensions CartesianTopology::getDimensions(int rank, GridDimensions globalB
   return getDimensions(coords, globalBoundaries);
 }
 
+//Added MB 09/01/19 - get the rank from the x,y (integer) location of an agent in the grid
+//by projecting the location into the cartesian grid of processes.
+//(note a grid contains those points >= startpoint and < endpoint - see GridDimensions.cpp)
+//This function effectively inverts getDimensions below, then pulls out the rank.
+//Todo:- check that the coordinates return a valid rank (esp. when grid is not wrapped).
+int CartesianTopology::getRankFromPosition(const vector<int>& pos, GridDimensions globalBoundaries) {
+  int numDims = pos.size();
+  int* coord = new int[numDims];
+  for (size_t i = 0; i < pos.size(); i++) {
+   coord[i] = floor((double)(pos[i]- globalBoundaries.origin(i))/globalBoundaries.extents(i)*procsPerDim[i]);
+   if (pos[i]>= globalBoundaries.origin(i) + round(( (double)(coord[i] +1)     / (double)procsPerDim[i]) * globalBoundaries.extents(i)))coord[i]++;
+  }
+  int rank;
+  MPI_Cart_rank(topologyComm, coord, &rank);
+  return rank;
+}
+int CartesianTopology::getRankFromPosition(const vector<double>& pos, GridDimensions globalBoundaries) {
+  int numDims = pos.size();
+  int* coord = new int[numDims];
+  for (size_t i = 0; i < pos.size(); i++) {
+   coord[i] = floor((double)(pos[i]- globalBoundaries.origin(i))/globalBoundaries.extents(i)*procsPerDim[i]);
+  }
+  int rank;
+  MPI_Cart_rank(topologyComm, coord, &rank);
+  return rank;
+}
+
 GridDimensions CartesianTopology::getDimensions(vector<int>& pCoordinates, GridDimensions globalBoundaries) {
   vector<double> origins, extents;
   for (size_t i = 0; i < pCoordinates.size(); i++) {
-    double lower = globalBoundaries.origin(i) + ( (double)pCoordinates[i]      / (double)procsPerDim[i]) * globalBoundaries.extents(i);
-    double upper = globalBoundaries.origin(i) + (((double)pCoordinates[i] + 1 )/ (double)procsPerDim[i]) * globalBoundaries.extents(i);
+    //Modified MB 21/6/18 - added round to avoid non-integer boundaries
+    double lower = globalBoundaries.origin(i) + round(( (double)pCoordinates[i]      / (double)procsPerDim[i]) * globalBoundaries.extents(i));
+    double upper = globalBoundaries.origin(i) + round((((double)pCoordinates[i] + 1 )/ (double)procsPerDim[i]) * globalBoundaries.extents(i));
     origins.push_back(lower);
     extents.push_back(upper - lower);
   }

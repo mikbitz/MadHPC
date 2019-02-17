@@ -147,6 +147,8 @@ T* MultipleOccupancy<T, GPType>::get(const Point<GPType>& location) const {
 
 template<typename T, typename GPType>
 void MultipleOccupancy<T, GPType>::getAll(const Point<GPType>& location, std::vector<T*>& out) const {
+      //std::cout<<"called "<<location[0]<<" "<<location[1]<<std::endl;
+
   ValueType* ptrs = doGet(location);
 	if (ptrs != NULL) {
 		int index = out.size();
@@ -159,6 +161,8 @@ void MultipleOccupancy<T, GPType>::getAll(const Point<GPType>& location, std::ve
 template<typename T, typename GPType>
 bool MultipleOccupancy<T, GPType>::put(boost::shared_ptr<T>& agent, const Point<GPType>& location) {
 	LocationMapIter iter = locations.find(location);
+    //if (location[0]==27 && location[1]==8)    std::cout<<"curled "<<agent->getId().id()<<" "<<location[0]<<" "<<location[1]<<std::endl;
+
 	ValueType* vec;
 	if (iter == locations.end()) {
 		vec = new ValueType();

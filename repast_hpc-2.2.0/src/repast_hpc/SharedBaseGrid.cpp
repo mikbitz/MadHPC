@@ -64,7 +64,9 @@ void Neighbors::addNeighbor(Neighbor* ngh, RelativeLocation relLoc) {
 Neighbor* Neighbors::neighbor(RelativeLocation relLoc) const {
 	return nghs[relLoc.getIndex()];
 }
-
+//MB 9Jan2019 this find fails if agents move a long way across the Grid
+//it needs to be extended to search neighbours of neighbors if ngh returns 0 for all  the first set
+//i.e. need breadth first search through the neighbours, or else a direct call to the Cartesian Topology
 Neighbor* Neighbors::findNeighbor(const std::vector<int>& pt) {
 	for (std::vector<Neighbor*>::iterator iter = nghs.begin(); iter != nghs.end(); ++iter) {
 		Neighbor* ngh = *iter;
