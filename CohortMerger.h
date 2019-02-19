@@ -14,10 +14,6 @@
 #include "CohortPair.h"
 #include "Environment.h"
 
-//#include "MadingleyInitialisation.h"
-//#include "NonStaticSimpleRNG.h"
-//#include "Parameters.h"
-//#include <set>
 
 /** \brief Merges cohorts with similar properties */
 class CohortMerger {
