@@ -1,2 +1,5 @@
+The files here provide support libraries for repasthpc, but also provide a makefile
+for repasthpc itself. Edit the Makefile as appropriate in order to build the libraries.
+NB you need to have MPICH available *before* building the boost library - MB 2019 
 See INSTALL.txt in the parent directory for installation
 instructions.

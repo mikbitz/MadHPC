@@ -2,15 +2,15 @@ REPAST_HPC_VERSION = 2.2.0
 
 ENABLE_SHARED = @ENABLE_SHARED@
 ENABLE_STATIC = @ENABLE_STATIC@
-BASE_DIR = /home/mb425
-LDFLAGS :=  -L$(BASE_DIR)/repastHPC/HDF/lib64 -L$(BASE_DIR)/repastHPC/NetCDF/lib64 -L$(BASE_DIR)/repastHPC/NetCDF-cxx/lib64 -L$(BASE_DIR)/repastHPC/CURL/lib -L$(BASE_DIR)/repastHPC/Boost/Boost_1.61/lib -L$(BASE_DIR)/repastHPC/repast_hpc-2.2.0/lib/ -L$(BASE_DIR)/repastHPC/MPICH/lib64
-CPPFLAGS := -I$(BASE_DIR)/repastHPC/HDF/include -I$(BASE_DIR)/repastHPC/NetCDF/include -I$(BASE_DIR)/repastHPC/NetCDF-cxx/include -I$(BASE_DIR)/repastHPC/CURL/include -I$(BASE_DIR)/repastHPC/Boost/Boost_1.61/include -I$(BASE_DIR)/repastHPC/repast_hpc-2.2.0/include/ -I$(BASE_DIR)/repastHPC/MPICH/include/
+BASE_DIR = /home/mb425/repastHPC
+LDFLAGS :=  -L$(BASE_DIR)/HDF/lib64 -L$(BASE_DIR)/NetCDF/lib64 -L$(BASE_DIR)/NetCDF-cxx/lib64 -L$(BASE_DIR)/CURL/lib -L$(BASE_DIR)/Boost/Boost_1.61/lib -L$(BASE_DIR)/repast_hpc-2.2.0/lib/ -L$(BASE_DIR)/MPICH/lib64
+CPPFLAGS := -I$(BASE_DIR)/HDF/include -I$(BASE_DIR)/NetCDF/include -I$(BASE_DIR)/NetCDF-cxx/include -I$(BASE_DIR)/CURL/include -I$(BASE_DIR)/Boost/Boost_1.61/include -I$(BASE_DIR)/repast_hpc-2.2.0/include/ -I$(BASE_DIR)/MPICH/include/
 
-#LDFLAGS :=  -L/usr/lib64 -L$(BASE_DIR)/repastHPC/Boost/Boost_1.61/lib -L$(BASE_DIR)/repastHPC/repast_hpc-2.2.0/lib/ -L$(BASE_DIR)/repastHPC/MPICH/lib64
-#CPPFLAGS := -I$(BASE_DIR)/repastHPC/Boost/Boost_1.61/include -I$(BASE_DIR)/repastHPC/repast_hpc-2.2.0/include/ -I$(BASE_DIR)/repastHPC/MPICH/include/
+#LDFLAGS :=  -L/usr/lib64 -L$(BASE_DIR)/Boost/Boost_1.61/lib -L$(BASE_DIR)/repast_hpc-2.2.0/lib/ -L$(BASE_DIR)/MPICH/lib64
+#CPPFLAGS := -I$(BASE_DIR)/Boost/Boost_1.61/include -I$(BASE_DIR)/repast_hpc-2.2.0/include/ -I$(BASE_DIR)/MPICH/include/
 
-CXX = $(BASE_DIR)/repastHPC/MPICH/bin/mpicxx
-CXXLD = $(BASE_DIR)/repastHPC/MPICH/bin/mpicxx
+CXX = $(BASE_DIR)/MPICH/bin/mpicxx
+CXXLD = $(BASE_DIR)/MPICH/bin/mpicxx
 CXXFLAGS = -g -O2 -Wall  -std=c++11 -MMD -MP $(CPPFLAGS) -Wno-reorder -Wno-unused-variable -Wno-sign-compare -I./src
 
 LIB_LD_FLAGS = $(LDFLAGS)
@@ -20,7 +20,7 @@ LIBS += -lnetcdf -lnetcdf_c++4 -lhdf5 -lhdf5_hl -lcurl
 
 #NETCDF_LIB_DIR = /usr/lib64
 #NETCDF_CXX_LIB_DIR = /usr/lib64
-BOOST_LIB_DIR = $(BASE_DIR)/repastHPC/Boost/Boost_1.61/lib
+BOOST_LIB_DIR = $(BASE_DIR)/Boost/Boost_1.61/lib
 
 AR      = ar
 ARFLAGS = cr
@@ -72,7 +72,7 @@ else # V=2
 endif
 endif
 
-INSTALL_PREFIX = $(BASE_DIR)/repastHPC/mad_modified
+INSTALL_PREFIX = $(BASE_DIR)/mad_modified
 INSTALL_BIN = $(INSTALL_PREFIX)/bin
 
 REPAST_HPC_LIB := repast_hpc

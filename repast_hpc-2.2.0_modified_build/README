@@ -1,4 +1,5 @@
-This version has been modified from version 2.2.0 to work with the madingley model MB 2019
+This version has been modified from version 2.2.0 to work with the madingley model - MB 2019
+Changes can be explored in the mikbitz/mad_hpc repository on github.
 * See INSTALL.txt for installation instructions.
 
 * Additional documentation is in the docs directory.

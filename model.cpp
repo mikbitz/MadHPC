@@ -8,7 +8,7 @@
 #include "repast_hpc/RepastProcess.h"
 #include "repast_hpc/Utilities.h"
 #include "repast_hpc/Properties.h"
-#include "repast_hpc/SharedBaseGrid.h"                      // VN2D broken without this!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#include "repast_hpc/SharedBaseGrid.h"                      // VN2D broken without this!
 #include "repast_hpc/VN2DGridQuery.h"
 #include "repast_hpc/initialize_random.h"
 #include "repast_hpc/Point.h"
@@ -67,6 +67,7 @@ MadModel::MadModel(repast::Properties& props,  boost::mpi::communicator* comm): 
                    "_run_"       +_props->getProperty("run.number")+"_";
 
     _filePostfix="_"             +_props->getProperty("date_time.run");
+    
     cout<<"Outputfiles will be named "<<_filePrefix<<"<Data Name>"<<_filePostfix<<".<filenameExtension>"<<endl;
 
     //-----------------
