@@ -1,0 +1,46 @@
+As a pre-requisite for building the model you first need to follow the instructions in 
+repast_hpc-2.2.0_modified_build/INSTALL.txt This will allow you to install a 
+*modified* version of the original repast_hpc code. Please note that the model
+**will not work** with the original version of repast_hpc-2.2.0 as some of the assumptions
+in the original code are not obeyed by the madingley model (in particular those relating
+to contiguity of cells on agent movement).
+The repast_hpc install will also include a suitable version of netcdf and netcdf-cxx
+(this version has been tested with netcdf-c-4.6.2 and netcdf-cxx-4.3.0).
+
+Edit the Makefile provided in this directory and ensure that the location of the
+necessary repast_hpc libraries and BASE_DIR are consistent with the above install
+of repast_hpc.
+
+You should then be able to do
+make all
+in this directory to build the mad_model executable.
+
+Depending on how your system is set up you may then need to set the system variable
+
+LD_LIBRARY_PATH
+
+in order for the model to find shared libraries - see e.g. the file LIBS which also
+makes sure the path to the MPICH executalbes is set. You can check that all shared
+libraries can be found with:-
+
+ldd ./mad_model
+
+Run the model with the following incantation:-
+
+mpi_run -np <no of threads> ./mad_model config.props model.props
+
+The value in <no of threads> MUST be consistent with the total number of threads
+specified in model.props or the run will immediately crash. 
+e.g. if 
+
+proc.per.x = 3 
+proc.per.y = 2
+
+then use
+
+mpi_run -np 6 ./mad_model config.props model.props
+
+See model.props for a list of model parameters.
+
+For the behaviour of config.props consult the repast_hpc documentation.
+

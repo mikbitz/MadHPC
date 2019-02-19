@@ -1,0 +1,2 @@
+export PATH=../MPICH/bin:$PATH
+export LD_LIBRARY_PATH=/home/mb425/repastHPC/repast_hpc-2.2.0/lib:/home/mb425/repastHPC/NetCDF/lib64:/home/mb425/repastHPC/HDF/lib64

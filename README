@@ -1,0 +1,7 @@
+This distribution contains a version of the Madingely model, ecosystem model derived from the original C# code implemented for:- 
+Emergent Global Patterns of Ecosystem Structure and Function from a Mechanistic General Ecosystem Model , 
+Michael B. J. Harfoot , Tim Newbold, Derek P. Tittensor,  Stephen Emmott, Jon Hutton, Vassily Lyutsarev, Matthew J. Smith, Jörn P. W. Scharlemann, Drew W. Purves 
+PLOS Biology 12(4) 2014 e1001841 https://doi.org/10.1371/journal.pbio.1001841
+The code here has been adapted to run in parallel either on a standalone machine or across a cluster
+using the MPI libraries and a modified version of repastHPC v2.2.0 downlaoded from https://repast.github.io/repast_hpc.html
+Build instructions can be found in INSTALL.txt

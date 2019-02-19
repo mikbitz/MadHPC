@@ -1,16 +1,16 @@
 #Lines following a # are comments and will be ignored
 
 #What code version was this model run with?
-#This shoudl not be altered but will be set by main.cpp
+#This should not be altered but will be set by main.cpp
 #code.version=0.1
 
 #Unique name for this set of model runs, if desired
 experiment.name=default
 
-#loction for the output files
+#location for the output files
 experiment.output.directory=./output
 
-#run number - allows run with above name to be grouped into sets (experiments!)
+#run number - allows runs with above name to be grouped into sets (experiments!)
 run.number=0
 
 #set this value to true to just run the model unit tests, false otherwise
@@ -33,7 +33,7 @@ stock.count = 3
 #max.y = 12 
 
 #size of the "haloe" area around each subsection of the grid for communication across threads
-#value of 0 is fine for the current model (cross thread communication only takes place on dispersal)
+#value of 0 is necessary for the current model (cross thread communication only takes place on dispersal)
 #right now values of grid.buffer>=1 could be problematic at the poles (or at longitudinal edges if grid is not wrapped).
 grid.buffer = 0
 
@@ -47,6 +47,7 @@ proc.per.y = 1
 
 #Simulation control parameters
 
+#The model expects to find netcdf data input files here
 simulation.RootDataDirectory=./MadingleyData-master/
 
 #model run time
