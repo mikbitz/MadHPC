@@ -171,8 +171,8 @@ void MadModel::init(){
     Cohort::setParameters(_props);
  
     //get the definitions of stocks and cohorts
-    StockDefinitions::Initialise(Constants::cStockDefinitionsFileName);
-    CohortDefinitions::Initialise(Constants::cCohortDefinitionsFileName);
+    StockDefinitions::Initialise(_props->getProperty("input.DataDirectory")+"/"+_props->getProperty("input.StockDefinitionsFileName"));
+    CohortDefinitions::Initialise(_props->getProperty("input.DataDirectory")+"/"+_props->getProperty("input.CohortDefinitionsFileName"));
   
     unsigned numCohortGroups=CohortDefinitions::Get()->size();
     unsigned cohortCount = strToInt(_props->getProperty("cohort.count"));
@@ -694,9 +694,8 @@ void MadModel::tests(){
     //random->SetSeed(100); seed is set from model.props file - see main.cpp
     int nranks=_dimX*_dimY;
     
-    //get the environmental data - this is stored in the background as a DataLayerSet
-    FileReader F;
-    F.ReadFiles();
+    //MB main has already got the environmental data - this is stored in the background as a DataLayerSet
+
     //check values from Simulationcontrolparameters have got correctly placed in class grid extents
     assert(Parameters::Get()->GetLengthUserLongitudeArray( )==_maxX-_minX+1);
     assert(Parameters::Get()->GetLengthUserLatitudeArray( )==_maxY-_minY+1);
@@ -710,8 +709,8 @@ void MadModel::tests(){
         }
     }
     //get the definitions of stocks and cohorts
-    StockDefinitions::Initialise(Constants::cStockDefinitionsFileName);
-    CohortDefinitions::Initialise(Constants::cCohortDefinitionsFileName);
+    StockDefinitions::Initialise(_props->getProperty("input.DataDirectory")+"/"+_props->getProperty("input.StockDefinitionsFileName"));
+    CohortDefinitions::Initialise(_props->getProperty("input.DataDirectory")+"/"+_props->getProperty("input.CohortDefinitionsFileName"));
     int x=_xlo,y=_ylo;
     repast::Point<int> initialLocation(x,y);
     repast::Point<int> origin(_minX,_minY);

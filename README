@@ -4,4 +4,38 @@ Michael B. J. Harfoot , Tim Newbold, Derek P. Tittensor,  Stephen Emmott, Jon Hu
 PLOS Biology 12(4) 2014 e1001841 https://doi.org/10.1371/journal.pbio.1001841
 The code here has been adapted to run in parallel either on a standalone machine or across a cluster
 using the MPI libraries and a modified version of repastHPC v2.2.0 downloaded from https://repast.github.io/repast_hpc.html
+
 Build instructions can be found in INSTALL.txt
+
+Once you have the mad_model executable, depending on how your system is set up you may then need to set the system variable
+
+LD_LIBRARY_PATH
+
+in order for the model to find shared libraries - see e.g. the file LIBS which also
+makes sure the path to the MPICH executalbes is set. You can check that all shared
+libraries can be found with:-
+
+ldd ./mad_model
+
+Run the model with the following incantation:-
+
+mpi_run -np <no of threads> ./mad_model config.props model.props
+
+The value in <no of threads> MUST be consistent with the total number of threads
+specified in model.props or the run will immediately crash. 
+e.g. if 
+
+proc.per.x = 3 
+proc.per.y = 2
+
+then use
+
+mpi_run -np 6 ./mad_model config.props model.props
+
+Parameters in model.props can also be changed on the command line e.g.
+
+mpirun  -np 1 ./mad_model config.props model.props proc.per.x=1 proc.per.y=1 stop.at=2
+
+See model.props for a list of model parameters.
+
+For the behaviour of config.props consult the repast_hpc documentation.

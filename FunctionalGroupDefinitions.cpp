@@ -11,7 +11,7 @@
 //--------------------------------------------------------------------------
 FunctionalGroupDefinitions::FunctionalGroupDefinitions( std::string fileName ) {
     //std::cout << "Reading \"" << fileName << "\" functional group definitions." << std::endl;
-    fileName = Constants::cConfigurationDirectory + fileName;
+    
     std::ifstream infile( fileName.c_str( ) );
 
     if( infile.is_open( ) ) {

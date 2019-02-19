@@ -1,5 +1,13 @@
 #Lines following a # are comments and will be ignored
 
+#set this value to true to just run the model unit tests, false otherwise
+run.tests=false
+
+#Extra output if verbose is set to true - mostly intended for debugging
+#on multi-core you will get extra output on every thread!
+#usually you wnat this set to false
+verbose=false
+
 #What code version was this model run with?
 #This should not be altered but will be set by main.cpp
 #code.version=0.1
@@ -12,9 +20,6 @@ experiment.output.directory=./output
 
 #run number - allows runs with above name to be grouped into sets (experiments!)
 run.number=0
-
-#set this value to true to just run the model unit tests, false otherwise
-run.tests=false
 
 #random seed broadcast to all threads
 global.random.seed = 139
@@ -47,8 +52,25 @@ proc.per.y = 1
 
 #Simulation control parameters
 
+#Local of other model input files (e.g. cohort setup parameters) 
+input.DataDirectory=./input/Model_setup
+
+#files that define cohort and stock properties
+input.StockDefinitionsFileName=StockFunctionalGroupDefinitions.csv
+input.CohortDefinitionsFileName=CohortFunctionalGroupDefinitions.csv
+
+#Files currently unused but might be useful at some point...
+#input.OutputVariablesFileName    = OutputControlParameters.csv
+#input.MassBinDefinitionsFileName = MassBinDefinitions.csv
+
+#Names of netcdf files and variables to read from them
+input.EnvironmentVariablesFile= EnvironmentalDataLayers.csv
+
 #The model expects to find netcdf data input files here
+#sub-directories are expected to exist labelled by resolution (e.g. 10deg)
 simulation.RootDataDirectory=./MadingleyData-master/
+
+
 
 #model run time
 #if stop.at is present, it gives the number of model time step to run

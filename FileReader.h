@@ -9,15 +9,12 @@ public:
     FileReader( );
     ~FileReader( );
 
-    bool ReadFiles( );
     bool ReadFiles(repast::Properties&);
-    bool ReadInputParameters( );
+
 private:
     bool ReadTextFile( const std::string& );
     
-
-    bool SetUpOutputVariables( );
-    bool ReadInputDataFiles( );
+    bool ReadInputDataFiles(repast::Properties& );
     
     void ClearMetadata( );
     
@@ -26,6 +23,8 @@ private:
     Types::StringMatrix mMetadata;
     
     Types::IntegerVector mAllocatedCellIndices;
+
+    bool _verbose;
 };
 
 #endif

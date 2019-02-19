@@ -46,15 +46,6 @@ namespace Constants {
     const std::string cBasicDatumTypeName = "basic";
     const std::string cGridDatumTypeName = "grid";
 
-    const std::string cConfigurationDirectory = "./input/Model_setup/";
-    const std::string cInputParametersFileName = "SimulationControlParameters.csv";
-    const std::string cInputDataFileName = "EnvironmentalDataLayers.csv";
-    const std::string cOutputVariablesFileName = "OutputControlParameters.csv";
-
-    const std::string cCohortDefinitionsFileName = "CohortFunctionalGroupDefinitions.csv";
-    const std::string cStockDefinitionsFileName = "StockFunctionalGroupDefinitions.csv";
-    const std::string cMassBinDefinitionsFileName = "MassBinDefinitions.csv";
-
     const std::string cOutputBaseDirectory = "./output/";
     const std::string cDataSetNameFormat = "%Y-%m-%d_%H-%M-%S";
     const std::string cCompleteDateFormat = "%c";

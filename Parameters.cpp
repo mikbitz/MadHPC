@@ -74,8 +74,8 @@ bool Parameters::Initialise( repast::Properties& props ) {
         //make sure the dimensions are consistent with the environmental data files
         props.putProperty("min.x",0);
         props.putProperty("min.y",0);
-        props.putProperty("max.x",Parameters::Get()->GetLengthUserLongitudeArray( )-1);
-        props.putProperty("max.y",Parameters::Get()->GetLengthUserLatitudeArray( )-1);
+        props.putProperty("max.x",GetLengthUserLongitudeArray( )-1);
+        props.putProperty("max.y",GetLengthUserLatitudeArray( )-1);
         //only wrap in longitude if the domain size is exactly 360 degrees! Not super robust...
         props.putProperty("noLongitudeWrap",((mUserMaximumLongitude-mUserMinimumLongitude)%360 !=0));
 
@@ -87,44 +87,7 @@ bool Parameters::Initialise( repast::Properties& props ) {
     }
     return success;
 }
-bool Parameters::Initialise( const Types::StringMatrix& rawInputParameterData ) {
-    bool success = false;
 
-    if( rawInputParameterData.size( ) > 0 ) {
-        if( rawInputParameterData[ 0 ].size( ) == Constants::eParameterValue + 1 ) {
-            for( unsigned rowIndex = 0; rowIndex < rawInputParameterData.size( ); ++rowIndex ) {
-
-
-
-                std::string parameterName = Convertor::Get( )->RemoveWhiteSpace( Convertor::Get( )->ToLowercase( rawInputParameterData[ rowIndex ][ Constants::eParameterName ] ) );
-                if( parameterName == "rootdatadirectory" ) SetRootDataDirectory( Convertor::Get( )->RemoveWhiteSpace( rawInputParameterData[ rowIndex ][ Constants::eParameterValue ] ) );
-                else if( parameterName == "timestepunits" ) SetTimeStepUnits( Convertor::Get( )->RemoveWhiteSpace( Convertor::Get( )->ToLowercase( rawInputParameterData[ rowIndex ][ Constants::eParameterValue ] ) ) );
-                else if( parameterName == "lengthofsimulationinyears" ) SetLengthOfSimulationInMonths( Convertor::Get( )->StringToNumber( rawInputParameterData[ rowIndex ][ Constants::eParameterValue ] ) );
-                else if( parameterName == "minimumlongitude" ) SetUserMinimumLongitude( Convertor::Get( )->StringToNumber( rawInputParameterData[ rowIndex ][ Constants::eParameterValue ] ) );
-                else if( parameterName == "maximumlongitude" ) SetUserMaximumLongitude( Convertor::Get( )->StringToNumber( rawInputParameterData[ rowIndex ][ Constants::eParameterValue ] ) );
-                else if( parameterName == "minimumlatitude" ) SetUserMinimumLatitude( Convertor::Get( )->StringToNumber( rawInputParameterData[ rowIndex ][ Constants::eParameterValue ] ) );
-                else if( parameterName == "maximumlatitude" ) SetUserMaximumLatitude( Convertor::Get( )->StringToNumber( rawInputParameterData[ rowIndex ][ Constants::eParameterValue ] ) );
-                else if( parameterName == "gridcellsize" ) SetGridCellSize( Convertor::Get( )->StringToNumber( rawInputParameterData[ rowIndex ][ Constants::eParameterValue ] ) );
-                else if( parameterName == "extinctionthreshold" ) SetExtinctionThreshold( Convertor::Get( )->StringToNumber( rawInputParameterData[ rowIndex ][ Constants::eParameterValue ] ) );
-                else if( parameterName == "maximumnumberofcohorts" ) SetMaximumNumberOfCohorts( Convertor::Get( )->StringToNumber( rawInputParameterData[ rowIndex ][ Constants::eParameterValue ] ) );
-                else if( parameterName == "planktonsizethreshold" ) SetPlanktonSizeThreshold( Convertor::Get( )->StringToNumber( rawInputParameterData[ rowIndex ][ Constants::eParameterValue ] ) );
-                else if( parameterName == "drawrandomly" ) SetDrawRandomly( Convertor::Get( )->RemoveWhiteSpace( Convertor::Get( )->ToLowercase( rawInputParameterData[ rowIndex ][ Constants::eParameterValue ] ) ) );
-                else if( parameterName == "humannppscenariotype" ) SetHumanNPPScenarioType( Convertor::Get( )->RemoveWhiteSpace( Convertor::Get( )->ToLowercase( rawInputParameterData[ rowIndex ][ Constants::eParameterValue ] ) ) );
-                else if( parameterName == "humannppextractionscale" ) SetHumanNPPExtractionScale( Convertor::Get( )->StringToNumber( rawInputParameterData[ rowIndex ][ Constants::eParameterValue ] ) );
-                else if( parameterName == "humannppscenarioduration" ) SetHumanNPPScenarioDuration( Convertor::Get( )->StringToNumber( rawInputParameterData[ rowIndex ][ Constants::eParameterValue ] ) );
-                else if( parameterName == "burninsteps" ) SetBurninSteps( Convertor::Get( )->StringToNumber( rawInputParameterData[ rowIndex ][ Constants::eParameterValue ] ) );
-                else if( parameterName == "impactsteps" ) SetImpactSteps( Convertor::Get( )->StringToNumber( rawInputParameterData[ rowIndex ][ Constants::eParameterValue ] ) );
-                else if( parameterName == "recoverysteps" ) SetRecoverySteps( Convertor::Get( )->StringToNumber( rawInputParameterData[ rowIndex ][ Constants::eParameterValue ] ) );
-            }
-
-            CalculateParameters( );
-            
-            success = true;
-        }
-    }
-
-    return success;
-}
 
 void Parameters::CalculateParameters( ) {
 

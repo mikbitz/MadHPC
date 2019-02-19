@@ -15,32 +15,5 @@ You should then be able to do
 make all
 in this directory to build the mad_model executable.
 
-Depending on how your system is set up you may then need to set the system variable
 
-LD_LIBRARY_PATH
-
-in order for the model to find shared libraries - see e.g. the file LIBS which also
-makes sure the path to the MPICH executalbes is set. You can check that all shared
-libraries can be found with:-
-
-ldd ./mad_model
-
-Run the model with the following incantation:-
-
-mpi_run -np <no of threads> ./mad_model config.props model.props
-
-The value in <no of threads> MUST be consistent with the total number of threads
-specified in model.props or the run will immediately crash. 
-e.g. if 
-
-proc.per.x = 3 
-proc.per.y = 2
-
-then use
-
-mpi_run -np 6 ./mad_model config.props model.props
-
-See model.props for a list of model parameters.
-
-For the behaviour of config.props consult the repast_hpc documentation.
 

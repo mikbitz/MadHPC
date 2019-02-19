@@ -4,7 +4,6 @@
 #include "Constants.h"
 #include "InputData.h"
 #include "DataLayerSet.h"
-#include "DataRecorder.h"
 #include "Parameters.h"
 #include "DataCoords.h"
 
@@ -22,26 +21,11 @@ bool FileReader::ReadFiles(repast::Properties& props ) {
     bool success = false;
 
     success = Parameters::Get()->Initialise( props );
+    //extra output if requested
+    _verbose=(props.getProperty("verbose")=="true");
 
     if( success == true )
-        success = SetUpOutputVariables( );
-
-    if( success == true )
-        success = ReadInputDataFiles( );
-    
-    return success;
-}
-bool FileReader::ReadFiles( ) {
-
-    bool success = false;
-
-    success = ReadInputParameters( );
-
-    if( success == true )
-        success = SetUpOutputVariables( );
-
-    if( success == true )
-        success = ReadInputDataFiles( );
+        success = ReadInputDataFiles( props );
     
     return success;
 }
@@ -52,7 +36,7 @@ bool FileReader::ReadTextFile( const std::string& filePath ) {
 
     ClearMetadata( );
 
-    //std::cout << "Reading text file \"" << filePath << "\"..." << std::endl;
+    if(_verbose)std::cout << "Reading text file \"" << filePath << "\"..." << std::endl;
     std::ifstream fileStream( filePath.c_str( ), std::ios::in );
 
     if( fileStream.is_open( ) ) {
@@ -69,7 +53,7 @@ bool FileReader::ReadTextFile( const std::string& filePath ) {
         }
         success = true;
         fileStream.close( );
-        DataRecorder::Get( )->AddInputFilePath( filePath );
+
     } else {
         std::cout << "File path \"" << filePath << "\" is invalid." << std::endl;
     }
@@ -77,29 +61,9 @@ bool FileReader::ReadTextFile( const std::string& filePath ) {
     return success;
 }
 
-bool FileReader::ReadInputParameters( ) {
+bool FileReader::ReadInputDataFiles(repast::Properties& props ) {
 
-    bool success = ReadTextFile( Constants::cConfigurationDirectory + Constants::cInputParametersFileName );
-
-    if( success == true )
-        success = Parameters::Get( )->Initialise( mMetadata );
-
-    return success;
-}
-
-bool FileReader::SetUpOutputVariables( ) {
-
-    bool success = ReadTextFile( Constants::cConfigurationDirectory + Constants::cOutputVariablesFileName );
-
-    if( success == true )
-        success = DataRecorder::Get( )->Initialise( mMetadata );
-
-    return success;
-}
-
-bool FileReader::ReadInputDataFiles( ) {
-
-    bool success = ReadTextFile( Constants::cConfigurationDirectory + Constants::cInputDataFileName );
+    bool success = ReadTextFile(props.getProperty("input.DataDirectory") + "/" + props.getProperty("input.EnvironmentVariablesFile") );
 
     if( success == true ) {
 
@@ -113,7 +77,7 @@ bool FileReader::ReadInputDataFiles( ) {
                 filePath.append( Convertor::Get( )->ToString( Parameters::Get( )->GetGridCellSize( ) ) );
                 filePath.append( "deg/" );
                 filePath.append( mMetadata[ environmentalDataFileIndex ][ Constants::eFilePath ] );
-                //std::cout << "Reading NetCDF file \"" << filePath << "\"..." << std::endl;
+                if (_verbose)std::cout << "Reading NetCDF file \"" << filePath << "\"..." << std::endl;
 
                 try {
                     netCDF::NcFile inputNcFile( filePath.c_str(), netCDF::NcFile::read ); // Open the file for read access

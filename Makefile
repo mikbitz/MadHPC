@@ -107,7 +107,6 @@ MADMODEL_SRC += $(DIR)/Variable.cpp
 MADMODEL_SRC += $(DIR)/Maths.cpp
 MADMODEL_SRC += $(DIR)/FileReader.cpp
 MADMODEL_SRC += $(DIR)/ClimateVariablesCalculator.cpp
-MADMODEL_SRC += $(DIR)/DataRecorder.cpp
 MADMODEL_SRC += $(DIR)/InputData.cpp
 MADMODEL_SRC += $(DIR)/InputDatum.cpp
 MADMODEL_SRC += $(DIR)/GridDatum.cpp
