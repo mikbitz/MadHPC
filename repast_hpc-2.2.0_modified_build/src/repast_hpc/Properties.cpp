@@ -219,15 +219,17 @@ bool Properties::writeToPropsFile(std::string fileName, std::vector<std::string>
 
 std::string Properties::propsFileString(std::vector<std::string> &keysToWrite, std::string header){
   stringstream outstring;
-  outstring << header;
+  //included end of line after header
+  outstring << header<<std::endl;
   std::vector<std::string>::iterator keys = keysToWrite.begin();
   int maxKeyWidth = 0;
   while(keys != keysToWrite.end()){
     maxKeyWidth = (*keys).length() > maxKeyWidth ? (*keys).length() : (maxKeyWidth + 1); // Note: maxWidth gets padded by an additional space
     keys++;
   }
-  std::string pad = "                                                  ";
-  while(pad.length() < maxKeyWidth) pad = pad + pad;
+  std::string pad = " ";
+  //pad ends up being very large so commented this out
+  //while(pad.length() < maxKeyWidth) pad = pad + pad;
   keys = keysToWrite.begin();
   while(keys != keysToWrite.end()){
     outstring << (*keys + pad).substr(0, maxKeyWidth) << " = " << getProperty(*keys) << std::endl;

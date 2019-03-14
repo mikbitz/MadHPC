@@ -120,6 +120,7 @@ MADMODEL_SRC += $(DIR)/DataLayer3D.cpp
 MADMODEL_SRC += $(DIR)/DataLayer2DwithTime.cpp
 MADMODEL_SRC += $(DIR)/DataLayer3DwithTime.cpp
 MADMODEL_SRC += $(DIR)/UtilityFunctions.cpp
+MADMODEL_SRC += $(DIR)/RandomRepast.cpp
 
 # OBJECT FILES
 MADMODEL_OBJECTS=$(patsubst %.cpp,%.o,$(MADMODEL_SRC))

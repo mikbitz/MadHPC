@@ -112,7 +112,7 @@ int main(int argc, char **argv) {
   props.putProperty("date_time.run", time);
 
   props.putProperty("process.count", world.size());
-  props.putProperty ("code.version","02_2019_v0.1");
+  props.putProperty ("code.version","03_2019_v0.2");
   if(world.rank() == 0) std::cout << " Starting... " << std::endl;
 
   //initialize default random number generator
@@ -126,26 +126,12 @@ int main(int argc, char **argv) {
 
   //write properties of this run to output file
   if(world.rank() == 0){
-    std::vector<std::string> keysToWrite;
-    keysToWrite.push_back("experiment.name");
-    keysToWrite.push_back("run.number");
-    keysToWrite.push_back("date_time.run");
-    keysToWrite.push_back("process.count");
-    keysToWrite.push_back("random.seed");
-    keysToWrite.push_back("cohort.count");
-    keysToWrite.push_back("stock.count");
-    keysToWrite.push_back("min.x");
-    keysToWrite.push_back("min.y");
-    keysToWrite.push_back("max.x");
-    keysToWrite.push_back("max.y");
-    keysToWrite.push_back("proc.per.x");
-    keysToWrite.push_back("proc.per.y");
-    keysToWrite.push_back("grid.buffer");
-    keysToWrite.push_back("init.time");
-    keysToWrite.push_back("stop.at");
-    keysToWrite.push_back("run.time");
-    props.log("root");
-    props.writeToSVFile("ModelOutput.csv", keysToWrite);
+    std::string  fileName=props.getProperty("experiment.output.directory")+
+                   "/experiment."+props.getProperty("experiment.name")+
+                   "/run_"       +props.getProperty("run.number")+"/"+
+                   "RunParameters";
+    cout<<"Run parameters save in "<<fileName<<endl;
+    props.writeToPropsFile(fileName, "Model run at "+props.getProperty("date_time.run"));
   }
 	} else {
 		if (world.rank() == 0) usage();

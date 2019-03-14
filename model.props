@@ -1,5 +1,9 @@
 #Lines following a # are comments and will be ignored
 
+# these *MUST* multiply to total number of MPI threads
+proc.per.x = 1
+proc.per.y = 1
+
 #set this value to true to just run the model unit tests, false otherwise
 run.tests=false
 
@@ -13,19 +17,22 @@ verbose=false
 #code.version=0.1
 
 #Unique name for this set of model runs, if desired
-experiment.name=default
+experiment.name=wrrg
 
-#location for the output files
+#location for the output files - subdirectory will be created called experiment.<name>
 experiment.output.directory=./output
-
+#short text to outline experiment purpose
+experiment.description=huh?
 #run number - allows runs with above name to be grouped into sets (experiments!)
-run.number=0
+run.number=000
+#if any run directories are found, automatically increment the run number by 1 to avoid overwriting
+run.autoincrement=no
 
 #random seed broadcast to all threads
-global.random.seed = 139
+global.random.seed = 85946
 
 # initial number of cohorts per functional group per cell 
-cohort.count = 15
+cohort.count = 10
 # stocks per cell - this will not usually need to be modified
 stock.count = 3 
 
@@ -40,11 +47,7 @@ stock.count = 3
 #size of the "haloe" area around each subsection of the grid for communication across threads
 #value of 0 is necessary for the current model (cross thread communication only takes place on dispersal)
 #right now values of grid.buffer>=1 could be problematic at the poles (or at longitudinal edges if grid is not wrapped).
-grid.buffer = 0
-
-# these *must* multiply to total number of MPI threads
-proc.per.x = 1 
-proc.per.y = 1 
+grid.buffer = 0 
 
 # named random number distributions - not used at present
 #distribution.move = int_uniform, 0, 2
@@ -75,17 +78,17 @@ simulation.RootDataDirectory=./MadingleyData-master/
 #model run time
 #if stop.at is present, it gives the number of model time step to run
 #otherwise this value is deduced from the simulation length in years and the timstepunit (currently always assumed to be month!)
-#stop.at = 20
+stop.at = 1 
 simulation.TimeStepUnits             =  month
-simulation.LengthOfSimulationInYears =  1
+simulation.LengthOfSimulationInYears =  10
 
 #NB movement will (only) be wrapped in longitude if (minLon-maxLon) mod 360==0 exactly.
 #Currently max and min lat must be away from the poles (no code for cross-polar movement)
 simulation.minimumLongitude          = -180
 simulation.maximumLongitude          =  180
 simulation.minimumLatitude           = -65
-simulation.maximumLatitude           =  55 
-simulation.GridCellSize              =  10 
+simulation.maximumLatitude           =  65 
+simulation.GridCellSize              =  1 
 
 simulation.ExtinctionThreshold       =   1
 simulation.MaximumNumberOfCohorts    =  100

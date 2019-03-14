@@ -64,11 +64,24 @@ MadModel::MadModel(repast::Properties& props,  boost::mpi::communicator* comm): 
     //naming convention for output files
     _filePrefix=                  _props->getProperty("experiment.output.directory")+
                    "/experiment."+_props->getProperty("experiment.name")+
-                   "_run_"       +_props->getProperty("run.number")+"_";
+                   "/run_"       +_props->getProperty("run.number")+"/";
 
-    _filePostfix="_"             +_props->getProperty("date_time.run");
-    
-    cout<<"Outputfiles will be named "<<_filePrefix<<"<Data Name>"<<_filePostfix<<".<filenameExtension>"<<endl;
+    _filePostfix=""             ;
+  /*  	if (rank == 0) {
+	  fs::path filepath(file);
+    if (!fs::exists(filepath.parent_path()))  fs::create_directories(filepath.parent_path());
+    int i = 1;
+    std::string stem = filepath.stem().string();
+    while(fs::exists(filepath)){    // This will increment i until it hits a unique name
+      i++;
+      std::stringstream ss;
+      ss << stem << "_" << i << filepath.extension().string();
+      fs::path newName(filepath.parent_path() / ss.str());
+      filepath = newName;
+    }
+		out.open(filepath.string().c_str());
+	}*/
+    if(repast::RepastProcess::instance()->rank() == 0)cout<<"Outputfiles will be named "<<_filePrefix<<"<Data Name>"<<_filePostfix<<".<filenameExtension>"<<endl;
 
     //-----------------
 	//create the model grid
@@ -83,7 +96,7 @@ MadModel::MadModel(repast::Properties& props,  boost::mpi::communicator* comm): 
   
     //because RHPC uses templates for grid wrapping, if you want any wrapping at all , you have to 
     //use a space that is wrapped in both x and y - to use a non-wrapped space implies templating all occurrences of
-    //"model" - far too much like hard work.
+    //"model" - far too much like hard work; either that or we need a wrapper class for spaces, or different models (with classes per space)
     discreteSpace = new wrappedSpaceType("AgentDiscreteSpace", gd, processDims, gridBuffer, comm);
 	
     //The agent container is a context. Add the grid to it.
@@ -236,7 +249,7 @@ void MadModel::init(){
              }
             }
         }
-    cout<<"rank "<<rank<<" totalCohorts "<<_totalCohorts<<" totalStocks "<<s<<endl;
+    if(_props->getProperty("verbose")=="true")cout<<"rank "<<rank<<" totalCohorts "<<_totalCohorts<<" totalStocks "<<s<<endl;
     setupOutputs();
     if (rank==0)setupNcOutput();
 
@@ -332,19 +345,20 @@ void MadModel::step(){
                     _totalCohorts++;
                     cohortAbundanceMap[cellindex]+= c->_CohortAbundance/E->Area();
                     _totalCohortAbundance += c->_CohortAbundance;
-                    cohortBiomassMap[cellindex]+=( c->_IndividualBodyMass + c->_IndividualReproductivePotentialMass ) * c->_CohortAbundance / 1000.;
+                    cohortBiomassMap[cellindex]+=( c->_IndividualBodyMass + c->_IndividualReproductivePotentialMass ) * c->_CohortAbundance / 1000.;//convert to kg
                     _totalCohortBiomass += cohortBiomassMap[cellindex];
-                    cohortBiomassMap[cellindex]=cohortBiomassMap[cellindex]/E->Area();
                     cohortBreakdown[c->_FunctionalGroupIndex]++;
                 }
             }
+            cohortBiomassMap[cellindex]=cohortBiomassMap[cellindex]/E->Area();//per square kilometre
+
             //care with sync() here - need to get rid of non-local not-alive agents:currently this is a lazy delete for non-local agents (they get removed one timestep late)?
             for (auto a:agentsInCell)if (!a->_alive)_context.removeAgent(a->getId());//does this delete the agent storage? - yes if Boost:shared_ptr works OK
             _totalOrganciPool+=E->organicPool()/1000;
             _totalRespiratoryCO2Pool+=E->respiratoryPool()/1000;
         }
     }
-
+cout<<_totalCohortBiomass<<endl;
     //find out which agents need to move
     //_moved has been set to false for new agents
     //NB this has to happen after above updates to individual Cohorts (otherwise some cells could get mixed before other have updated, so some cohorts could get updated twice)
