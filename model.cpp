@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <vector>
 #include <sstream>
+#include <fstream>
+#include <boost/filesystem.hpp>
 #include <boost/mpi.hpp>
 #include "repast_hpc/AgentId.h"
 #include "repast_hpc/RepastProcess.h"
@@ -61,28 +63,37 @@ MadModel::MadModel(repast::Properties& props,  boost::mpi::communicator* comm): 
     _dimX=repast::strToInt(_props->getProperty("proc.per.x"));
     _dimY=repast::strToInt(_props->getProperty("proc.per.y"));
     _noLongitudeWrap=repast::strToInt(_props->getProperty("noLongitudeWrap"));
+    //-----------------
     //naming convention for output files
-    _filePrefix=                  _props->getProperty("experiment.output.directory")+
-                   "/experiment."+_props->getProperty("experiment.name")+
-                   "/run_"       +_props->getProperty("run.number")+"/";
-
-    _filePostfix=""             ;
-  /*  	if (rank == 0) {
-	  fs::path filepath(file);
-    if (!fs::exists(filepath.parent_path()))  fs::create_directories(filepath.parent_path());
-    int i = 1;
-    std::string stem = filepath.stem().string();
-    while(fs::exists(filepath)){    // This will increment i until it hits a unique name
-      i++;
-      std::stringstream ss;
-      ss << stem << "_" << i << filepath.extension().string();
-      fs::path newName(filepath.parent_path() / ss.str());
-      filepath = newName;
+    if(repast::RepastProcess::instance()->rank() == 0){
+       _filePrefix=                  _props->getProperty("experiment.output.directory")+
+                      "/experiment."+_props->getProperty("experiment.name");
+       if (!boost::filesystem::exists(_filePrefix))boost::filesystem::create_directories(_filePrefix);
+       std::string runNumber= _props->getProperty("run.number");
+       std::string m00="/run_";
+       if (runNumber!=""){
+           m00=m00+runNumber;
+       }else{
+         //auto-increment run number if run.number is not set
+         int i=0;
+         m00="/run_000",runNumber="000";
+         std::string pfx="00";
+         while(boost::filesystem::exists(_filePrefix+m00)){    // Find a new directory name
+           i++;
+           std::stringstream ss;
+           if (i>9 ) pfx="0";
+           if (i>99) pfx="";
+           ss<<pfx<<i;
+           runNumber=ss.str();
+           m00="/run_"+runNumber;
+         }
+       }
+       if (!boost::filesystem::exists(_filePrefix+m00))boost::filesystem::create_directories(_filePrefix+m00);
+       _props->putProperty ("run.number",runNumber);
+       _filePrefix= _filePrefix+m00+"/";
+       _filePostfix="";
+       cout<<"Outputfiles will be named "<<_filePrefix<<"<Data Name>"<<_filePostfix<<".<filenameExtension>"<<endl;
     }
-		out.open(filepath.string().c_str());
-	}*/
-    if(repast::RepastProcess::instance()->rank() == 0)cout<<"Outputfiles will be named "<<_filePrefix<<"<Data Name>"<<_filePostfix<<".<filenameExtension>"<<endl;
-
     //-----------------
 	//create the model grid
     repast::Point<double> origin(_minX,_minY);
@@ -358,7 +369,6 @@ void MadModel::step(){
             _totalRespiratoryCO2Pool+=E->respiratoryPool()/1000;
         }
     }
-cout<<_totalCohortBiomass<<endl;
     //find out which agents need to move
     //_moved has been set to false for new agents
     //NB this has to happen after above updates to individual Cohorts (otherwise some cells could get mixed before other have updated, so some cohorts could get updated twice)

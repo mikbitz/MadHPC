@@ -1,8 +1,8 @@
 #Lines following a # are comments and will be ignored
 
 # these *MUST* multiply to total number of MPI threads
-proc.per.x = 1
-proc.per.y = 1
+proc.per.x = 4 
+proc.per.y = 2
 
 #set this value to true to just run the model unit tests, false otherwise
 run.tests=false
@@ -24,9 +24,8 @@ experiment.output.directory=./output
 #short text to outline experiment purpose
 experiment.description=huh?
 #run number - allows runs with above name to be grouped into sets (experiments!)
-run.number=000
-#if any run directories are found, automatically increment the run number by 1 to avoid overwriting
-run.autoincrement=no
+#if this value is set (uncomment line below) oldfiles may be overwritten. Otherwise new directories will be auto-created for each run starting at 000
+#run.number=000
 
 #random seed broadcast to all threads
 global.random.seed = 85946
@@ -73,12 +72,10 @@ input.EnvironmentVariablesFile= EnvironmentalDataLayers.csv
 #sub-directories are expected to exist labelled by resolution (e.g. 10deg)
 simulation.RootDataDirectory=./MadingleyData-master/
 
-
-
 #model run time
 #if stop.at is present, it gives the number of model time step to run
 #otherwise this value is deduced from the simulation length in years and the timstepunit (currently always assumed to be month!)
-stop.at = 1 
+stop.at = 2 
 simulation.TimeStepUnits             =  month
 simulation.LengthOfSimulationInYears =  10
 
@@ -88,7 +85,7 @@ simulation.minimumLongitude          = -180
 simulation.maximumLongitude          =  180
 simulation.minimumLatitude           = -65
 simulation.maximumLatitude           =  65 
-simulation.GridCellSize              =  1 
+simulation.GridCellSize              =  10 
 
 simulation.ExtinctionThreshold       =   1
 simulation.MaximumNumberOfCohorts    =  100

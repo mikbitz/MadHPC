@@ -130,7 +130,7 @@ int main(int argc, char **argv) {
                    "/experiment."+props.getProperty("experiment.name")+
                    "/run_"       +props.getProperty("run.number")+"/"+
                    "RunParameters";
-    cout<<"Run parameters save in "<<fileName<<endl;
+    cout<<"Run parameters saved in "<<fileName<<endl;
     props.writeToPropsFile(fileName, "Model run at "+props.getProperty("date_time.run"));
   }
 	} else {
