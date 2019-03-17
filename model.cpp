@@ -5,6 +5,8 @@
 #include <sstream>
 #include <fstream>
 #include <boost/filesystem.hpp>
+#include <boost/archive/text_oarchive.hpp>
+#include <boost/archive/text_iarchive.hpp>
 #include <boost/mpi.hpp>
 #include "repast_hpc/AgentId.h"
 #include "repast_hpc/RepastProcess.h"
@@ -1036,7 +1038,7 @@ void MadModel::tests(){
     for (auto a:agents){
       checkCohortTestValues((Cohort*) a);
     }
-    //change some vlaues and check they are still OK
+    //change some values and check they are still OK
     for (auto a:agents){
       ((Cohort*)a)->setLocation(112,-98);
       ((Cohort*)a)->_AdultMass=10.;
@@ -1096,60 +1098,111 @@ void MadModel::tests(){
     Cohort::setParameters(_props);
     if (rank==0)cout<<"Test 13 : check values read into Cohort parmeters match those in model.props.tests"<<endl;
 
-assert(1== Cohort::_edibleFractionMarine);
-assert(2== Cohort::_AttackRateExponentMarine);
-assert(0.7== Cohort::_HandlingTimeExponentMarine);
-assert(0.7== Cohort::_HandlingTimeScalarMarine);
-assert(0.1== Cohort::_edibleFractionTerrestrial);
-assert(2== Cohort::_AttackRateExponentTerrestrial);
-assert(0.7== Cohort::_HandlingTimeExponentTerrestrial);
-assert(0.7== Cohort::_HandlingTimeScalarTerrestrial);
-assert(1== Cohort::_HerbivoryRateMassExponent);
-assert(1e-11== Cohort::_HerbivoryRateConstant);
-assert(1== Cohort::_ReferenceMass);
-assert(0.5== Cohort::_HandlingTimeScalar_C);
-assert(0.7== Cohort::_HandlingTimeExponent_C);
-assert(1e-06== Cohort::_SearchRateConstant);
-assert(0.7== Cohort::_FeedingPreferenceStandardDeviation);
-assert(12== Cohort::_NumberOfBins);
-assert(0.0278== Cohort::_DispersalSpeedBodyMassScalar);
-assert(0.48== Cohort::_DispersalSpeedBodyMassExponent);
-assert(100== Cohort::_HorizontalDiffusivity);
-assert(18== Cohort::_AdvectiveModelTimeStepLengthHours);
-assert(abs(6.48- Cohort::_HorizontalDiffusivityKmSqPerADTimeStep)<1.e-14);
-assert(40== Cohort::_AdvectionTimeStepsPerModelTimeStep);
-assert(2592== Cohort::_VelocityUnitConversion);
-assert(50000== Cohort::_DensityThresholdScaling);
-assert(0.8== Cohort::_StarvationDispersalBodyMassThreshold);
-assert(6.61== Cohort::_TerrestrialWarmingToleranceIntercept);
-assert(1.6== Cohort::_TerrestrialWarmingToleranceSlope);
-assert(1.51== Cohort::_TerrestrialTSMIntercept);
-assert(1.53== Cohort::_TerrestrialTSMSlope);
-assert(abs(3.14159265358979- Cohort::_Pi)<1.e-14);
-assert(100== Cohort::_CellAreaToHectares);
-assert(0.88== Cohort::_MetabolismMassExponentEcto);
-assert(148984000000== Cohort::_NormalizationConstantEcto);
-assert(0.69== Cohort::_ActivationEnergyEcto);
-assert(41918272883== Cohort::_NormalizationConstantBMR);
-assert(0.69== Cohort::_BasalMetabolismMassExponent);
-assert(0.0366972477064== Cohort::_EnergyScalarEcto);
-assert(0.7== Cohort::_MetabolismMassExponentEndo);
-assert(908090839730== Cohort::_NormalizationConstantEndo);
-assert(0.69== Cohort::_ActivationEnergyEndo);
-assert(8.617e-05== Cohort::_BoltzmannConstant);
-assert(0.0366972477064== Cohort::_EnergyScalarEndo);
-assert(273== Cohort::_TemperatureUnitsConvert);
-assert(1.5== Cohort::_MassRatioThreshold);
-assert(0.95== Cohort::_MassEvolutionProbabilityThreshold);
-assert(0.05== Cohort::_MassEvolutionStandardDeviation);
-assert(0.5== Cohort::_SemelparityAdultMassAllocation);
-assert(0.001== Cohort::_MortalityRateBackground);
-assert(0.003== Cohort::_MortalityRateMature);
-assert(0.6== Cohort::_LogisticInflectionPoint);
-assert(0.05== Cohort::_LogisticScalingParameter);
-assert(1== Cohort::_MaximumStarvationRate);
-cout<<"Test 13 : succeeded"<<endl;
+    assert(1== Cohort::_edibleFractionMarine);
+    assert(2== Cohort::_AttackRateExponentMarine);
+    assert(0.7== Cohort::_HandlingTimeExponentMarine);
+    assert(0.7== Cohort::_HandlingTimeScalarMarine);
+    assert(0.1== Cohort::_edibleFractionTerrestrial);
+    assert(2== Cohort::_AttackRateExponentTerrestrial);
+    assert(0.7== Cohort::_HandlingTimeExponentTerrestrial);
+    assert(0.7== Cohort::_HandlingTimeScalarTerrestrial);
+    assert(1== Cohort::_HerbivoryRateMassExponent);
+    assert(1e-11== Cohort::_HerbivoryRateConstant);
+    assert(1== Cohort::_ReferenceMass);
+    assert(0.5== Cohort::_HandlingTimeScalar_C);
+    assert(0.7== Cohort::_HandlingTimeExponent_C);
+    assert(1e-06== Cohort::_SearchRateConstant);
+    assert(0.7== Cohort::_FeedingPreferenceStandardDeviation);
+    assert(12== Cohort::_NumberOfBins);
+    assert(0.0278== Cohort::_DispersalSpeedBodyMassScalar);
+    assert(0.48== Cohort::_DispersalSpeedBodyMassExponent);
+    assert(100== Cohort::_HorizontalDiffusivity);
+    assert(18== Cohort::_AdvectiveModelTimeStepLengthHours);
+    assert(abs(6.48- Cohort::_HorizontalDiffusivityKmSqPerADTimeStep)<1.e-14);
+    assert(40== Cohort::_AdvectionTimeStepsPerModelTimeStep);
+    assert(2592== Cohort::_VelocityUnitConversion);
+    assert(50000== Cohort::_DensityThresholdScaling);
+    assert(0.8== Cohort::_StarvationDispersalBodyMassThreshold);
+    assert(6.61== Cohort::_TerrestrialWarmingToleranceIntercept);
+    assert(1.6== Cohort::_TerrestrialWarmingToleranceSlope);
+    assert(1.51== Cohort::_TerrestrialTSMIntercept);
+    assert(1.53== Cohort::_TerrestrialTSMSlope);
+    assert(abs(3.14159265358979- Cohort::_Pi)<1.e-14);
+    assert(100== Cohort::_CellAreaToHectares);
+    assert(0.88== Cohort::_MetabolismMassExponentEcto);
+    assert(148984000000== Cohort::_NormalizationConstantEcto);
+    assert(0.69== Cohort::_ActivationEnergyEcto);
+    assert(41918272883== Cohort::_NormalizationConstantBMR);
+    assert(0.69== Cohort::_BasalMetabolismMassExponent);
+    assert(0.0366972477064== Cohort::_EnergyScalarEcto);
+    assert(0.7== Cohort::_MetabolismMassExponentEndo);
+    assert(908090839730== Cohort::_NormalizationConstantEndo);
+    assert(0.69== Cohort::_ActivationEnergyEndo);
+    assert(8.617e-05== Cohort::_BoltzmannConstant);
+    assert(0.0366972477064== Cohort::_EnergyScalarEndo);
+    assert(273== Cohort::_TemperatureUnitsConvert);
+    assert(1.5== Cohort::_MassRatioThreshold);
+    assert(0.95== Cohort::_MassEvolutionProbabilityThreshold);
+    assert(0.05== Cohort::_MassEvolutionStandardDeviation);
+    assert(0.5== Cohort::_SemelparityAdultMassAllocation);
+    assert(0.001== Cohort::_MortalityRateBackground);
+    assert(0.003== Cohort::_MortalityRateMature);
+    assert(0.6== Cohort::_LogisticInflectionPoint);
+    assert(0.05== Cohort::_LogisticScalingParameter);
+    assert(1== Cohort::_MaximumStarvationRate);
+    cout<<"Test 13 : succeeded"<<endl;
+    //---------------------------------------------------
+    //***-------------------TEST 14-------------------***//
+    //---------------------------------------------------
+    //test whether data in cohorts can be saved out to a boost archive file (intended for model restarts from a saved state -although randoms will make this non-reproducible)
+    agents.clear();
+    _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
+    if (rank==0)cout<<"Test14: check agent data saves correctly to a file and can be restored"<<endl;
 
+    for (auto a:agents){
+        _context.removeAgent(a->getId());
+    }
+    sync();
+    //now add a new agent on each thread and set its properties to known values
+    for (int i=0;i<n;i++){
+      repast::AgentId id(Cohort::_NextID, rank, _cohortType);
+      id.currentRank(rank);
+      Cohort* c = new Cohort(id);
+      c->setup(0,1, E,random);
+      _context.addAgent(c);
+      discreteSpace->moveTo(id, initialLocation);
+      c->setLocation(x,y);
+      setupCohortTestValues(c);
+      checkCohortTestValues(c);
+     }
+     sync();
+     agents.clear();
+     _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
+     std::stringstream s;
+     s<<rank;
+     std::ofstream ofs("TestAgentSerialization_rank_"+s.str());
+     {
+      boost::archive::text_oarchive oa(ofs);
+      for (auto a:agents){
+         AgentPackage package;
+         ((Cohort*)a)->PushThingsIntoPackage( package );
+         _packages.push_back(package);
+      }
+      oa<<_packages;
+     }
+     _packages.clear();
+     std::ifstream ifs("TestAgentSerialization_rank_"+s.str());
+     {
+      boost::archive::text_iarchive ia(ifs);
+      ia>>_packages;
+      for (auto& p:_packages){
+         repast::AgentId id(Cohort::_NextID, rank, _cohortType);
+         id.currentRank(rank);
+         MadAgent* a=new Cohort( id,p );
+         checkCohortTestValues((Cohort*)a);
+      }
+     }
+     cout<<"Test 14 : succeeded"<<endl;
 }    
 //---------------------------------------------------------------------------------------------------------------------------
 //define some data values for the Cohort to check whether they are preserved on moving across threads

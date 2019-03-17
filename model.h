@@ -85,6 +85,12 @@ class MadModel{
     void netcdfOutput( unsigned step );
     void setNcGridFile(std::string,std::string );
     void writeNcGridFile(unsigned,vector<double>&,std::string);
+    std::vector<AgentPackage>_packages;
+    template<class Archive>
+    void serialize(Archive & ar, const unsigned int version)
+    {
+        ar & _packages;
+    }
 
 public:
     int _minX,_minY,_maxX,_maxY,_dimX,_dimY;
