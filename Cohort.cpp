@@ -288,6 +288,7 @@ void Cohort::setup(unsigned functionalGroup,unsigned numCohortsThisCell,Environm
 //------------------------------------------------------------------------------------------------------------
 //Required by RHPC for cross-core copy - NB "Accounts" do not need to be included as they are instantaneous within a timestep
 void Cohort::PullThingsOutofPackage( const AgentPackage& package ) {
+
     _FunctionalGroupIndex        = package._FunctionalGroupIndex;
     _JuvenileMass                = package._JuvenileMass;
     _AdultMass                   = package._AdultMass;
@@ -331,6 +332,7 @@ void Cohort::PullThingsOutofPackage( const AgentPackage& package ) {
 //------------------------------------------------------------------------------------------------------------
 //Required by RHPC for cross-core copy
 void Cohort::PushThingsIntoPackage( AgentPackage& package ) {
+    
     package._FunctionalGroupIndex        =  _FunctionalGroupIndex;
     package._JuvenileMass                =  _JuvenileMass;
     package._AdultMass                   =  _AdultMass;

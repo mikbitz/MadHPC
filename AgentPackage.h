@@ -47,13 +47,11 @@
 
 struct AgentPackage {
     AgentPackage(){}
-    AgentPackage(int id, int rank, int type, int currentRank):_id(id), _rank(rank), _type(type), _currentRank(currentRank){ }
+    AgentPackage(repast::AgentId ID):_id(ID){ }
+
 	template<class Archive>
 	void serialize(Archive& ar, const unsigned int version) {
-		ar & _id;
-		ar & _rank;
-		ar & _type;
-		ar & _currentRank;
+        ar & _id;
 
 		ar & _FunctionalGroupIndex;   
 
@@ -101,9 +99,8 @@ struct AgentPackage {
         ar & _destination;
 	}
 
-	int _id, _rank, _type, _currentRank;
-
-
+    repast::AgentId _id;
+    
     unsigned _FunctionalGroupIndex;   
 
     double _JuvenileMass;     
@@ -150,7 +147,10 @@ struct AgentPackage {
     vector<int> _location,_destination;
 
 	repast::AgentId getId() const {
-		return repast::AgentId(_id, _rank, _type, _currentRank);
+		return _id;
+	}
+	void setId(repast::AgentId ID)  {
+      _id=ID;
 	}
 };
 

@@ -1,7 +1,7 @@
 #Lines following a # are comments and will be ignored
 
 # these *MUST* multiply to total number of MPI threads
-proc.per.x = 4 
+proc.per.x = 4
 proc.per.y = 2
 
 #set this value to true to just run the model unit tests, false otherwise
@@ -17,7 +17,7 @@ verbose=false
 #code.version=0.1
 
 #Unique name for this set of model runs, if desired
-experiment.name=wrrg
+experiment.name=runTests
 
 #location for the output files - subdirectory will be created called experiment.<name>
 experiment.output.directory=./output

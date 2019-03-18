@@ -75,7 +75,7 @@ simulation.RootDataDirectory=./MadingleyData-master/
 #model run time
 #if stop.at is present, it gives the number of model time step to run
 #otherwise this value is deduced from the simulation length in years and the timstepunit (currently always assumed to be month!)
-stop.at = 2 
+#stop.at = 2 
 simulation.TimeStepUnits             =  month
 simulation.LengthOfSimulationInYears =  10
 

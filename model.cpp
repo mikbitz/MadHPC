@@ -426,7 +426,7 @@ void MadModel::sync(){
     //These lines synchronize the agents across all threads - if there is more than one...
     //Question - are threads guaranteed to be in sync?? (i.e. are we sure that all threads are on the same timestep?)
     //Possibilites for sync in terms of where to send agents are POLL, USE_CURRENT, USE_LAST_OR_CURRENT, USE_LAST_OR_POLL
-    //USE_CURRENT assumes agents do no move beyond the neighbours in the cartesian grid of threads. This fails
+    //USE_CURRENT assumes agents do not move beyond the neighbours in the cartesian grid of threads. This fails
     //for some long distance moves - POLL seems the safest (not sure if guaranteed to work though...also maybe slower)
 	discreteSpace->balance();
     repast::RepastProcess::instance()->synchronizeAgentStatus<MadAgent, AgentPackage, 
@@ -450,7 +450,8 @@ MadAgentPackageProvider::MadAgentPackageProvider(repast::SharedContext<MadAgent>
 void MadAgentPackageProvider::providePackage(MadAgent* agent, std::vector<AgentPackage>& out){
     repast::AgentId id = agent->getId();
     if (id.agentType() == MadModel::_cohortType){
-     AgentPackage package(id.id(), id.startingRank(), id.agentType(), id.currentRank());
+     AgentPackage package;//(id.id(), id.startingRank(), id.agentType(), id.currentRank());
+     package.setId(id);
      ((Cohort*)agent)->PushThingsIntoPackage(package);
      out.push_back(package);
     }
@@ -471,7 +472,7 @@ MadAgentPackageReceiver::MadAgentPackageReceiver(repast::SharedContext<MadAgent>
 //------------------------------------------------------------------------------------------------------------
 
 MadAgent * MadAgentPackageReceiver::createAgent(AgentPackage package){
-    repast::AgentId id(package._id, package._rank, package._type, package._currentRank);
+    repast::AgentId id=package.getId();
     if (id.agentType() == MadModel::_cohortType){
         Cohort* c=new Cohort(id,package);
         return c;
@@ -483,7 +484,7 @@ MadAgent * MadAgentPackageReceiver::createAgent(AgentPackage package){
 //This function is needed if buffers are being used so that agents can interact across cellSize
 //At present it does nothing
 void MadAgentPackageReceiver::updateAgent(AgentPackage package){
-    repast::AgentId id(package._id, package._rank, package._type);
+    repast::AgentId id=package.getId();
     if (id.agentType() == MadModel::_cohortType){
       Cohort* agent = (Cohort*)(agents->getAgent(id));//I think this matches irrespective of the value of currentRank (AgentId== operator doesn't use it)
       agent->PullThingsOutofPackage(package);
@@ -754,6 +755,8 @@ void MadModel::tests(){
       repast::AgentId id(Cohort::_NextID, rank, _cohortType);
       id.currentRank(rank);
       Cohort* c = new Cohort(id);
+      //agent id number should be increasing
+      assert(c->getId().id()==i);
       c->setup(0,1, E,random);
       _context.addAgent(c);
       discreteSpace->moveTo(id, initialLocation);
@@ -1185,6 +1188,7 @@ void MadModel::tests(){
       boost::archive::text_oarchive oa(ofs);
       for (auto a:agents){
          AgentPackage package;
+         package.setId(a->getId());
          ((Cohort*)a)->PushThingsIntoPackage( package );
          _packages.push_back(package);
       }
@@ -1192,17 +1196,21 @@ void MadModel::tests(){
      }
      _packages.clear();
      std::ifstream ifs("TestAgentSerialization_rank_"+s.str());
+     //at this point Cohort::_NextID shoudl be the max value on this thread+1
      {
       boost::archive::text_iarchive ia(ifs);
       ia>>_packages;
       for (auto& p:_packages){
-         repast::AgentId id(Cohort::_NextID, rank, _cohortType);
-         id.currentRank(rank);
-         MadAgent* a=new Cohort( id,p );
+         repast::AgentId id=p.getId();
+         MadAgent* a=new Cohort( id,p );//NB does not increase _NextID.
+         //Cohort::_NextID should be incremented here
+         assert(a->getId()==p._id);
+         assert(a->getId().currentRank()==rank);
+         assert(a->getId().agentType()==_cohortType);
          checkCohortTestValues((Cohort*)a);
       }
      }
-     cout<<"Test 14 : succeeded"<<endl;
+     if (rank==0)cout<<"Test 14 : succeeded"<<endl;
 }    
 //---------------------------------------------------------------------------------------------------------------------------
 //define some data values for the Cohort to check whether they are preserved on moving across threads
