@@ -14,11 +14,13 @@
 #include "repast_hpc/Properties.h"
 #include "repast_hpc/SharedBaseGrid.h"                      // VN2D broken without this!
 #include "repast_hpc/VN2DGridQuery.h"
+#include "repast_hpc/Moore2DGridQuery.h"
 #include "repast_hpc/initialize_random.h"
 #include "repast_hpc/Point.h"
 #include "repast_hpc/AgentRequest.h"
 #include "repast_hpc/SVDataSet.h"
 #include "repast_hpc/SVDataSetBuilder.h"
+#include "repast_hpc/Random.h"
 
 #ifndef _WIN32
 #include "repast_hpc/NCDataSetBuilder.h"
@@ -41,11 +43,26 @@
 #include "AgentPackage.h"
 #include <netcdf>
 
+//repast shuffleList only works on pointers
+//this version is for vectors of unsigned
+
+void shuffleList(std::vector<unsigned>& elementList){
+  if(elementList.size() <= 1) return;
+  repast::IntUniformGenerator rnd = repast::Random::instance()->createUniIntGenerator(0, elementList.size() - 1);
+  unsigned swap;
+  for(size_t i = 0, sz = elementList.size(); i < sz; i++){
+    int other = rnd.next();
+    swap = elementList[i];
+    elementList[i] = elementList[other];
+    elementList[other] = swap;
+  }
+}
+
 using namespace std;
 using namespace repast;
 //arbitrary numbers to distiguish the agents types
 
-int MadModel::_stockType=0, MadModel::_cohortType=1;
+int MadModel::_stockType=0, MadModel::_cohortType=1, MadModel::_humanType=2;
 //------------------------------------------------------------------------------------------------------------
 //Constructor and destructor
 //------------------------------------------------------------------------------------------------------------
@@ -65,6 +82,8 @@ MadModel::MadModel(repast::Properties& props,  boost::mpi::communicator* comm): 
     _dimX=repast::strToInt(_props->getProperty("proc.per.x"));
     _dimY=repast::strToInt(_props->getProperty("proc.per.y"));
     _noLongitudeWrap=repast::strToInt(_props->getProperty("noLongitudeWrap"));
+    _dispersalSelection=_props->getProperty("simulation.DispersalSelection");
+    _randomSeed=repast::strToUInt(_props->getProperty("global.random.seed"));
     //-----------------
     //naming convention for output files
     if(repast::RepastProcess::instance()->rank() == 0){
@@ -167,13 +186,7 @@ void MadModel::init(){
     _totalReproductions=0;
     _totalDeaths=0;
     _totalMoved=0;
-    //Values only reduced on thread 0
-    if(repast::RepastProcess::instance()->rank() == 0){
-     _FinalCohortBiomassMap.resize( (_maxX-_minX+1) * (_maxY-_minY+1) );
-     _FinalCohortAbundanceMap.resize( (_maxX-_minX+1) * (_maxY-_minY+1) );
-     _FinalStockBiomassMap.resize( (_maxX-_minX+1) * (_maxY-_minY+1) );
-     _FinalCohortBreakdown.resize(19);
-    }
+
     //time the initialisation
     repast::Timer initTimer;
     initTimer.start();
@@ -195,7 +208,7 @@ void MadModel::init(){
     }
     //set up the static (i.e. shared) parameters for the Cohorts
     Cohort::setParameters(_props);
- 
+
     //get the definitions of stocks and cohorts
     StockDefinitions::Initialise(_props->getProperty("input.DataDirectory")+"/"+_props->getProperty("input.StockDefinitionsFileName"));
     CohortDefinitions::Initialise(_props->getProperty("input.DataDirectory")+"/"+_props->getProperty("input.CohortDefinitionsFileName"));
@@ -203,6 +216,15 @@ void MadModel::init(){
     unsigned numCohortGroups=CohortDefinitions::Get()->size();
     unsigned cohortCount = strToInt(_props->getProperty("cohort.count"));
     unsigned numStockGroups = StockDefinitions::Get()->size();
+    
+         //Values only reduced on thread 0
+    if(repast::RepastProcess::instance()->rank() == 0){
+     _FinalCohortBiomassMap.resize( (_maxX-_minX+1) * (_maxY-_minY+1) );
+     _FinalCohortAbundanceMap.resize( (_maxX-_minX+1) * (_maxY-_minY+1) );
+     _FinalStockBiomassMap.resize( (_maxX-_minX+1) * (_maxY-_minY+1) );
+     _FinalCohortBreakdown.resize(numCohortGroups);
+    }
+    
     
     randomizer* random=new RandomRepast;
     //random->SetSeed(100); seed is set from model.props file - see main.cpp
@@ -256,6 +278,8 @@ void MadModel::init(){
                          agent->setup(i, E);
                          _context.addAgent(agent);
                          discreteSpace->moveTo(id, initialLocation);
+                         //stock needs a location to get herbivory right when cross cell interaction is allowed
+                         agent->setLocation(x,y);
                          _totalStockBiomass+=agent->_TotalBiomass/1000; //g to kg
                          s++;
                 }
@@ -287,18 +311,18 @@ void MadModel::step(){
     _totalReproductions=0;
     _totalDeaths=0;
     _totalMoved=0;
-    
+    int rank=repast::RepastProcess::instance()->rank();
     unsigned CurrentTimeStep=RepastProcess :: instance ()->getScheduleRunner ().currentTick () - 1;
     //needed to advance the datalayers to the current timestep
     TimeStep::Get( )->SetMonthly( CurrentTimeStep);
     
-	if(repast::RepastProcess::instance()->rank() == 0) 
+	if(rank == 0) 
         std::cout << " TICK " << CurrentTimeStep << std::endl;
 
     //make sure all data is synced across threads
     sync();
-    //vectors length 19 initialized to 0
-    vector<int> cohortBreakdown(19,0);
+    //vectors length CohortDefinitions::Get()->size() initialized to 0
+    vector<int> cohortBreakdown(CohortDefinitions::Get()->size(),0);
     //spatial distributions - for efficiency these should just the the local part, but easier initially to just keep the whole thing on each thread
     //with zeros for non-local, and then reduce onto thread 0
     vector<double> cohortBiomassMap( (_maxX-_minX+1) * (_maxY-_minY+1),0.0 ),cohortAbundanceMap( (_maxX-_minX+1) * (_maxY-_minY+1),0.0 );
@@ -306,11 +330,117 @@ void MadModel::step(){
 
 
     //loop over local grid cells
-    for(int x = _xlo; x < _xhi; x++){
-        for(int y = _ylo; y < _yhi; y++){
-            int cellindex=x-_minX+(_maxX-_minX+1)*(y-_minY);
-            Environment* E=_Env[cellindex];
+    //For cell interaction, we need to make sure copies are updated appropriately.
+    //Since we use a moore neighbourhood, blocks of nine cells can be treated independently
+    //when the centre cell of the nine is updated - so split the grid into 9 sets of
+    //3x3 cells, spearate by a 3 cell stride, update date these, then sync to update the shared data in overlaps
+    //and then move to the next block. Randomize the starting point on each time step to ensure ceratin cells do not
+    //get privileged.
+    vector<unsigned> initialCells(9,0);
+    for(unsigned i=0;i<9;i++){
+        initialCells[i]=i%3;
+        //use cell coords 0,0 0,1 0,2; 1,0 1,1 1,2 etc.
+        if (i>2)initialCells[i]+=(_maxX-_minX+1);
+        if (i>5)initialCells[i]+=(_maxX-_minX+1);
+    }
+    
+    //cells need to have the same random sequence on each thread (otherwise cross-thread interactions won't preserve sequences), 
+    //so restart the rng: Use the timestep to alter the random sequence on successive timesteps
+    repast::Random::initialize(_randomSeed + CurrentTimeStep);
+    shuffleList(initialCells);//use the version defined above
+    
+    int buffer=repast::strToInt(_props->getProperty("grid.buffer"));
+    int range=0;
+    if (buffer==2) range=1;
+    
+    for (unsigned i=0;i<9;i++){
+        int initialCell=initialCells[i];
+        int x0=initialCell%(_maxX-_minX+1)+_minX; 
+        int y0=initialCell/(_maxX-_minX+1)+_minY;
+        while (x0<_xlo)x0+=3;
+        while (y0<_ylo)y0+=3;
+    for(int y = y0-buffer; y < _yhi+buffer; y+=3){  
+     for(int xt = x0-buffer; xt < _xhi+buffer; xt+=3){
+        //pick out the cells that are on this thread plus those in the overlap region
+        //overlap cells have to run updates in the same order on each thread so that dynamics is
+        //reproduced on independent threads
+        //NB poles are currently a potential problem as Repast thinks we are on a torus! Must exclude overlaps at max and min latitudes.
+        //In practice the internal locations of Cohorts should make this happen as distance measures will be large (x distances get wrapped, but not y, see Cohort.cpp). Stocks need locations though.
+        int x=xt;
+
+        if (!_noLongitudeWrap){
+           if (xt  < _minX){x = x + (_maxX - _minX + 1);}
+           if (xt  > _maxX){x = x - (_maxX - _minX + 1);}
+        }
+
+        if (y >= _minY && y <= _maxY){
+         if (x >=_minX && x <= _maxX) {
+          int cellIndex=x-_minX+(_maxX-_minX+1)*(y-_minY);
+
+ //       if (  ( (x >= (_xlo - buffer) && x < (_xhi + buffer) ) || ( (x>=_xlo - buffer + _maxX - _minX || x < _xhi+buffer - _maxX + _minX) && !_noLongitudeWrap)  ) && 
+ //                y >= (_ylo - buffer) && y < (_yhi + buffer) ){
+
+            Environment* E=_Env[cellIndex];
             E->zeroPools();
+
+            //store current location in a repast structure for later use
+            repast::Point<int> location(x,y);
+            
+            std::vector<MadAgent*> agentsInCell,thingsToEat;
+            //query four neighbouring cells, distance 0 (i.e. just the centre cell) - "true" keeps the centre cell.
+            //these will be the cohorts that act in the current cell
+            repast::VN2DGridQuery<MadAgent> VN2DQuery(space());
+            VN2DQuery.query(location, 0, true, agentsInCell);
+            //things that can be eaten by the agents above - they can be in any of the 
+            //eight neighbouring cells (range =1 - requires grid.buffer=2) plus the current cell, or just the current cell (range=0, grid,buffer=0)
+            repast::Moore2DGridQuery<MadAgent> Moore2DQuery(space());
+            Moore2DQuery.query(location, range, true, thingsToEat);
+            std::vector<Stock*> stocks,stocksToEat;
+            std::vector<Cohort*> cohorts,cohortsToEat;
+
+            for (auto a:agentsInCell){
+               if ( a->_alive){//agents must be living but might not be local!
+                //separate out stocks (currently all plants) from cohorts(animals)
+                if (a->getId().agentType()==_stockType) stocks.push_back( (Stock*) a); else cohorts.push_back( (Cohort*) a);
+               }
+            }
+            for (auto a:thingsToEat){
+               if ( a->_alive){//agents must be living but might not be local!
+                //separate out stocks (currently all plants) from cohorts(animals)
+                if (a->getId().agentType()==_stockType) stocksToEat.push_back( (Stock*) a); else cohortsToEat.push_back( (Cohort*) a);
+               }
+            }
+            //sort the lists of cohorts using their unique agent number -easiest to do this in place with a lambda
+            //this ensures that the subsequent random shuffle can be preserved across threads
+            sort(cohorts.begin(), cohorts.end(), [](const Cohort* c1, const Cohort* c2) -> bool { return c1->getId().id() > c2->getId().id();});
+            //restart the rng yet again to be sure the shuffling will be the same on different threads
+            //this is only here in order to make sure copies of cohorts from remote threads are handled the same in grid overlap regions. 
+            repast::Random::initialize(_randomSeed + CurrentTimeStep + cellIndex);
+
+            //need to random shuffle cohorts - so that the same cohort doesn't get to go first on every time step
+            //this uses the version in repast::Random.h
+            shuffleList<Cohort>(cohorts);
+            double allBiomass=0;
+            //advance the stocks and cohorts by one timestep
+            for (auto s:stocks)allBiomass+=s->_TotalBiomass;
+            for (auto s:stocks){s->step(allBiomass,E, CurrentTimeStep);}
+            for (auto c:cohorts)c->step(E, cohortsToEat, stocksToEat, CurrentTimeStep,this);
+        }
+      }
+     }
+    }
+    //each of the independent blocks is complete - now sync before moving to the next set of blocks, if required
+    //it may be that a full sync is not really needed here - just synchronizeAgentStates, maybe?
+     if (buffer==2)sync();
+    }
+
+    //updates of offspring and mergers/death happen after all cells have updated
+    //need to keep this separate if there is cross-cell interaction
+    for(int y = _ylo; y < _yhi; y++){  
+     for(int x = _xlo; x < _xhi; x++){
+      int cellIndex=x-_minX+(_maxX-_minX+1)*(y-_minY);
+            
+            Environment* E=_Env[cellIndex];
 
             //store current location in a repast structure for later use
             repast::Point<int> location(x,y);
@@ -321,23 +451,13 @@ void MadModel::step(){
             VN2DQuery.query(location, 0, true, agentsInCell);
             std::vector<Stock*> stocks;
             std::vector<Cohort*> cohorts;
+
             for (auto a:agentsInCell){
-               if (a->getId().currentRank()==repast::RepastProcess::instance()->rank() && a->_alive){//agents must be local and living!
+               if (a->getId().currentRank()==rank && a->_alive){//agents must be local and living!
                 //separate out stocks (currently all plants) from cohorts(animals)
                 if (a->getId().agentType()==_stockType) stocks.push_back( (Stock*) a); else cohorts.push_back( (Cohort*) a);
                }
             }
-            //need to random shuffle cohorts - this uses the version in repast::Random.h
-            
-            shuffleList<Cohort>(cohorts);
-            double allBiomass=0;
-            //advance the stocks and cohorts by one timestep
-            for (auto s:stocks)allBiomass+=s->_TotalBiomass;
-            for (auto s:stocks){s->step(allBiomass,E, CurrentTimeStep);}
-            for (auto c:cohorts)c->step(E, cohorts, stocks, CurrentTimeStep);
-            for (auto s:stocks){_totalStockBiomass+=s->_TotalBiomass/1000;stockBiomassMap[cellindex]+=s->_TotalBiomass/1000/E->Area();_totalStocks++;}
-            
-
             //cohorts can have one offspring per timestep - add the offspring to the model
             vector<Cohort*> newCohorts;
             for (auto c:cohorts)if(c->_newH!=NULL){
@@ -352,25 +472,29 @@ void MadModel::step(){
             for (auto c:cohorts){c->markForDeath();if (!c->_alive)_totalDeaths++;}
             
             _totalMerged+=CohortMerger::MergeToReachThresholdFast(cohorts);
-            //acumulate totals and spatial maps
+            
+            //set up output stock map
+            for (auto s:stocks){_totalStockBiomass+=s->_TotalBiomass/1000;stockBiomassMap[cellIndex]+=s->_TotalBiomass/1000/E->Area();_totalStocks++;}
+            //acumulate other totals and spatial maps
             for (auto c:cohorts){
                 if (c->_alive){
                     _totalCohorts++;
-                    cohortAbundanceMap[cellindex]+= c->_CohortAbundance/E->Area();
+                    cohortAbundanceMap[cellIndex]+= c->_CohortAbundance/E->Area();
                     _totalCohortAbundance += c->_CohortAbundance;
-                    cohortBiomassMap[cellindex]+=( c->_IndividualBodyMass + c->_IndividualReproductivePotentialMass ) * c->_CohortAbundance / 1000.;//convert to kg
-                    _totalCohortBiomass += cohortBiomassMap[cellindex];
+                    cohortBiomassMap[cellIndex]+=( c->_IndividualBodyMass + c->_IndividualReproductivePotentialMass ) * c->_CohortAbundance / 1000.;//convert to kg
+                    _totalCohortBiomass += cohortBiomassMap[cellIndex];
                     cohortBreakdown[c->_FunctionalGroupIndex]++;
                 }
             }
-            cohortBiomassMap[cellindex]=cohortBiomassMap[cellindex]/E->Area();//per square kilometre
+            cohortBiomassMap[cellIndex]=cohortBiomassMap[cellIndex]/E->Area();//per square kilometre
 
-            //care with sync() here - need to get rid of non-local not-alive agents:currently this is a lazy delete for non-local agents (they get removed one timestep late)?
+            //care with sync() here - need to get rid of not-alive agents:currently this is a lazy delete for new/non-local agents (they get removed one timestep late)?
             for (auto a:agentsInCell)if (!a->_alive)_context.removeAgent(a->getId());//does this delete the agent storage? - yes if Boost:shared_ptr works OK
             _totalOrganciPool+=E->organicPool()/1000;
             _totalRespiratoryCO2Pool+=E->respiratoryPool()/1000;
         }
     }
+    
     //find out which agents need to move
     //_moved has been set to false for new agents
     //NB this has to happen after above updates to individual Cohorts (otherwise some cells could get mixed before other have updated, so some cohorts could get updated twice)
@@ -385,7 +509,8 @@ void MadModel::step(){
             VN2DQuery.query(location, 0, true, agentsInCell);
 
             for (auto a:agentsInCell){
-                 if (a->getId().currentRank()==repast::RepastProcess::instance()->rank()){
+                 //dispersers must be local and alive!
+                 if (a->getId().currentRank()==repast::RepastProcess::instance()->rank() && a->_alive){
                      if (a->getId().agentType()==MadModel::_cohortType) {
                          ((Cohort*) a)->moveIt(E,this);
                          if (a->_moved){
@@ -398,18 +523,18 @@ void MadModel::step(){
     }
     _totalMoved=movers.size();
 
-    vector<int>displacement={0,0};
+    vector<int>newPlace={0,0};
     for (auto& m:movers){
-        displacement[0]=m->_destination[0]-m->_location[0];
-        displacement[1]=m->_destination[1]-m->_location[1];
+        newPlace[0]=int(m->_destination[0]);
+        newPlace[1]=int(m->_destination[1]);
         //move things - these are then settled and _moved becomes false
         if ( m->_moved  ){
-            space()->moveTo(m,m->_destination);m->_moved=false;m->_location=m->_destination;
+            space()->moveTo(m,newPlace);m->_moved=false;m->_location=m->_destination;
          }
     }
     //map outputs/vectors not yet available via svbuilder or netcdf builder.  
     //numbers per functional group - here's how to add up across a vector over threads.
-    MPI_Reduce(cohortBreakdown.data(), _FinalCohortBreakdown.data(), 19, MPI::INT, MPI::SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(cohortBreakdown.data(), _FinalCohortBreakdown.data(), CohortDefinitions::Get()->size(), MPI::INT, MPI::SUM, 0, MPI_COMM_WORLD);
 
     //also get the biomass maps
     MPI_Reduce(cohortBiomassMap.data(), _FinalCohortBiomassMap.data(), (_maxX-_minX+1) * (_maxY-_minY+1), MPI::DOUBLE, MPI::SUM, 0, MPI_COMM_WORLD);
@@ -582,10 +707,10 @@ void MadModel::asciiOutput( unsigned step ) {
     Stockout<<"NODATA_value  -9999"<<endl;
     for (int la=NumLat-1;la>=0;la--){
      for (int lo=0;lo<NumLon;lo++){
-       int cellindex=lo-_minX+(_maxX-_minX+1)*(la-_minY);
-       Abundout<<_FinalCohortAbundanceMap[cellindex]<<" ";
-       Biomaout<<_FinalCohortBiomassMap[cellindex]<<" ";
-       Stockout<<_FinalStockBiomassMap[cellindex]<<" ";
+       int cellIndex=lo-_minX+(_maxX-_minX+1)*(la-_minY);
+       Abundout<<_FinalCohortAbundanceMap[cellIndex]<<" ";
+       Biomaout<<_FinalCohortBiomassMap[cellIndex]<<" ";
+       Stockout<<_FinalStockBiomassMap[cellIndex]<<" ";
      }
      Abundout<<endl;
      Biomaout<<endl;
@@ -723,7 +848,7 @@ void MadModel::tests(){
     
     //MB main has already got the environmental data - this is stored in the background as a DataLayerSet
 
-    //check values from Simulationcontrolparameters have got correctly placed in class grid extents
+    //check values from Parameters have got correctly placed in class grid extents
     assert(Parameters::Get()->GetLengthUserLongitudeArray( )==_maxX-_minX+1);
     assert(Parameters::Get()->GetLengthUserLatitudeArray( )==_maxY-_minY+1);
     //now set up the environmental cells - note at present this uses the full grid, not just local to this thread
@@ -1092,7 +1217,7 @@ void MadModel::tests(){
     
     auto t1 = Clock::now();
     //assert(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count()<160000000);
-    cout<<"Test 12 : elapsed time"<<std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count()<<"ns: RNG alternative in subdirectory randomizers get about 140000000"<<endl;
+    if (rank==0)cout<<"Test 12 : elapsed time"<<std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count()<<"ns: RNG alternative in subdirectory randomizers get about 140000000"<<endl;
 
     //---------------------------------------------------
     //***-------------------TEST 13-------------------***//
@@ -1153,7 +1278,7 @@ void MadModel::tests(){
     assert(0.6== Cohort::_LogisticInflectionPoint);
     assert(0.05== Cohort::_LogisticScalingParameter);
     assert(1== Cohort::_MaximumStarvationRate);
-    cout<<"Test 13 : succeeded"<<endl;
+    if (rank==0)cout<<"Test 13 : succeeded"<<endl;
     //---------------------------------------------------
     //***-------------------TEST 14-------------------***//
     //---------------------------------------------------
@@ -1196,14 +1321,16 @@ void MadModel::tests(){
      }
      _packages.clear();
      std::ifstream ifs("TestAgentSerialization_rank_"+s.str());
-     //at this point Cohort::_NextID shoudl be the max value on this thread+1
+
      {
       boost::archive::text_iarchive ia(ifs);
       ia>>_packages;
       for (auto& p:_packages){
          repast::AgentId id=p.getId();
-         MadAgent* a=new Cohort( id,p );//NB does not increase _NextID.
-         //Cohort::_NextID should be incremented here
+         int n=Cohort::_NextID;
+         //Cohort::_NextID should be incremented here so set increase flag to true
+         MadAgent* a=new Cohort( id,p,true );
+         assert(Cohort::_NextID==n+1);
          assert(a->getId()==p._id);
          assert(a->getId().currentRank()==rank);
          assert(a->getId().agentType()==_cohortType);
@@ -1211,6 +1338,91 @@ void MadModel::tests(){
       }
      }
      if (rank==0)cout<<"Test 14 : succeeded"<<endl;
+
+    //---------------------------------------------------
+    //***-------------------TEST 15-------------------***//
+    //---------------------------------------------------
+    //test whether dispersal using fractional cell co-ordinates works.
+    agents.clear();
+    _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
+    if (rank==0)cout<<"Test15: check direct agent dispersal works (movement by fraction of a cell permitted)"<<endl;
+
+    for (auto a:agents){
+        _context.removeAgent(a->getId());
+    }
+    sync();
+    _noLongitudeWrap=true;
+    //now add a new agent on each thread and set its properties to known values
+    for (int i=0;i<n;i++){
+      repast::AgentId id(Cohort::_NextID, rank, _cohortType);
+      id.currentRank(rank);
+      Cohort* c = new Cohort(id);
+      E=_Env[x - _minX + (_maxX - _minX + 1)*(y - _minY)];
+      c->setup(0,1, E,random);
+      _context.addAgent(c);
+      discreteSpace->moveTo(id, initialLocation);
+      c->setLocation(x,y);c->setDestination(x,y);
+      double uSpeed=0.9*E->Width(),vSpeed=0.5*E->Height();
+      c->TryToDisperse(uSpeed, vSpeed,E, this);
+      if (c->_moved){
+        assert(c->_destination[0]-x-0.9<1.e-14);
+        assert(c->_destination[1]-y-0.5<1.e-14);
+        vector<int>newPlace={0,0};
+        newPlace[0]=int(c->_destination[0]);
+        newPlace[1]=int(c->_destination[1]);
+        space()->moveTo(c,newPlace);
+        c->_location=c->_destination;
+      }
+          
+     }
+     sync();
+     agents.clear();
+     _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
+     //nothing should have moved rank at this point
+     for (auto a:agents){
+         assert(a->getId().currentRank()==a->getId().startingRank());
+         assert(((Cohort*)a)->_location[0]-x-0.9<1.e-14);
+         assert(((Cohort*)a)->_location[1]-y-0.5<1.e-14);
+         vector<int>newPlace={_minX,(_maxY + _minY)/2};
+         space()->moveTo(a,newPlace);
+         ((Cohort*)a)->setDestination(newPlace[0],newPlace[1]);
+         ((Cohort*)a)->setLocation(newPlace[0],newPlace[1]);
+     }
+     sync();
+     agents.clear();
+     _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
+     //all agents now on same thread
+     _noLongitudeWrap=false;
+     _dispersalSelection="direct";
+     double mean=0;int c=0;
+     for (auto a:agents){
+       c++;
+       double uSpeed=0.02*E->Width(),vSpeed=0;
+       ((Cohort*)a)->_Realm="all";//allow dispersal on land or sea
+       for (int i=0; i<10000;i++){
+        double r=repast::Random::instance()->nextDouble();
+        double k;
+        if (r>=0.5)k=-1; else k=1;
+        ((Cohort*)a)->TryToDisperse(k*uSpeed, vSpeed,E, this);
+     }
+     //agents dispersing at random from a point should end up gaussian distributed with
+     //mean 0 (around the initial point) and stdev stepsize^2*number of steps
+     mean=mean+((Cohort*)a)->_destination[0];
+     if (((Cohort*)a)->_destination[0] < (_maxX + _minX)/2) mean=mean+(_maxX - _minX);
+    }
+    if (agents.size()!=0){
+      mean=mean/c;double stdev=0;
+      for (auto a:agents){
+          double u=((Cohort*)a)->_destination[0];
+          if (u < (_maxX + _minX)/2) u+=(_maxX - _minX);//account for grid wrap - agents start from _minX
+          stdev=stdev+pow((u-mean),2);
+      }
+      stdev=sqrt(stdev/c);
+      cout<<"mean and stddev of position after dispersal "<<mean<<" "<<stdev<<endl;
+      assert(mean-(_maxX - _minX)<0.02);
+      assert(stdev-2<0.01);
+      cout<<"Test 15 : succeeded"<<endl;
+    }
 }    
 //---------------------------------------------------------------------------------------------------------------------------
 //define some data values for the Cohort to check whether they are preserved on moving across threads

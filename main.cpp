@@ -101,7 +101,13 @@ int main(int argc, char **argv) {
     //GO!
     //read repast Properties file.
     Properties props(propsFile, argc, argv, &world);
-        
+    //original model has no cross-cell interaction, so grid buffers are not needed
+    props.putProperty("grid.buffer",0);
+    //if there is cross-cell interaction, dispersal shoudl be direct and grid buffer 2
+    if (props.getProperty("simulation.CrossCellInteraction")=="true"){
+        props.putProperty("grid.buffer",2);
+        props.putProperty("simulation.DispersalSelection","direct");
+    }
   //initialise parameters and read datafiles
   //data will be held in a singleton for later use
   FileReader f;
@@ -112,7 +118,7 @@ int main(int argc, char **argv) {
   props.putProperty("date_time.run", time);
 
   props.putProperty("process.count", world.size());
-  props.putProperty ("code.version","03_2019_v0.2");
+  props.putProperty ("code.version","04_2019_v0.2");
   if(world.rank() == 0) std::cout << " Starting... " << std::endl;
 
   //initialize default random number generator

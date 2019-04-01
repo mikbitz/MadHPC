@@ -163,19 +163,20 @@ public:
 
     static unsigned _NextID;
     Cohort* _newH;
-    Cohort(repast::AgentId id): MadAgent(id), _Merged(false){_NextID++;_newH=NULL; _location={0,0};}
-	Cohort(repast::AgentId id, const AgentPackage& package): MadAgent(id){PullThingsOutofPackage(package);_newH=NULL;}
+    Cohort(repast::AgentId id): MadAgent(id), _Merged(false){_NextID++;_newH=NULL; }
+    //for copy across threads (needs increaseNextID=false) or restore from file (set increaseNextID to true)
+	Cohort(repast::AgentId id, const AgentPackage& package,bool increaseNextID=false): MadAgent(id){PullThingsOutofPackage(package);_newH=NULL;if (increaseNextID)_NextID++;}
     void set(int currentRank, const AgentPackage& package){_id.currentRank(currentRank);PullThingsOutofPackage(package);}
 	void setup(unsigned,unsigned,Environment*,randomizer*);
 
 	virtual ~Cohort() {}
 
-	void step(Environment* ,vector<Cohort*>&,vector<Stock*>&,const unsigned);
+	void step(Environment* ,vector<Cohort*>&,vector<Stock*>&,const unsigned,MadModel*);
 
     void metabolize(Environment*);
     void assignTimeActive(Environment*);
     void reproduce(Environment*);
-    void eat(Environment*,vector<Cohort*>&,vector<Stock*>&);
+    void eat(Environment*,vector<Cohort*>&,vector<Stock*>&,MadModel*);
     void moveIt(Environment*,MadModel*);
     void mort();
     void markForDeath();
@@ -183,12 +184,12 @@ public:
     void updatePools(Environment*);
     void setupOffspring( Cohort* , double , double , double , double , unsigned  );
     void TryToDisperse(double,Environment*,MadModel* );
-    void TryToDisperse(double,double,Environment*,MadModel* );
-    vector<int> _location,_destination;
-    void setLocation(int x, int y){_location={x,y};}
-
-void PushThingsIntoPackage( AgentPackage& );
-void PullThingsOutofPackage( const AgentPackage& );
-void ResetAccounts();
+    void TryToDisperse(double,double,Environment*,MadModel*);
+    vector<double> dProb(double,double,Environment*);
+    vector<double> dDirect(double,double,Environment*);
+    double distance(MadAgent*, MadAgent*,MadModel *);
+    void PushThingsIntoPackage( AgentPackage& );
+    void PullThingsOutofPackage( const AgentPackage& );
+    void ResetAccounts();
 };
 #endif /* COHORT_H_ */

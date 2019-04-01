@@ -43,11 +43,6 @@ stock.count = 3
 #max.x = 35 
 #max.y = 12 
 
-#size of the "haloe" area around each subsection of the grid for communication across threads
-#value of 0 is necessary for the current model (cross thread communication only takes place on dispersal)
-#right now values of grid.buffer>=1 could be problematic at the poles (or at longitudinal edges if grid is not wrapped).
-grid.buffer = 0 
-
 # named random number distributions - not used at present
 #distribution.move = int_uniform, 0, 2
 
@@ -97,6 +92,17 @@ simulation.HumanNPPScenarioDuration  =  0.
 simulation.BurninSteps               =  0
 simulation.ImpactSteps               =  0
 simulation.RecoverySteps             =  0
+
+#running without cross-grid cell predation or herbivory, and is faster, but less accurate
+#if interaction is set to true, the size of the "haloe" area around each subsection of the grid 
+#for communication across threads will be set to 2: this leads to quite a bit of extra (necessary) copying across threads 
+simulation.CrossCellInteraction      =  true
+
+#useful values here are direct or probabilistic - other values will lead to no dispersal
+#direct dispersal allows cohorts to move arbitrary fractions of a cell
+#probabilistic leads to cohorts being placed at integer cell coordinates
+#when allowing cross cell interaction, direct dispersal is required and will override probabilistic 
+simulation.DispersalSelection        = direct
 
 #Shared constants for Cohorts not otherwise defined in the functional group
 #Herbivores

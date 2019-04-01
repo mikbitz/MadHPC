@@ -61,7 +61,7 @@ public:
 class MadModel{
     
 	int _stopAt;
-
+    unsigned _randomSeed;
 	repast::Properties* _props;
 	repast::SharedContext<MadAgent> _context;
     std::vector<repast::DataSet*> dataSets;
@@ -96,6 +96,7 @@ public:
     int _minX,_minY,_maxX,_maxY,_dimX,_dimY;
     int _xlo,_xhi,_ylo,_yhi;
     int _noLongitudeWrap; //1 if domain does not span the global latitude range
+    string _dispersalSelection;
     vector<Environment*> _Env;
 	MadModel(repast::Properties& ,  boost::mpi::communicator* comm);
 	~MadModel();
@@ -107,7 +108,7 @@ public:
 	void recordResults();
     wrappedSpaceType* space(){return discreteSpace;}
 
-    static int _stockType, _cohortType;
+    static int _stockType, _cohortType, _humanType;
     //outputs
     void setupOutputs();
     void tests();

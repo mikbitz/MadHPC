@@ -1,0 +1,4 @@
+1/4/2019
+Added arbitrary co-ordinate location to cohorts (up to double precision)
+Added a "direct" dispersal method that uses the above co-ordinates to move cohorts (rather than probabilisitic dispersal only at cell co-ordinates)
+Added cross-grid cell interaction - this is quite a lot more expensive, but allows cells to be dynamically coupled (so e.g. waves are now possible)

@@ -64,6 +64,7 @@ struct AgentPackage {
 		ar & _MaximumMass;
     
 		ar & _CohortAbundance;
+
 		ar & _BirthTimeStep;            
 		ar & _MaturityTimeStep;            
 		ar & _LogOptimalPreyBodySizeRatio; 
@@ -144,7 +145,7 @@ struct AgentPackage {
     double _AssimilationEfficiency_C;
     
     bool _moved;
-    vector<int> _location,_destination;
+    vector<double> _location,_destination;
 
 	repast::AgentId getId() const {
 		return _id;

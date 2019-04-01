@@ -98,6 +98,7 @@ MADMODEL_SRC += $(DIR)/Environment.cpp
 MADMODEL_SRC += $(DIR)/AutotrophProcessor.cpp
 MADMODEL_SRC += $(DIR)/TerrestrialCarbon.cpp
 MADMODEL_SRC += $(DIR)/HANPP.cpp
+MADMODEL_SRC += $(DIR)/Human.cpp
 MADMODEL_SRC += $(DIR)/Parameters.cpp
 MADMODEL_SRC += $(DIR)/Convertor.cpp
 MADMODEL_SRC += $(DIR)/Processor.cpp
