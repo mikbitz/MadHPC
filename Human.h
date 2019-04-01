@@ -137,12 +137,13 @@ public:
 
 	virtual ~Human() {}
 
-	void step(Environment* ,vector<Human*>&,vector<Stock*>&,const unsigned);
+	void step(Environment* ,vector<Human*>&,vector<Stock*>&,const unsigned,MadModel*);
 
     void metabolize(Environment*);
     void assignTimeActive(Environment*);
     void reproduce(Environment*);
-    void eat(Environment*,vector<Human*>&,vector<Stock*>&);
+    double distance(MadAgent*, MadAgent*,MadModel* m);
+    void eat(Environment*,vector<Human*>&,vector<Stock*>&,MadModel*);
     void moveIt(Environment*,MadModel*);
     void mort();
     void markForDeath();
@@ -151,10 +152,11 @@ public:
     void setupOffspring( Human* , double , double , double , double , unsigned  );
     void TryToDisperse(double,Environment*,MadModel* );
     void TryToDisperse(double,double,Environment*,MadModel* );
-
-void PushThingsIntoPackage( AgentPackage& );
-void PullThingsOutofPackage( const AgentPackage& );
-void ResetAccounts();
+    vector<double> dProb(double, double,Environment*);
+    vector<double> dDirect(double, double,Environment*);
+    void PushThingsIntoPackage( AgentPackage& );
+    void PullThingsOutofPackage( const AgentPackage& );
+    void ResetAccounts();
 };
 
 

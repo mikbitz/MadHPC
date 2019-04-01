@@ -321,7 +321,7 @@ void Human::setupOffspring( Human* actingHuman, double juvenileBodyMass, double 
 
 }
 //------------------------------------------------------------------------------------------------------------
-void Human::step(Environment* e,vector<Human*>& preys,vector<Stock*>& stocks,const unsigned Timestep) {
+void Human::step(Environment* e,vector<Human*>& preys,vector<Stock*>& stocks,const unsigned Timestep,MadModel* m) {
     _newH=NULL;//make sure the reproduction pointer has been zeroed out
 
     if (_CohortAbundance - Parameters::Get( )->GetExtinctionThreshold( ) <= 0)return;
@@ -333,7 +333,7 @@ void Human::step(Environment* e,vector<Human*>& preys,vector<Stock*>& stocks,con
     ResetAccounts( );
     for (auto A: _Accounting)for (auto B: A.second)if(B.first!="mortality")assert(B.second==0);
     assignTimeActive(e);
-    eat(e,preys,stocks);
+    eat(e,preys,stocks,m);
     metabolize(e);
     reproduce(e);
     mort();
@@ -420,9 +420,37 @@ void Human::TryToDisperse(double dispersalSpeed, Environment* e,MadModel* m){
     double vSpeed = dispersalSpeed * sin( randomDirection );
     TryToDisperse(uSpeed, vSpeed,e,m);
  }
- //------------------------------------------------------------------------------------------------------------
+  //------------------------------------------------------------------------------------------------------------
 void Human::TryToDisperse(double uSpeed, double vSpeed,Environment* e, MadModel* m){
- // Pick a direction at random
+
+      vector<double> uv={0,0};//default to no dispersal
+      if (m->_dispersalSelection=="probabilistic")uv=dProb(uSpeed,vSpeed,e);
+      else 
+      if (m->_dispersalSelection=="direct") uv=dDirect(uSpeed,vSpeed,e);
+      
+      double signu=uv[0],signv=uv[1]; 
+      double x=_destination[0],y=_destination[1];//need to accumulate this over multiple steps or some movements might get missed/not wrap properly
+
+     //only move if realm matches and we haven't exceeded upper and lower latitude bounds (currently no movement across the pole)
+     int yw=floor(y+signv);
+     if (!m->_noLongitudeWrap){
+        if (x + signu < m->_minX){x = x + (m->_maxX - m->_minX);}
+        if (x + signu > m->_maxX){x = x - (m->_maxX - m->_minX);}
+     }
+     int xw=floor(x+signu);
+     if (yw >= m->_minY && yw <= m->_maxY){
+         if (xw >= m->_minX && xw <= m->_maxX) {
+           Environment* E=m->_Env[xw - m->_minX + (m->_maxX - m->_minX + 1)*(yw - m->_minY)];     // get environment of destination cell
+           if (E->_Realm==_Realm || _Realm=="all"){// no movement if wrong realm at destination
+               _destination[0]=x+signu;_destination[1]=y+signv;
+               if (xw!=floor(_location[0]) || yw!=floor(_location[1]))_moved=true;//special treatment needed if we have changed cell
+           }          
+         }
+     } 
+   }
+//------------------------------------------------------------------------------------------------------------
+ vector<double> Human::dProb(double uSpeed, double vSpeed,Environment* e){
+     //original madingely model dispersal when cohorts are only able to be present at fixed integer cell co-ordinates
     double latCellLength = e->Height();
     double lonCellLength = e->Width();
     double CellArea      = e->Area();
@@ -437,7 +465,7 @@ void Human::TryToDisperse(double uSpeed, double vSpeed,Environment* e, MadModel*
 
     // Convert areas to a probability
     double DispersalProbability = ( AreaOutsideU + AreaOutsideV + AreaOutsideBoth ) / CellArea;
-    // Check that we don't have any issues
+    // Check that we don't have any issues - this is problematic for small cell sizes as the "probability" can often exceed 1.
     if( DispersalProbability > 1 ){
        DispersalProbability=1.;
     }
@@ -446,7 +474,7 @@ void Human::TryToDisperse(double uSpeed, double vSpeed,Environment* e, MadModel*
    // Note that the values in the dispersal array are the proportional area moved outside the grid cell in each direction; we simply compare the random draw to this
    // to determine the direction in which the cohort moves probabilistically
    double RandomValue=repast::Random::instance()->nextDouble();
-   int signu=0,signv=0;
+   double signu=0,signv=0;
 
    if( DispersalProbability >= RandomValue ) {
 
@@ -462,26 +490,20 @@ void Human::TryToDisperse(double uSpeed, double vSpeed,Environment* e, MadModel*
            signu = 0;
        }
      }
-
-      int x=_destination[0],y=_destination[1];//need to accumulate this over multiple steps or some movements might get missed/not wrap properly
-
-     //only move if realm matches and we haven't exceeded upper and lower latitude bounds (currently no movement across the pole)
-
-     if (y+signv >= m->_minY && y+signv <= m->_maxY){
-       if (m->_noLongitudeWrap && (x+signu >= m->_minX && x+signu <= m->_maxX) ){
-        Environment* E=m->_Env[x+signu-m->_minX+(m->_maxX-m->_minX+1)*(y+signv-m->_minY)];      //get environment of destination cell
-        if (E->_Realm==_Realm){_moved=true; _destination[0]=x+signu;_destination[1]=y+signv;}  // no movement if wrong realm at destination
-       }else{
-        if (x + signu < 0)x=x+ m->_maxX-m->_minX+1;
-        assert(x+signu>=0);
-        int xw= (x-m->_minX+signu) % (m->_maxX - m->_minX + 1) + m->_minX;                 //grid wrap in longitude
-        Environment* E=m->_Env[xw-m->_minX+(m->_maxX-m->_minX+1)*(y+signv-m->_minY)];      //get environment of destination cell
-        if (E->_Realm==_Realm){_moved=true; _destination[0]=xw;_destination[1]=y+signv;}   //no movement if wrong realm at destination
-       }
-     }  //no movement across poles.
    }
+   return vector<double>({signu,signv});
+ }
+//------------------------------------------------------------------------------------------------------------
+ vector<double> Human::dDirect(double uSpeed, double vSpeed,Environment* e){
+    //improved dispersla where cohorts can take on fractional cell co-ordinates
+    //this is *required* when cross-cell interaction becomes important
+    // Calculate the fraction of the grid cell in the u direction 
+    double ufrac = ( uSpeed / e->Width() );
 
-}
+    // Calculate the fraction of the grid cell in the v direction
+    double vfrac = ( vSpeed / e->Height() );
+    return vector<double>({ufrac,vfrac});
+ }
 //------------------------------------------------------------------------------------------------------------
 void Human::assignTimeActive(Environment* e){
 
@@ -498,7 +520,14 @@ void Human::assignTimeActive(Environment* e){
 
 }
 //------------------------------------------------------------------------------------------------------------
-void Human::eat(Environment* e,vector<Human*>& preys,vector<Stock*>& stocks){
+double Human::distance(MadAgent* a1, MadAgent* a2,MadModel* m){
+    //simply - the number of cell widths, Manhattan style
+    double wrappedDistX=abs(a1->_location[0]-a2->_location[0]);
+    if (!m->_noLongitudeWrap)wrappedDistX=min(wrappedDistX,(m->_maxX - m->_minX+1)-wrappedDistX);
+    return max(wrappedDistX,abs( a1->_location[1] - a2->_location[1]));
+}
+//------------------------------------------------------------------------------------------------------------
+void Human::eat(Environment* e,vector<Human*>& preys,vector<Stock*>& stocks,MadModel* m){
     
     double  PotentialBiomassEaten=0.,HandlingTime=0.,HandlingTimeScaled=0.,BiomassesEaten=0.,IndividualHerbivoryRate=0.;
     double edibleFraction=0,AttackRateExponent=0, HandlingTimeExponent=0,HandlingTimeScalar=0;
@@ -524,12 +553,13 @@ void Human::eat(Environment* e,vector<Human*>& preys,vector<Stock*>& stocks){
        }
        IndividualHerbivoryRate               = _HerbivoryRateConstant    * pow( _IndividualBodyMass, ( _HerbivoryRateMassExponent ) );
        for (auto stock: stocks){
-        if( stock->_TotalBiomass > 0.0 ) {
-          PotentialBiomassEaten  = IndividualHerbivoryRate   * pow( (stock->_TotalBiomass*edibleFraction) / CellAreaHectares, AttackRateExponent ); // could store this to avoid second calc.?
-          HandlingTimeScaled     = HandlingTimeScalar        * pow( ( _ReferenceMass / _IndividualBodyMass ), HandlingTimeExponent );
-          HandlingTime          += PotentialBiomassEaten* HandlingTimeScaled;
-
-        }        
+        if (distance(this,stock,m)<1){
+         if( stock->_TotalBiomass > 0.0 ) {
+           PotentialBiomassEaten  = IndividualHerbivoryRate   * pow( (stock->_TotalBiomass*edibleFraction) / CellAreaHectares, AttackRateExponent ); // could store this to avoid second calc.?
+           HandlingTimeScaled     = HandlingTimeScalar        * pow( ( _ReferenceMass / _IndividualBodyMass ), HandlingTimeExponent );
+           HandlingTime          += PotentialBiomassEaten* HandlingTimeScaled;
+         }
+        }
        }
 
     }
@@ -554,6 +584,7 @@ void Human::eat(Environment* e,vector<Human*>& preys,vector<Stock*>& stocks){
 
 
         for (auto& prey:preys){
+         if (distance(this,prey,m)<1){
             // Calculate the difference between the actual body size ratio and the optimal ratio, 
             // and then divide by the standard deviation in log ratio space to determine in 
             // which bin to assign the prey item.
@@ -571,9 +602,11 @@ void Human::eat(Environment* e,vector<Human*>& preys,vector<Stock*>& stocks){
                 }
             }
         }
+       }
 
         // Loop over potential prey functional groups
         for (auto& prey: preys){
+            if (distance(this,prey,m)<1){
                 prey->_PotentialAbundanceEaten = 0;
                 //No Cannibalism
                 if( (prey->getId().id() != getId().id()) &&  prey->_IndividualBodyMass > 0) {
@@ -599,6 +632,7 @@ void Human::eat(Environment* e,vector<Human*>& preys,vector<Stock*>& stocks){
                     } 
                 
             }
+          }
         }
     }
     }
@@ -606,16 +640,15 @@ void Human::eat(Environment* e,vector<Human*>& preys,vector<Stock*>& stocks){
     {
        //accumulate eaten
        for (auto& stock: stocks){
-        double InstantFractionEaten = 0.0;
-        double EdibleMass=0;
-        if( stock->_TotalBiomass > 0.0 ) {
-            cout.precision(15);
-          PotentialBiomassEaten               = IndividualHerbivoryRate   * pow( (stock->_TotalBiomass*edibleFraction) / CellAreaHectares, AttackRateExponent );
-          EdibleMass                          = stock->_TotalBiomass*edibleFraction;
-          InstantFractionEaten                = _CohortAbundance * ( ( PotentialBiomassEaten / ( 1 + HandlingTime ) ) / EdibleMass );
-          BiomassesEaten                      = EdibleMass * ( 1 - exp( -InstantFractionEaten * Constants::cDay*_ProportionTimeActive ) ); // should be min(stock._TotalBiomass,...)
-          stock->_TotalBiomass               = stock->_TotalBiomass - BiomassesEaten;
-
+        if (distance(this,stock,m)<1){
+         double InstantFractionEaten = 0.0;
+         double EdibleMass=0;
+         if( stock->_TotalBiomass > 0.0 ) {
+           PotentialBiomassEaten               = IndividualHerbivoryRate   * pow( (stock->_TotalBiomass*edibleFraction) / CellAreaHectares, AttackRateExponent );
+           EdibleMass                          = stock->_TotalBiomass*edibleFraction;
+           InstantFractionEaten                = _CohortAbundance * ( ( PotentialBiomassEaten / ( 1 + HandlingTime ) ) / EdibleMass );
+           BiomassesEaten                      = EdibleMass * ( 1 - exp( -InstantFractionEaten * Constants::cDay*_ProportionTimeActive ) ); // should be min(stock._TotalBiomass,...)
+           stock->_TotalBiomass               = stock->_TotalBiomass - BiomassesEaten;
         } 
 
         // Return the total  biomass of the autotroph stock eaten
@@ -625,6 +658,7 @@ void Human::eat(Environment* e,vector<Human*>& preys,vector<Stock*>& stocks){
    
         _Accounting["organicpool"]["herbivory"] += BiomassesEaten * ( 1 - _AssimilationEfficiency_H );
        }
+       }
     }
     //Carnivory
     {
@@ -633,6 +667,7 @@ void Human::eat(Environment* e,vector<Human*>& preys,vector<Stock*>& stocks){
         // Loop over potential prey functional groups
         int counter=0;
         for (auto& prey: preys){
+            if (distance(this,prey,m)<1){
             counter++;
                 // Calculate the actual abundance of prey eaten from this cohort
                 double _AbundancesEaten = 0;
@@ -645,7 +680,7 @@ void Human::eat(Environment* e,vector<Human*>& preys,vector<Stock*>& stocks){
                 prey->_CohortAbundance -= _AbundancesEaten;
 
                 biomassConsumed += ( prey->_IndividualBodyMass + prey->_IndividualReproductivePotentialMass ) * _AbundancesEaten / _CohortAbundance; //per capita
-
+            }
         }
 
         // Add the biomass eaten and assimilated by an individual to the delta biomass for the acting (predator) cohort
