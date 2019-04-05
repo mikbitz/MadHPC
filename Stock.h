@@ -12,13 +12,14 @@
 
 #include "repast_hpc/AgentId.h"
 #include "agent.h"
+#include "AgentPackage.h"
 
 class Environment;
 
 class Stock: public MadAgent  {
 public:
     Stock(repast::AgentId id,Environment*) : MadAgent(id){ }
-
+    Stock(repast::AgentId id,AgentPackage& package): MadAgent(id){PullThingsOutofPackage( package);}
 	virtual ~Stock() {}
     void setup(unsigned,Environment* );
 	void step(double&,Environment*,const unsigned);
@@ -26,7 +27,9 @@ public:
     bool _Marine,_Deciduous;
     unsigned _FunctionalGroupIndex;
     double _IndividualBodyMass;
-                 
+
+    void PushThingsIntoPackage( AgentPackage& );
+    void PullThingsOutofPackage( const AgentPackage& );              
 };
 
 #endif /* STOCK_H_ */

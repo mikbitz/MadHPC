@@ -38,23 +38,74 @@
  *
  *  Created on: Sep 2, 2010
  *      Author: nick
+ *      Customised for Cohorts and Stocks MB 2019
  */
 
 #ifndef AGENTPACKAGE_H
 #define AGENTPACKAGE_H
 
+#include <vector>
 #include "repast_hpc/AgentId.h"
+//content is a bit overspecified at the moment as it tries to cover cohorts, stocks and huamns
+//however, not obvious to me how to change this! (tried with polymorphic pointers, but massive memeory leaks or seg. faults)
+struct content {
+    content(){}
 
-struct AgentPackage {
-    AgentPackage(){}
-    AgentPackage(repast::AgentId ID):_id(ID){ }
+    unsigned _FunctionalGroupIndex;   
+    //needed for stocks
+    double _TotalBiomass;
+    bool _Marine;
+    bool _Deciduous;
+    //---
+    double _JuvenileMass;     
+    double _AdultMass;               
+    double _IndividualBodyMass;
+    double _MaximumAchievedBodyMass;
+    double _IndividualReproductivePotentialMass;
+    double _MinimumMass;
+    double _MaximumMass;
+    
+    double _CohortAbundance;
+    unsigned _BirthTimeStep;            
+    unsigned _MaturityTimeStep;            
+    double _LogOptimalPreyBodySizeRatio; 
+     
+    bool _Merged;
+    bool _alive;                     
 
+  
+	bool _Heterotroph;   
+    bool _Autotroph; 
+    bool _Endotherm; 
+    bool _Ectotherm;
+    
+    std::string _Realm;      
+
+    bool _Iteroparous;
+    bool _Semelparous;
+    bool _Herbivore;
+    bool _Carnivore;
+    bool _Omnivore;
+    bool _IsPlanktonic;
+    bool _IsFilterFeeder;
+
+    
+    double _ProportionSuitableTimeActive;
+    
+    bool _IsMature;
+    
+    double _AssimilationEfficiency_H;
+    double _AssimilationEfficiency_C;
+    
+    bool _moved;
+    std::vector<double> _location,_destination;
+    
 	template<class Archive>
 	void serialize(Archive& ar, const unsigned int version) {
-        ar & _id;
-
-		ar & _FunctionalGroupIndex;   
-
+        ar & _FunctionalGroupIndex;   
+        ar & _TotalBiomass;
+        ar & _Marine;
+        ar & _Deciduous;
 		ar & _JuvenileMass;     
 		ar & _AdultMass;               
 		ar & _IndividualBodyMass;
@@ -98,63 +149,30 @@ struct AgentPackage {
         ar & _moved;
         ar & _location;
         ar & _destination;
-	}
+    }
+};
 
-    repast::AgentId _id;
-    
-    unsigned _FunctionalGroupIndex;   
-
-    double _JuvenileMass;     
-    double _AdultMass;               
-    double _IndividualBodyMass;
-    double _MaximumAchievedBodyMass;
-    double _IndividualReproductivePotentialMass;
-    double _MinimumMass;
-    double _MaximumMass;
-    
-    double _CohortAbundance;
-    unsigned _BirthTimeStep;            
-    unsigned _MaturityTimeStep;            
-    double _LogOptimalPreyBodySizeRatio; 
-     
-    bool _Merged;
-    bool _alive;                     
-
-  
-	bool _Heterotroph;   
-    bool _Autotroph; 
-    bool _Endotherm; 
-    bool _Ectotherm;
-    
-    std::string _Realm;      
-
-    bool _Iteroparous;
-    bool _Semelparous;
-    bool _Herbivore;
-    bool _Carnivore;
-    bool _Omnivore;
-    bool _IsPlanktonic;
-    bool _IsFilterFeeder;
-
-    
-    double _ProportionSuitableTimeActive;
-    
-    bool _IsMature;
-    
-    double _AssimilationEfficiency_H;
-    double _AssimilationEfficiency_C;
-    
-    bool _moved;
-    vector<double> _location,_destination;
-
+struct AgentPackage {
+    AgentPackage(){}
+    AgentPackage(repast::AgentId ID):_id(ID){}
 	repast::AgentId getId() const {
 		return _id;
 	}
 	void setId(repast::AgentId ID)  {
       _id=ID;
 	}
-};
+    repast::AgentId _id;
+    
+    content _contents;
+    
+	template<class Archive>
+	void serialize(Archive& ar, const unsigned int version) {
+        ar & _id;
+        ar & _contents;
 
+	}
+
+};
 
 
 #endif /* AGENTCONTENT_H_ */

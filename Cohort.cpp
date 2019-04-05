@@ -289,89 +289,91 @@ void Cohort::setup(unsigned functionalGroup,unsigned numCohortsThisCell,Environm
 //Required by RHPC for cross-core copy - NB "Accounts" do not need to be included as they are instantaneous within a timestep
 void Cohort::PullThingsOutofPackage( const AgentPackage& package ) {
 
-    _FunctionalGroupIndex        = package._FunctionalGroupIndex;
-    _JuvenileMass                = package._JuvenileMass;
-    _AdultMass                   = package._AdultMass;
-    _IndividualBodyMass          = package._IndividualBodyMass;
-    _CohortAbundance             = package._CohortAbundance;
-    _BirthTimeStep               = package._BirthTimeStep;
-    _MaturityTimeStep            = package._MaturityTimeStep;
-    _LogOptimalPreyBodySizeRatio = package._LogOptimalPreyBodySizeRatio;
-    _MaximumAchievedBodyMass     = package._MaximumAchievedBodyMass;
-    _Merged                      = package._Merged;
-    _alive                       = package._alive;
-    _IndividualReproductivePotentialMass = package._IndividualReproductivePotentialMass ;
+    _FunctionalGroupIndex        = package._contents._FunctionalGroupIndex;
+    _JuvenileMass                = package._contents._JuvenileMass;
+    _AdultMass                   = package._contents._AdultMass;
+    _IndividualBodyMass          = package._contents._IndividualBodyMass;
+    _CohortAbundance             = package._contents._CohortAbundance;
+    _BirthTimeStep               = package._contents._BirthTimeStep;
+    _MaturityTimeStep            = package._contents._MaturityTimeStep;
+    _LogOptimalPreyBodySizeRatio = package._contents._LogOptimalPreyBodySizeRatio;
+    _MaximumAchievedBodyMass     = package._contents._MaximumAchievedBodyMass;
+    _Merged                      = package._contents._Merged;
+    _alive                       = package._contents._alive;
+    _IndividualReproductivePotentialMass = package._contents._IndividualReproductivePotentialMass ;
   
-	_Heterotroph=    package._Heterotroph;   
+	_Heterotroph=    package._contents._Heterotroph;   
     _Autotroph  =    !_Heterotroph;
-    _Endotherm  =    package._Endotherm;
+    _Endotherm  =    package._contents._Endotherm;
     _Ectotherm  =    !_Endotherm;
-    _Realm      =    package._Realm;
+    _Realm      =    package._contents._Realm;
 
-    _Iteroparous=    package._Iteroparous;
+    _Iteroparous=    package._contents._Iteroparous;
     _Semelparous=    !_Iteroparous;
-    _Herbivore=      package._Herbivore;
-    _Carnivore=      package._Carnivore;
-    _Omnivore=       package._Omnivore;
-    _IsPlanktonic=   package._IsPlanktonic;
-    _IsFilterFeeder= package._IsFilterFeeder;
-    _MinimumMass=    package._MinimumMass;
-    _MaximumMass=    package._MaximumMass;
+    _Herbivore=      package._contents._Herbivore;
+    _Carnivore=      package._contents._Carnivore;
+    _Omnivore=       package._contents._Omnivore;
+    _IsPlanktonic=   package._contents._IsPlanktonic;
+    _IsFilterFeeder= package._contents._IsFilterFeeder;
+    _MinimumMass=    package._contents._MinimumMass;
+    _MaximumMass=    package._contents._MaximumMass;
     
-    _ProportionSuitableTimeActive= package._ProportionSuitableTimeActive;
+    _ProportionSuitableTimeActive= package._contents._ProportionSuitableTimeActive;
     
-    _IsMature=package._IsMature;
+    _IsMature=package._contents._IsMature;
     
-    _AssimilationEfficiency_H=package._AssimilationEfficiency_H;
-    _AssimilationEfficiency_C=package._AssimilationEfficiency_C;
+    _AssimilationEfficiency_H=package._contents._AssimilationEfficiency_H;
+    _AssimilationEfficiency_C=package._contents._AssimilationEfficiency_C;
     
-    _moved=package._moved;
-    _location=package._location;
-    _destination=package._destination;
+    _moved=package._contents._moved;
+    _location=package._contents._location;
+    _destination=package._contents._destination;
+    
 }
 //------------------------------------------------------------------------------------------------------------
 //Required by RHPC for cross-core copy
 void Cohort::PushThingsIntoPackage( AgentPackage& package ) {
-    
-    package._FunctionalGroupIndex        =  _FunctionalGroupIndex;
-    package._JuvenileMass                =  _JuvenileMass;
-    package._AdultMass                   =  _AdultMass;
-    package._IndividualBodyMass          =  _IndividualBodyMass;
-    package._CohortAbundance             =  _CohortAbundance;
-    package._BirthTimeStep               =  _BirthTimeStep;
-    package._MaturityTimeStep            =  _MaturityTimeStep;
-    package._LogOptimalPreyBodySizeRatio =  _LogOptimalPreyBodySizeRatio;
-    package._MaximumAchievedBodyMass     =  _MaximumAchievedBodyMass;
-    package._Merged                      =  _Merged;
-    package._alive                       =  _alive;
-    package._IndividualReproductivePotentialMass =  _IndividualReproductivePotentialMass ;
-  
-	package._Heterotroph=     _Heterotroph;   
-    package._Autotroph  =    !_Heterotroph;
-    package._Endotherm  =     _Endotherm;
-    package._Ectotherm  =    !_Endotherm;
-    package._Realm      =     _Realm;
 
-    package._Iteroparous=     _Iteroparous;
-    package._Semelparous=    !_Iteroparous;
-    package._Herbivore=       _Herbivore;
-    package._Carnivore=       _Carnivore;
-    package._Omnivore=        _Omnivore;
-    package._IsPlanktonic=    _IsPlanktonic;
-    package._IsFilterFeeder=  _IsFilterFeeder;
-    package._MinimumMass=     _MinimumMass;
-    package._MaximumMass=     _MaximumMass;
+    package._contents._FunctionalGroupIndex        =  _FunctionalGroupIndex;
+    package._contents._JuvenileMass                =  _JuvenileMass;
+    package._contents._AdultMass                   =  _AdultMass;
+    package._contents._IndividualBodyMass          =  _IndividualBodyMass;
+    package._contents._CohortAbundance             =  _CohortAbundance;
+    package._contents._BirthTimeStep               =  _BirthTimeStep;
+    package._contents._MaturityTimeStep            =  _MaturityTimeStep;
+    package._contents._LogOptimalPreyBodySizeRatio =  _LogOptimalPreyBodySizeRatio;
+    package._contents._MaximumAchievedBodyMass     =  _MaximumAchievedBodyMass;
+    package._contents._Merged                      =  _Merged;
+    package._contents._alive                       =  _alive;
+    package._contents._IndividualReproductivePotentialMass =  _IndividualReproductivePotentialMass ;
+  
+	package._contents._Heterotroph=     _Heterotroph;   
+    package._contents._Autotroph  =    !_Heterotroph;
+    package._contents._Endotherm  =     _Endotherm;
+    package._contents._Ectotherm  =    !_Endotherm;
+    package._contents._Realm      =     _Realm;
+
+    package._contents._Iteroparous=     _Iteroparous;
+    package._contents._Semelparous=    !_Iteroparous;
+    package._contents._Herbivore=       _Herbivore;
+    package._contents._Carnivore=       _Carnivore;
+    package._contents._Omnivore=        _Omnivore;
+    package._contents._IsPlanktonic=    _IsPlanktonic;
+    package._contents._IsFilterFeeder=  _IsFilterFeeder;
+    package._contents._MinimumMass=     _MinimumMass;
+    package._contents._MaximumMass=     _MaximumMass;
     
-    package._ProportionSuitableTimeActive=  _ProportionSuitableTimeActive;
+    package._contents._ProportionSuitableTimeActive=  _ProportionSuitableTimeActive;
     
-    package._IsMature= _IsMature;
+    package._contents._IsMature= _IsMature;
     
-    package._AssimilationEfficiency_H= _AssimilationEfficiency_H;
-    package._AssimilationEfficiency_C= _AssimilationEfficiency_C;
+    package._contents._AssimilationEfficiency_H= _AssimilationEfficiency_H;
+    package._contents._AssimilationEfficiency_C= _AssimilationEfficiency_C;
     
-    package._moved=_moved;
-    package._location=_location;
-    package._destination=_destination;
+    package._contents._moved=_moved;
+    package._contents._location=_location;
+    package._contents._destination=_destination;
+    
 }
 //------------------------------------------------------------------------------------------------------------
 void Cohort::setupOffspring( Cohort* actingCohort, double juvenileBodyMass, double adultBodyMass, double initialBodyMass, double initialAbundance, unsigned birthTimeStep ) {

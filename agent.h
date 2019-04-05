@@ -14,7 +14,6 @@ public:
     MadAgent(repast::AgentId id): _id(id){_moved=false;_alive=true;_location={0,0};_destination=_location;}
 	bool _moved;
     bool _alive;
-    void set(int currentRank){    _id.currentRank(currentRank);}//is this correct/needed?
 
     virtual ~MadAgent(){};
 	

@@ -2,3 +2,6 @@
 Added arbitrary co-ordinate location to cohorts (up to double precision)
 Added a "direct" dispersal method that uses the above co-ordinates to move cohorts (rather than probabilisitic dispersal only at cell co-ordinates)
 Added cross-grid cell interaction - this is quite a lot more expensive, but allows cells to be dynamically coupled (so e.g. waves are now possible)
+Added a Human class that looks just like the Cohort class, but is essentially just a warm-blooded omnivore
+5/4/2019
+Updated cross-grid cell interaction to make sure plant data gets synced properly - removes some artefacts in output

@@ -431,7 +431,9 @@ void MadModel::step(){
     }
     //each of the independent blocks is complete - now sync before moving to the next set of blocks, if required
     //it may be that a full sync is not really needed here - just synchronizeAgentStates, maybe?
-     if (buffer==2)sync();
+     //if (buffer==2)sync();
+     if (buffer==2)repast::RepastProcess::instance()->synchronizeAgentStates<AgentPackage, 
+             MadAgentPackageProvider, MadAgentPackageReceiver>(*provider, *receiver);
     }
 
     //updates of offspring and mergers/death happen after all cells have updated
@@ -575,9 +577,13 @@ MadAgentPackageProvider::MadAgentPackageProvider(repast::SharedContext<MadAgent>
 void MadAgentPackageProvider::providePackage(MadAgent* agent, std::vector<AgentPackage>& out){
     repast::AgentId id = agent->getId();
     if (id.agentType() == MadModel::_cohortType){
-     AgentPackage package;//(id.id(), id.startingRank(), id.agentType(), id.currentRank());
-     package.setId(id);
+     AgentPackage package(id);
      ((Cohort*)agent)->PushThingsIntoPackage(package);
+     out.push_back(package);
+    }
+    if (id.agentType() == MadModel::_stockType){
+     AgentPackage package(id);
+     ((Stock*)agent)->PushThingsIntoPackage(package);
      out.push_back(package);
     }
 }
@@ -602,18 +608,21 @@ MadAgent * MadAgentPackageReceiver::createAgent(AgentPackage package){
         Cohort* c=new Cohort(id,package);
         return c;
     } else {
-        return NULL;
+        Stock* s=new Stock(id,package);
+        return s;
     }
 }
 //------------------------------------------------------------------------------------------------------------
-//This function is needed if buffers are being used so that agents can interact across cellSize
-//At present it does nothing
+//This function is needed if buffers are being used so that agents can interact across cells
 void MadAgentPackageReceiver::updateAgent(AgentPackage package){
     repast::AgentId id=package.getId();
     if (id.agentType() == MadModel::_cohortType){
       Cohort* agent = (Cohort*)(agents->getAgent(id));//I think this matches irrespective of the value of currentRank (AgentId== operator doesn't use it)
       agent->PullThingsOutofPackage(package);
-      //agent->set(id.currentRank(),package;// Do not use !! this line is incorrect!!
+    }
+    if (id.agentType() == MadModel::_stockType){
+      Stock* agent = (Stock*)(agents->getAgent(id));
+      agent->PullThingsOutofPackage(package);
     }
 }
 //------------------------------------------------------------------------------------------------------------

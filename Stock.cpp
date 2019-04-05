@@ -19,7 +19,32 @@
 #include "HANPP.h"
 #include "Groups.h"
 
+//------------------------------------------------------------------------------------------------------------
+//Required by RHPC for cross-core copy - NB "Accounts" do not need to be included as they are instantaneous within a timestep
+void Stock::PullThingsOutofPackage( const AgentPackage& package ) {
 
+    _FunctionalGroupIndex = package._contents._FunctionalGroupIndex;
+    _TotalBiomass         = package._contents._TotalBiomass;
+    _Marine               = package._contents._Marine;
+    _Deciduous            = package._contents._Deciduous;
+    _IndividualBodyMass   = package._contents._IndividualBodyMass;
+    _alive                = package._contents._alive;
+    _location             = package._contents._location;
+    
+}
+//------------------------------------------------------------------------------------------------------------
+//Required by RHPC for cross-core copy
+void Stock::PushThingsIntoPackage( AgentPackage& package ) {
+  
+    package._contents._FunctionalGroupIndex = _FunctionalGroupIndex;
+    package._contents._TotalBiomass         = _TotalBiomass;
+    package._contents._Marine               = _Marine;
+    package._contents._Deciduous            = _Deciduous;
+    package._contents._IndividualBodyMass   = _IndividualBodyMass;
+    package._contents._alive                = _alive;
+    package._contents._location             = _location;
+
+}
 //-------------------------------------------------------------------------------------------------------------------
  
 void Stock::setup(unsigned functionalGroup,Environment* LocalEnvironment){
