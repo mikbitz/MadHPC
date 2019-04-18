@@ -62,8 +62,6 @@ struct content {
     double _IndividualBodyMass;
     double _MaximumAchievedBodyMass;
     double _IndividualReproductivePotentialMass;
-    double _MinimumMass;
-    double _MaximumMass;
     
     double _CohortAbundance;
     unsigned _BirthTimeStep;            
@@ -73,30 +71,10 @@ struct content {
     bool _Merged;
     bool _alive;                     
 
-  
-	bool _Heterotroph;   
-    bool _Autotroph; 
-    bool _Endotherm; 
-    bool _Ectotherm;
-    
-    std::string _Realm;      
-
-    bool _Iteroparous;
-    bool _Semelparous;
-    bool _Herbivore;
-    bool _Carnivore;
-    bool _Omnivore;
-    bool _IsPlanktonic;
-    bool _IsFilterFeeder;
-
-    
-    double _ProportionSuitableTimeActive;
-    
+     
     bool _IsMature;
     
-    double _AssimilationEfficiency_H;
-    double _AssimilationEfficiency_C;
-    
+   
     bool _moved;
     std::vector<double> _location,_destination;
     
@@ -111,8 +89,6 @@ struct content {
 		ar & _IndividualBodyMass;
 		ar & _MaximumAchievedBodyMass;
 		ar & _IndividualReproductivePotentialMass;
-		ar & _MinimumMass;
-		ar & _MaximumMass;
     
 		ar & _CohortAbundance;
 
@@ -123,29 +99,9 @@ struct content {
 		ar & _Merged;
 		ar & _alive;                     
 
-  
-		ar & _Heterotroph;   
-		ar & _Autotroph; 
-		ar & _Endotherm; 
-		ar & _Ectotherm;
-    
-		ar & _Realm;      
 
-		ar & _Iteroparous;
-		ar & _Semelparous;
-		ar & _Herbivore;
-		ar & _Carnivore;
-		ar & _Omnivore;
-		ar & _IsPlanktonic;
-		ar & _IsFilterFeeder;
-
-    
-		ar & _ProportionSuitableTimeActive;
 		ar & _IsMature;
-    
-		ar & _AssimilationEfficiency_H;
-		ar & _AssimilationEfficiency_C;
-        
+           
         ar & _moved;
         ar & _location;
         ar & _destination;

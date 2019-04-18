@@ -226,7 +226,7 @@ void Human::PullThingsOutofPackage( const AgentPackage& package ) {
     _JuvenileMass                = package._contents._JuvenileMass;
     _AdultMass                   = package._contents._AdultMass;
     _IndividualBodyMass          = package._contents._IndividualBodyMass;
-    _CohortAbundance              = package._contents._CohortAbundance;
+    _CohortAbundance             = package._contents._CohortAbundance;
     _BirthTimeStep               = package._contents._BirthTimeStep;
     _MaturityTimeStep            = package._contents._MaturityTimeStep;
     _LogOptimalPreyBodySizeRatio = package._contents._LogOptimalPreyBodySizeRatio;
@@ -235,17 +235,16 @@ void Human::PullThingsOutofPackage( const AgentPackage& package ) {
     _alive                       = package._contents._alive;
     _IndividualReproductivePotentialMass = package._contents._IndividualReproductivePotentialMass ;
   
-    _Realm      =    package._contents._Realm;
+    _Realm      ="terrestrial";
 
-    _MinimumMass=    package._contents._MinimumMass;
-    _MaximumMass=    package._contents._MaximumMass;
-    
-    _ProportionSuitableTimeActive= package._contents._ProportionSuitableTimeActive;
+    _ProportionSuitableTimeActive= 0.5;   
+    _AssimilationEfficiency_H=0.4; 
+    _AssimilationEfficiency_C=0.64;
+    _MinimumMass=184800;  //6st the minimum adult mass in this cohort
+    _MaximumMass=1848000;//60st - possible...
     
     _IsMature=package._contents._IsMature;
     
-    _AssimilationEfficiency_H=package._contents._AssimilationEfficiency_H;
-    _AssimilationEfficiency_C=package._contents._AssimilationEfficiency_C;
     
     _moved=package._contents._moved;
     _location=package._contents._location;
@@ -269,18 +268,9 @@ void Human::PushThingsIntoPackage( AgentPackage& package ) {
     package._contents._alive                       =  _alive;
     package._contents._IndividualReproductivePotentialMass =  _IndividualReproductivePotentialMass ;
   
-    package._contents._Realm      =     _Realm;
-
-    package._contents._MinimumMass=     _MinimumMass;
-    package._contents._MaximumMass=     _MaximumMass;
-    
-    package._contents._ProportionSuitableTimeActive=  _ProportionSuitableTimeActive;
     
     package._contents._IsMature= _IsMature;
-    
-    package._contents._AssimilationEfficiency_H= _AssimilationEfficiency_H;
-    package._contents._AssimilationEfficiency_C= _AssimilationEfficiency_C;
-    
+       
     package._contents._moved=_moved;
     package._contents._location=_location;
     package._contents._destination=_destination;
@@ -410,7 +400,8 @@ void Human::moveIt(Environment* e,MadModel* m){
 
                 TryToDisperse( dispersalSpeed,e,m );
         }
-        
+        //all humans need to update their current position
+        _location=_destination;
       
 }
 //------------------------------------------------------------------------------------------------------------

@@ -28,7 +28,7 @@ class Cohort: public MadAgent  {
 
 public:
 
-    
+    int _sequencer;//used to co-ordinate ordering of cohort behaviour across threads
     unsigned _FunctionalGroupIndex;   
 
     double _JuvenileMass;     
@@ -163,12 +163,12 @@ public:
 
     static unsigned _NextID;
     Cohort* _newH;
-    Cohort(repast::AgentId id): MadAgent(id), _Merged(false){_NextID++;_newH=NULL; }
+    Cohort(repast::AgentId id): MadAgent(id), _Merged(false){_NextID++;_newH=NULL;_sequencer=0;}
     //for copy across threads (needs increaseNextID=false) or restore from file (set increaseNextID to true)
-	Cohort(repast::AgentId id, const AgentPackage& package,bool increaseNextID=false): MadAgent(id){PullThingsOutofPackage(package);_newH=NULL;if (increaseNextID)_NextID++;}
+	Cohort(repast::AgentId id, const AgentPackage& package,bool increaseNextID=false): MadAgent(id){PullThingsOutofPackage(package);_newH=NULL;if (increaseNextID)_NextID++;_sequencer=0;}
     void set(int currentRank, const AgentPackage& package){_id.currentRank(currentRank);PullThingsOutofPackage(package);}
 	void setup(unsigned,unsigned,Environment*,randomizer*);
-
+    void setPropertiesFromCohortDefinitions(unsigned);
 	virtual ~Cohort() {}
 
 	void step(Environment* ,vector<Cohort*>&,vector<Stock*>&,const unsigned,MadModel*);

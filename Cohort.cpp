@@ -224,33 +224,15 @@ void Cohort::setup(unsigned functionalGroup,unsigned numCohortsThisCell,Environm
     _FunctionalGroupIndex=functionalGroup;
     _Merged                      = false;
     _alive                       = true;
-
-	_Heterotroph=(CohortDefinitions::Get()->Trait(functionalGroup     , "heterotroph/autotroph")  =="heterotroph");   
-    _Autotroph  =!_Heterotroph;
-    _Endotherm  =(CohortDefinitions::Get()->Trait(functionalGroup     , "endo/ectotherm")         =="endotherm");
-    _Ectotherm  =!_Endotherm;
-    _Realm      =CohortDefinitions::Get()->Trait(functionalGroup     , "realm");
-
-    _Iteroparous=(CohortDefinitions::Get()->Trait(functionalGroup     , "reproductive strategy")  =="iteroparity");
-    _Semelparous=!_Iteroparous;
-    _Herbivore=(CohortDefinitions::Get()->Trait(functionalGroup       , "nutrition source")       =="herbivore");
-    _Carnivore=(CohortDefinitions::Get()->Trait(functionalGroup       , "nutrition source")       =="carnivore");
-    _Omnivore= (CohortDefinitions::Get()->Trait(functionalGroup       , "nutrition source")       =="omnivore");
-    _IsPlanktonic= (CohortDefinitions::Get()->Trait(functionalGroup   , "mobility")               =="planktonic");
-    _IsFilterFeeder=(CohortDefinitions::Get()->Trait(functionalGroup   , "diet")                   =="allspecial");
-    
-    _ProportionSuitableTimeActive= CohortDefinitions::Get()->Property(functionalGroup   ,"proportion suitable time active");
-    
+    _moved=false;
+    _location={0,0};
     _IsMature=false;
+
     _IndividualReproductivePotentialMass=0;
-    
-    _AssimilationEfficiency_H=CohortDefinitions::Get()->Property(functionalGroup   ,"herbivory assimilation");
-    _AssimilationEfficiency_C=CohortDefinitions::Get()->Property(functionalGroup   ,"carnivory assimilation");
+    setPropertiesFromCohortDefinitions(_FunctionalGroupIndex);
+
     _BirthTimeStep=0;
     _MaturityTimeStep=std::numeric_limits<unsigned>::max( );
-    _MinimumMass=CohortDefinitions::Get()->Property(functionalGroup   ,"minimum mass");
-    _MaximumMass=CohortDefinitions::Get()->Property(functionalGroup   ,"maximum mass");
-
     // A bit faster to use nextDouble()  rather than repast::DoubleUniformGenerator gen = repast::Random::instance()->createUniDoubleGenerator(0, 1);gen.next();
     
     _AdultMass = pow( 10, ( repast::Random::instance()->nextDouble() * ( log10( _MaximumMass ) - log10( 50 * _MinimumMass ) ) + log10( 50 * _MinimumMass ) ) );
@@ -282,8 +264,31 @@ void Cohort::setup(unsigned functionalGroup,unsigned numCohortsThisCell,Environm
     _CohortAbundance = NewBiomass / _JuvenileMass;
     _MaximumAchievedBodyMass=_JuvenileMass;
     _IndividualBodyMass=_JuvenileMass;
-    _moved=false;
-    _location={0,0};
+
+}
+//------------------------------------------------------------------------------------------------------------
+void Cohort::setPropertiesFromCohortDefinitions(unsigned functionalGroup){
+	_Heterotroph=(CohortDefinitions::Get()->Trait(functionalGroup     , "heterotroph/autotroph")  =="heterotroph");   
+    _Autotroph  =!_Heterotroph;
+    _Endotherm  =(CohortDefinitions::Get()->Trait(functionalGroup     , "endo/ectotherm")         =="endotherm");
+    _Ectotherm  =!_Endotherm;
+    _Realm      =CohortDefinitions::Get()->Trait(functionalGroup     , "realm");
+
+    _Iteroparous=(CohortDefinitions::Get()->Trait(functionalGroup     , "reproductive strategy")  =="iteroparity");
+    _Semelparous=!_Iteroparous;
+    _Herbivore=(CohortDefinitions::Get()->Trait(functionalGroup       , "nutrition source")       =="herbivore");
+    _Carnivore=(CohortDefinitions::Get()->Trait(functionalGroup       , "nutrition source")       =="carnivore");
+    _Omnivore= (CohortDefinitions::Get()->Trait(functionalGroup       , "nutrition source")       =="omnivore");
+    _IsPlanktonic= (CohortDefinitions::Get()->Trait(functionalGroup   , "mobility")               =="planktonic");
+    _IsFilterFeeder=(CohortDefinitions::Get()->Trait(functionalGroup   , "diet")                   =="allspecial");
+    
+    _ProportionSuitableTimeActive= CohortDefinitions::Get()->Property(functionalGroup   ,"proportion suitable time active");
+        
+    _AssimilationEfficiency_H=CohortDefinitions::Get()->Property(functionalGroup   ,"herbivory assimilation");
+    _AssimilationEfficiency_C=CohortDefinitions::Get()->Property(functionalGroup   ,"carnivory assimilation");
+
+    _MinimumMass=CohortDefinitions::Get()->Property(functionalGroup   ,"minimum mass");
+    _MaximumMass=CohortDefinitions::Get()->Property(functionalGroup   ,"maximum mass");
 }
 //------------------------------------------------------------------------------------------------------------
 //Required by RHPC for cross-core copy - NB "Accounts" do not need to be included as they are instantaneous within a timestep
@@ -301,29 +306,10 @@ void Cohort::PullThingsOutofPackage( const AgentPackage& package ) {
     _Merged                      = package._contents._Merged;
     _alive                       = package._contents._alive;
     _IndividualReproductivePotentialMass = package._contents._IndividualReproductivePotentialMass ;
-  
-	_Heterotroph=    package._contents._Heterotroph;   
-    _Autotroph  =    !_Heterotroph;
-    _Endotherm  =    package._contents._Endotherm;
-    _Ectotherm  =    !_Endotherm;
-    _Realm      =    package._contents._Realm;
 
-    _Iteroparous=    package._contents._Iteroparous;
-    _Semelparous=    !_Iteroparous;
-    _Herbivore=      package._contents._Herbivore;
-    _Carnivore=      package._contents._Carnivore;
-    _Omnivore=       package._contents._Omnivore;
-    _IsPlanktonic=   package._contents._IsPlanktonic;
-    _IsFilterFeeder= package._contents._IsFilterFeeder;
-    _MinimumMass=    package._contents._MinimumMass;
-    _MaximumMass=    package._contents._MaximumMass;
-    
-    _ProportionSuitableTimeActive= package._contents._ProportionSuitableTimeActive;
-    
+    setPropertiesFromCohortDefinitions(_FunctionalGroupIndex);
+  
     _IsMature=package._contents._IsMature;
-    
-    _AssimilationEfficiency_H=package._contents._AssimilationEfficiency_H;
-    _AssimilationEfficiency_C=package._contents._AssimilationEfficiency_C;
     
     _moved=package._contents._moved;
     _location=package._contents._location;
@@ -347,29 +333,10 @@ void Cohort::PushThingsIntoPackage( AgentPackage& package ) {
     package._contents._alive                       =  _alive;
     package._contents._IndividualReproductivePotentialMass =  _IndividualReproductivePotentialMass ;
   
-	package._contents._Heterotroph=     _Heterotroph;   
-    package._contents._Autotroph  =    !_Heterotroph;
-    package._contents._Endotherm  =     _Endotherm;
-    package._contents._Ectotherm  =    !_Endotherm;
-    package._contents._Realm      =     _Realm;
-
-    package._contents._Iteroparous=     _Iteroparous;
-    package._contents._Semelparous=    !_Iteroparous;
-    package._contents._Herbivore=       _Herbivore;
-    package._contents._Carnivore=       _Carnivore;
-    package._contents._Omnivore=        _Omnivore;
-    package._contents._IsPlanktonic=    _IsPlanktonic;
-    package._contents._IsFilterFeeder=  _IsFilterFeeder;
-    package._contents._MinimumMass=     _MinimumMass;
-    package._contents._MaximumMass=     _MaximumMass;
-    
-    package._contents._ProportionSuitableTimeActive=  _ProportionSuitableTimeActive;
-    
+   
     package._contents._IsMature= _IsMature;
     
-    package._contents._AssimilationEfficiency_H= _AssimilationEfficiency_H;
-    package._contents._AssimilationEfficiency_C= _AssimilationEfficiency_C;
-    
+   
     package._contents._moved=_moved;
     package._contents._location=_location;
     package._contents._destination=_destination;
@@ -384,7 +351,7 @@ void Cohort::setupOffspring( Cohort* actingCohort, double juvenileBodyMass, doub
     _AdultMass                   = adultBodyMass;
     _IndividualBodyMass          = initialBodyMass;
     _CohortAbundance             = initialAbundance;
-    _CurrentTimeStep               = birthTimeStep;
+    _CurrentTimeStep             = birthTimeStep;
     _BirthTimeStep               = birthTimeStep;
     _MaturityTimeStep            = std::numeric_limits<unsigned>::max( );
     _LogOptimalPreyBodySizeRatio = actingCohort->_LogOptimalPreyBodySizeRatio;
@@ -435,10 +402,10 @@ void Cohort::step(Environment* e,vector<Cohort*>& preys,vector<Stock*>& stocks,c
     ResetAccounts( );
     for (auto A: _Accounting)for (auto B: A.second)if(B.first!="mortality")assert(B.second==0);
     assignTimeActive(e);
-    eat(e,preys,stocks,m);
-    metabolize(e);
-    reproduce(e);
-    mort();
+    if (m->_eating      )eat(e,preys,stocks,m);
+    if (m->_metabolism  )metabolize(e);
+    if (m->_reproduction)reproduce(e);
+    if (m->_death       )mort();
     applyEcology(e);
 
 }
@@ -468,8 +435,8 @@ void Cohort::moveIt(Environment* e,MadModel* m){
           NormalGenerator NJ= repast::Random::instance()->createNormalGenerator(0,1);
           // Advective dispersal
           //dispersalName = "advective";
-
           for( int mm = 0; mm < _AdvectionTimeStepsPerModelTimeStep; mm++ ) {
+
             // Get the u speed and the v speed from the cell data
             double uAdvectiveSpeed = e->uVel();
             assert( uAdvectiveSpeed > -9999 );
@@ -480,18 +447,20 @@ void Cohort::moveIt(Environment* e,MadModel* m){
             // Note that this formulation drops the delta t because we set the horizontal diffusivity to be at the same temporal scale as the time step
             
             // Calculate the distance travelled in this dispersal (not global) time step. both advective and diffusive speeds need to have been converted to km / advective model time step
+            //assuming timestep=1 month
             double uSpeed = uAdvectiveSpeed * _VelocityUnitConversion / _AdvectionTimeStepsPerModelTimeStep + NJ.next() * sqrt( ( 2.0 * _HorizontalDiffusivityKmSqPerADTimeStep ) );
             double vSpeed = vAdvectiveSpeed * _VelocityUnitConversion / _AdvectionTimeStepsPerModelTimeStep + NJ.next() * sqrt( ( 2.0 * _HorizontalDiffusivityKmSqPerADTimeStep ) );
             TryToDisperse( uSpeed,vSpeed,e,m );
-
           }
+
         }// Otherwise, if mature do responsive dispersal
 
         else if( _IsMature ) {
 
           //dispersalName = "responsive";
 
-          dispersalSpeed=_DispersalSpeedBodyMassScalar * pow( _AdultMass, _DispersalSpeedBodyMassExponent);
+            dispersalSpeed= _DispersalSpeedBodyMassScalar * pow( _AdultMass, _DispersalSpeedBodyMassExponent);
+
 
           // Check for starvation-driven dispersal
           // A boolean to check whether a cohort has dispersed
@@ -526,11 +495,14 @@ void Cohort::moveIt(Environment* e,MadModel* m){
           }
         }// If the cohort is immature, run diffusive dispersal
         else {
-           dispersalSpeed=_DispersalSpeedBodyMassScalar * pow( _IndividualBodyMass, _DispersalSpeedBodyMassExponent);
+
+            dispersalSpeed=_DispersalSpeedBodyMassScalar * pow( _IndividualBodyMass, _DispersalSpeedBodyMassExponent);
+
 
                 TryToDisperse( dispersalSpeed,e,m );
         }
-        
+        //all cohorts need to update their current position
+        _location=_destination;
       
 }
 //------------------------------------------------------------------------------------------------------------
@@ -546,18 +518,21 @@ void Cohort::TryToDisperse(double dispersalSpeed, Environment* e,MadModel* m){
 void Cohort::TryToDisperse(double uSpeed, double vSpeed,Environment* e, MadModel* m){
 
       vector<double> uv={0,0};//default to no dispersal
-      if (m->_dispersalSelection=="probabilistic")uv=dProb(uSpeed,vSpeed,e);
-      else 
-      if (m->_dispersalSelection=="direct") uv=dDirect(uSpeed,vSpeed,e);
+      if (m->_dispersalSelection=="probabilistic") uv=dProb  (uSpeed,vSpeed,e);
+      if (m->_dispersalSelection=="direct"       ) uv=dDirect(uSpeed,vSpeed,e);
       
-      double signu=uv[0],signv=uv[1]; 
+      double signu=uv[0];
+      double signv=uv[1]; 
+
+      //if (getId().id()==3075)cout<<uSpeed<<" "<<vSpeed<<" "<<signu<<" "<<signv<<" "<<m->_dispersalSelection<<endl;
       double x=_destination[0],y=_destination[1];//need to accumulate this over multiple steps or some movements might get missed/not wrap properly
 
      //only move if realm matches and we haven't exceeded upper and lower latitude bounds (currently no movement across the pole)
+     //NB last cell lies in the range _maxX<= x <_mMax+1
      int yw=floor(y+signv);
      if (!m->_noLongitudeWrap){
-        if (x + signu < m->_minX){x = x + (m->_maxX - m->_minX);}
-        if (x + signu > m->_maxX){x = x - (m->_maxX - m->_minX);}
+        if (x + signu < m->_minX){x = x + (m->_maxX - m->_minX)+1;}
+        if (x + signu >= m->_maxX+1){x = x - (m->_maxX - m->_minX);}
      }
      int xw=floor(x+signu);
      if (yw >= m->_minY && yw <= m->_maxY){
@@ -596,6 +571,7 @@ void Cohort::TryToDisperse(double uSpeed, double vSpeed,Environment* e, MadModel
    // Note that the values in the dispersal array are the proportional area moved outside the grid cell in each direction; we simply compare the random draw to this
    // to determine the direction in which the cohort moves probabilistically
    double RandomValue=repast::Random::instance()->nextDouble();
+
    double signu=0,signv=0;
 
    if( DispersalProbability >= RandomValue ) {
@@ -612,12 +588,13 @@ void Cohort::TryToDisperse(double uSpeed, double vSpeed,Environment* e, MadModel
            signu = 0;
        }
      }
+
    }
    return vector<double>({signu,signv});
  }
 //------------------------------------------------------------------------------------------------------------
  vector<double> Cohort::dDirect(double uSpeed, double vSpeed,Environment* e){
-    //improved dispersla where cohorts can take on fractional cell co-ordinates
+    //dispersal where cohorts can take on fractional cell co-ordinates
     //this is *required* when cross-cell interaction becomes important
     // Calculate the fraction of the grid cell in the u direction 
     double ufrac = ( uSpeed / e->Width() );
@@ -703,6 +680,7 @@ double Cohort::distance(MadAgent* a1, MadAgent* a2,MadModel* m){
     double wrappedDistX=abs(a1->_location[0]-a2->_location[0]);
     if (!m->_noLongitudeWrap)wrappedDistX=min(wrappedDistX,(m->_maxX - m->_minX+1)-wrappedDistX);
     return max(wrappedDistX,abs( a1->_location[1] - a2->_location[1]));
+    //return sqrt( wrappedDistX*wrappedDistX  +  ( a1->_location[1] - a2->_location[1])*( a1->_location[1] - a2->_location[1]) );
 }
 //------------------------------------------------------------------------------------------------------------
 void Cohort::eat(Environment* e,vector<Cohort*>& preys,vector<Stock*>& stocks,MadModel* m){

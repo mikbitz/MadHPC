@@ -93,9 +93,17 @@ class MadModel{
     }
 
 public:
+    bool _eating       ;
+    bool _metabolism   ;
+    bool _reproduction ;
+    bool _death        ;
+    bool _dispersal    ;
+    bool _mergers      ;
+    bool _output       ;
+    
     int _minX,_minY,_maxX,_maxY,_dimX,_dimY;
     int _xlo,_xhi,_ylo,_yhi;
-    int _noLongitudeWrap; //1 if domain does not span the global latitude range
+    int _noLongitudeWrap; //1 if domain does *not* span the global longitude range
     string _dispersalSelection;
     vector<Environment*> _Env;
 	MadModel(repast::Properties& ,  boost::mpi::communicator* comm);

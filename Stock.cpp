@@ -20,7 +20,7 @@
 #include "Groups.h"
 
 //------------------------------------------------------------------------------------------------------------
-//Required by RHPC for cross-core copy - NB "Accounts" do not need to be included as they are instantaneous within a timestep
+//Required by RHPC for cross-core copy 
 void Stock::PullThingsOutofPackage( const AgentPackage& package ) {
 
     _FunctionalGroupIndex = package._contents._FunctionalGroupIndex;

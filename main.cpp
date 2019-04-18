@@ -66,6 +66,7 @@ void runModel(Properties& props, int argc, char ** argv) {
 	MadModel* model = new MadModel(props,  &world);
 	repast::ScheduleRunner& runner = repast::RepastProcess::instance()->getScheduleRunner();
     if (props.getProperty("run.tests")=="true"){
+      model->initSchedule(runner);
 	  model->tests();
     }else{
 	  model->init();
@@ -103,7 +104,7 @@ int main(int argc, char **argv) {
     Properties props(propsFile, argc, argv, &world);
     //original model has no cross-cell interaction, so grid buffers are not needed
     props.putProperty("grid.buffer",0);
-    //if there is cross-cell interaction, dispersal shoudl be direct and grid buffer 2
+    //if there is cross-cell interaction, dispersal should be direct and grid buffer 2
     if (props.getProperty("simulation.CrossCellInteraction")=="true"){
         props.putProperty("grid.buffer",2);
         props.putProperty("simulation.DispersalSelection","direct");
@@ -118,7 +119,7 @@ int main(int argc, char **argv) {
   props.putProperty("date_time.run", time);
 
   props.putProperty("process.count", world.size());
-  props.putProperty ("code.version","04_2019_v0.2");
+  props.putProperty ("code.version","04_2019_v0.21");
   if(world.rank() == 0) std::cout << " Starting... " << std::endl;
 
   //initialize default random number generator
