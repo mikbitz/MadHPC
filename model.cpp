@@ -397,9 +397,9 @@ void MadModel::step(){
         int y0=initialCell/(_maxX-_minX+1)+_minY;
         while (x0<_xlo)x0+=3;
         while (y0<_ylo)y0+=3;
-        for(int y = y0-buffer; y < _yhi+buffer; y+=3){  
-         for(int xt = x0-buffer; xt < _xhi+buffer; xt+=3){
-            //pick out the cells that are on this thread plus those in the overlap region
+        for(int y = y0-range; y < _yhi+range; y+=3){  
+         for(int xt = x0-range; xt < _xhi+range; xt+=3){
+            //pick out the cells that are on this thread plus those in the overlap region (but only those in range need to actually do the dynamics)
             //overlap cells have to run updates in the same order on each thread so that dynamics is reproduced on independent threads
             //NB poles are currently a potential problem as Repast thinks we are on a torus! Must exclude overlaps at max and min latitudes.
             //In practice the internal locations of Cohorts should make this happen as distance measures will be large (x distances get wrapped, but not y, see Cohort.cpp). Stocks need locations though.

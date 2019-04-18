@@ -5,3 +5,14 @@ Added cross-grid cell interaction - this is quite a lot more expensive, but allo
 Added a Human class that looks just like the Cohort class, but is essentially just a warm-blooded omnivore
 5/4/2019
 Updated cross-grid cell interaction to make sure plant data gets synced properly - removes some artefacts in output
+16/4/2019
+Corrected cross-grid cell interaction to transmit cell and cohort random orderings across threads
+Added a sequencer in cohort to ensure random orderings preserved across threads
+Reduced data transfers needed in cohorts by reading in some data from cohort definitions in cohort package
+Added some switches to turn in and off parts of the dynamics to aid with testing
+Bug fixes in direct dispersal to correct for Eastern boundary grid-cell locations (still some artefacts at dateline)
+Bug fix in selection of direct or probabilistic dispersal
+18/4/2019
+Bug fix in range of overlap cells used in loop over cells (although overlap buffer=2 for consistency), range for dynamics =1)
+
+
