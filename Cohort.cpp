@@ -532,7 +532,7 @@ void Cohort::TryToDisperse(double uSpeed, double vSpeed,Environment* e, MadModel
      int yw=floor(y+signv);
      if (!m->_noLongitudeWrap){
         if (x + signu < m->_minX){x = x + (m->_maxX - m->_minX)+1;}
-        if (x + signu >= m->_maxX+1){x = x - (m->_maxX - m->_minX);}
+        if (x + signu >= m->_maxX+1){x = x - (m->_maxX - m->_minX + 1);}
      }
      int xw=floor(x+signu);
      if (yw >= m->_minY && yw <= m->_maxY){
