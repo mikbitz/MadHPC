@@ -338,9 +338,9 @@ void MadModel::step(){
     _totalMoved=0;
     int rank=repast::RepastProcess::instance()->rank();
     unsigned CurrentTimeStep=RepastProcess :: instance ()->getScheduleRunner ().currentTick () - 1;
-    //needed to advance the datalayers to the current timestep
+    //needed to advance the environmental datalayers to the current timestep
    
-    TimeStep::Get( )->SetMonthly( CurrentTimeStep);
+    _Env.update(CurrentTimeStep);
     
 	if(rank == 0) std::cout << " TICK " << CurrentTimeStep << std::endl;
 

@@ -13,6 +13,7 @@
 #include "EnvironmentCell.h"
 #include "Constants.h"
 #include "Types.h"
+#include "TimeStep.h"
 #include <vector>
 class Environment {
 public:
@@ -20,7 +21,7 @@ public:
     Environment(int,int,int,int);
 	~Environment() {}
 	EnvironmentCell* operator[](unsigned i){assert(i<_Cells.size());return _Cells[i];}
-
+    void update(unsigned CurrentTimeStep){TimeStep::Get( )->SetMonthly( CurrentTimeStep);}
 private:
 
 std::vector<EnvironmentCell*> _Cells;
