@@ -56,7 +56,7 @@ void TerrestrialCarbon::InitialisePlantModelParameters( ) {
     mM2ToKm2Conversion = 1000000.0;
 }
 
-double TerrestrialCarbon::CalculateEquilibriumLeafMass(Environment* LocalEnvironment, bool deciduous ) {
+double TerrestrialCarbon::CalculateEquilibriumLeafMass(EnvironmentCell* LocalEnvironment, bool deciduous ) {
     // Calculate annual average temperature
     double MeanTemp = LocalEnvironment->AnnualTemperature();
     //Calculate total annual precipitation
@@ -118,7 +118,7 @@ double TerrestrialCarbon::CalculateEquilibriumLeafMass(Environment* LocalEnviron
     return LeafWetMatter;
 }
 
-double TerrestrialCarbon::UpdateLeafStock( Environment* LocalEnvironment, Stock* z, bool deciduous ) {
+double TerrestrialCarbon::UpdateLeafStock( EnvironmentCell* LocalEnvironment, Stock* z, bool deciduous ) {
 
     // ESTIMATE ANNUAL LEAF CARBON FIXATION ASSUMING ENVIRONMENT THROUGHOUT THE YEAR IS THE SAME AS IN THIS MONTH
     // Get annual average temperature

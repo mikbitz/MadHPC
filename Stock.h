@@ -14,15 +14,15 @@
 #include "agent.h"
 #include "AgentPackage.h"
 
-class Environment;
+class EnvironmentCell;
 
 class Stock: public MadAgent  {
 public:
-    Stock(repast::AgentId id,Environment*) : MadAgent(id){ }
+    Stock(repast::AgentId id,EnvironmentCell*) : MadAgent(id){ }
     Stock(repast::AgentId id,AgentPackage& package): MadAgent(id){PullThingsOutofPackage( package);}
 	virtual ~Stock() {}
-    void setup(unsigned,Environment* );
-	void step(double&,Environment*,const unsigned);
+    void setup(unsigned,EnvironmentCell* );
+	void step(double&,EnvironmentCell*,const unsigned);
     double _TotalBiomass;
     bool _Marine,_Deciduous;
     unsigned _FunctionalGroupIndex;

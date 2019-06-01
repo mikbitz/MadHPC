@@ -95,6 +95,7 @@ MADMODEL_SRC += $(DIR)/CohortPair.cpp
 MADMODEL_SRC += $(DIR)/model.cpp
 MADMODEL_SRC += $(DIR)/CohortSum.cpp
 MADMODEL_SRC += $(DIR)/Environment.cpp
+MADMODEL_SRC += $(DIR)/EnvironmentCell.cpp
 MADMODEL_SRC += $(DIR)/AutotrophProcessor.cpp
 MADMODEL_SRC += $(DIR)/TerrestrialCarbon.cpp
 MADMODEL_SRC += $(DIR)/HANPP.cpp

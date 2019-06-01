@@ -19,7 +19,7 @@
 #include "repast_hpc/Utilities.h"
 
 #include "AgentPackage.h"
-#include "Environment.h"
+#include "EnvironmentCell.h"
 #include "randomizer.h"
 
 class MadModel;
@@ -167,26 +167,26 @@ public:
     //for copy across threads (needs increaseNextID=false) or restore from file (set increaseNextID to true)
 	Cohort(repast::AgentId id, const AgentPackage& package,bool increaseNextID=false): MadAgent(id){PullThingsOutofPackage(package);_newH=NULL;if (increaseNextID)_NextID++;_sequencer=0;}
     void set(int currentRank, const AgentPackage& package){_id.currentRank(currentRank);PullThingsOutofPackage(package);}
-	void setup(unsigned,unsigned,Environment*,randomizer*);
+	void setup(unsigned,unsigned,EnvironmentCell*,randomizer*);
     void setPropertiesFromCohortDefinitions(unsigned);
 	virtual ~Cohort() {}
 
-	void step(Environment* ,vector<Cohort*>&,vector<Stock*>&,const unsigned,MadModel*);
+	void step(EnvironmentCell* ,vector<Cohort*>&,vector<Stock*>&,const unsigned,MadModel*);
 
-    void metabolize(Environment*);
-    void assignTimeActive(Environment*);
-    void reproduce(Environment*);
-    void eat(Environment*,vector<Cohort*>&,vector<Stock*>&,MadModel*);
-    void moveIt(Environment*,MadModel*);
+    void metabolize(EnvironmentCell*);
+    void assignTimeActive(EnvironmentCell*);
+    void reproduce(EnvironmentCell*);
+    void eat(EnvironmentCell*,vector<Cohort*>&,vector<Stock*>&,MadModel*);
+    void moveIt(EnvironmentCell*,MadModel*);
     void mort();
     void markForDeath();
-    void applyEcology(Environment*);
-    void updatePools(Environment*);
+    void applyEcology(EnvironmentCell*);
+    void updatePools(EnvironmentCell*);
     void setupOffspring( Cohort* , double , double , double , double , unsigned  );
-    void TryToDisperse(double,Environment*,MadModel* );
-    void TryToDisperse(double,double,Environment*,MadModel*);
-    vector<double> dProb(double,double,Environment*);
-    vector<double> dDirect(double,double,Environment*);
+    void TryToDisperse(double,EnvironmentCell*,MadModel* );
+    void TryToDisperse(double,double,EnvironmentCell*,MadModel*);
+    vector<double> dProb(double,double,EnvironmentCell*);
+    vector<double> dDirect(double,double,EnvironmentCell*);
     double distance(MadAgent*, MadAgent*,MadModel *);
     void PushThingsIntoPackage( AgentPackage& );
     void PullThingsOutofPackage( const AgentPackage& );

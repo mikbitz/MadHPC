@@ -12,7 +12,7 @@
 #define HANPP_H
 
 #include "Constants.h"
-#include "Environment.h"
+#include "EnvironmentCell.h"
 /** \file HANPP.h
  * \brief the HANPP header file
  */
@@ -37,7 +37,7 @@ public:
     @param gridCellStocks The stocks in the current grid cell 
     @param actingStock The position of the acting stock in the jagged array of grid cell stocks 
     @param currentTimestep The current model time step */
-    double RemoveHumanAppropriatedMatter(Environment* , double,double, unsigned);
+    double RemoveHumanAppropriatedMatter(EnvironmentCell* , double,double, unsigned);
 
 };
 #endif

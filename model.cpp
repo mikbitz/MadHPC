@@ -29,11 +29,12 @@
 #include "model.h"
 #include "agent.h"
 #include "CohortMerger.h"
-#include "Environment.h"
+#include "EnvironmentCell.h"
 #include "Parameters.h"
 #include "Groups.h"
 #include "Stock.h"
 #include "Cohort.h"
+#include "Human.h"
 #include "FileReader.h"
 #include "CohortSum.h"
 #include "TimeStep.h"
@@ -201,19 +202,14 @@ void MadModel::init(){
     //rank (i.e. the number of this thread) will be needed to make agents unique *between* threads
     int rank = repast::RepastProcess::instance()->rank();
     
-    //get the environmental data - this is stored in the background as a DataLayerSet
+    //get the environmental data - this is stored in the background as a DataLayerSet - NB this is currently done in main.cpp because of some strange problems with legacy fileReading code
     //FileReader F;
     //F.ReadFiles();
     
     //now set up the environmental cells - note at present this uses the full grid, not just local to this thread
     //so that off-thread environment can be easily queried. Currently some duplication here, but it is not a huge amount of data.
-    _Env.resize( (_maxX-_minX+1) * (_maxY-_minY+1) );
-    for(int x=_minX;x<=_maxX;x++) {
-        for(int y=_minY;y<=_maxY;y++) {
-            Environment* E=new Environment(x,y);
-            _Env[x-_minX+(_maxX-_minX+1)*(y-_minY)]=E;
-        }
-    }
+    _Env=Environment(_minX,_maxX,_minY,_maxY);
+
     //set up the static (i.e. shared) parameters for the Cohorts
     Cohort::setParameters(_props);
 
@@ -222,6 +218,7 @@ void MadModel::init(){
     CohortDefinitions::Initialise(_props->getProperty("input.DataDirectory")+"/"+_props->getProperty("input.CohortDefinitionsFileName"));
   
     unsigned numCohortGroups=CohortDefinitions::Get()->size();
+    unsigned humanCount = strToInt(_props->getProperty("human.count"));
     unsigned cohortCount = strToInt(_props->getProperty("cohort.count"));
     unsigned numStockGroups = StockDefinitions::Get()->size();
     
@@ -250,13 +247,31 @@ void MadModel::init(){
 
   
     int s=0;
-
+    unsigned hF=10000;//functionalgroup ID for humans
     for (int x = _xlo; x < _xhi; x++){
         for (int y = _ylo; y < _yhi; y++){
-             Environment* E=_Env[x-_minX+(_maxX-_minX+1)*(y-_minY)];
+             EnvironmentCell* E=_Env[x-_minX+(_maxX-_minX+1)*(y-_minY)];
+             repast::Point<int> initialLocation(x,y);
+
+
+             if (E->_Realm=="terrestrial"){
+               for (unsigned j=0;j<humanCount;j++){
+                    //make sure the agentId is unique on this thread!!
+                    // values are int id, int startProc, int agentType, 
+                    repast::AgentId id(Human::_NextID, rank, _humanType);
+                    //agent also needs id of its current thread
+                    id.currentRank(rank);
+                    Human* h = new Human(id);
+                    h->setup(hF,humanCount, E,random);
+                    _context.addAgent(h);
+                    discreteSpace->moveTo(id, initialLocation);
+                    //to get movement right agent needs its own copy of location
+                    h->setLocation(x,y);
+               }
+             }
+             
              unsigned totalCohortsThisCell=0;
              for (unsigned i=0;i<numCohortGroups;i++) if (E->_Realm==CohortDefinitions::Get()->Trait(i,"realm"))totalCohortsThisCell+=cohortCount;
-             repast::Point<int> initialLocation(x,y);
              for (unsigned i=0;i<numCohortGroups;i++){
                  if (E->_Realm==CohortDefinitions::Get()->Trait(i,"realm")){
                      for (unsigned j=0;j<cohortCount;j++){
@@ -324,6 +339,7 @@ void MadModel::step(){
     int rank=repast::RepastProcess::instance()->rank();
     unsigned CurrentTimeStep=RepastProcess :: instance ()->getScheduleRunner ().currentTick () - 1;
     //needed to advance the datalayers to the current timestep
+   
     TimeStep::Get( )->SetMonthly( CurrentTimeStep);
     
 	if(rank == 0) std::cout << " TICK " << CurrentTimeStep << std::endl;
@@ -414,7 +430,7 @@ void MadModel::step(){
              if (x >=_minX && x <= _maxX) {
               int cellIndex=x-_minX+(_maxX-_minX+1)*(y-_minY);
 
-                Environment* E=_Env[cellIndex];
+                EnvironmentCell* E=_Env[cellIndex];
                 E->zeroPools(); 
 
                 //store current location in a repast structure for later use
@@ -470,7 +486,7 @@ void MadModel::step(){
      for(int x = _xlo; x < _xhi; x++){
       int cellIndex=x-_minX+(_maxX-_minX+1)*(y-_minY);
             
-            Environment* E=_Env[cellIndex];
+            EnvironmentCell* E=_Env[cellIndex];
 
             //store current location in a repast structure for later use
             repast::Point<int> location(x,y);
@@ -531,7 +547,7 @@ void MadModel::step(){
     vector<Cohort*> movers;
     for(int x = _xlo; x < _xhi; x++){
         for(int y = _ylo; y < _yhi; y++){
-            Environment* E=_Env[x-_minX+(_maxX-_minX+1)*(y-_minY)];
+            EnvironmentCell* E=_Env[x-_minX+(_maxX-_minX+1)*(y-_minY)];
             repast::Point<int> location(x,y);
             std::vector<MadAgent*> agentsInCell;
             //query four neighbouring cells, distance 0 (i.e. just the centre cell) - "true" keeps the centre cell.
@@ -897,20 +913,15 @@ void MadModel::tests(){
     assert(Parameters::Get()->GetLengthUserLatitudeArray( )==_maxY-_minY+1);
     //now set up the environmental cells - note at present this uses the full grid, not just local to this thread
     //so that off-thread environment can be easily queried. Currently some duplication here, but it is not a huge amount of data.
-    _Env.resize( (_maxX-_minX+1) * (_maxY-_minY+1) );
-    for(int x=_minX;x<=_maxX;x++) {
-        for(int y=_minY;y<=_maxY;y++) {
-            Environment* E=new Environment(x,y);
-            _Env[x-_minX+(_maxX-_minX+1)*(y-_minY)]=E;
-        }
-    }
+    _Env=Environment(_minX,_maxX,_minY,_maxY);
+
     //get the definitions of stocks and cohorts
     StockDefinitions::Initialise(_props->getProperty("input.DataDirectory")+"/"+_props->getProperty("input.StockDefinitionsFileName"));
     CohortDefinitions::Initialise(_props->getProperty("input.DataDirectory")+"/"+_props->getProperty("input.CohortDefinitionsFileName"));
     int x=_xlo,y=_ylo;
     repast::Point<int> initialLocation(x,y);
     repast::Point<int> origin(_minX,_minY);
-    Environment* E=_Env[x-_minX+(_maxX-_minX+1)*(y-_minY)];
+    EnvironmentCell* E=_Env[x-_minX+(_maxX-_minX+1)*(y-_minY)];
     
     //---------------------------------------------------
     //***-------------------TEST 1-------------------***//

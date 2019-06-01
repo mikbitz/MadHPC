@@ -11,7 +11,7 @@
 
 
 #include <math.h>
-#include "Environment.h"
+#include "EnvironmentCell.h"
 #include "Stock.h"
 /** \brief Revised version of Matt Smith's terrestrial carbon model */
 class TerrestrialCarbon {
@@ -23,14 +23,14 @@ public:
     @param LocalEnvironment The current grid cell 
     @param deciduous Whether the leaves in the specified stock are deciduous 
     @return The equilibrium mass of leaves in the specified stock*/
-    double CalculateEquilibriumLeafMass( Environment* LocalEnvironment, bool );
+    double CalculateEquilibriumLeafMass( EnvironmentCell* LocalEnvironment, bool );
 
     /** \brief Update the leaf stock during a time step given the environmental conditions in the grid cell
     @param LocalEnvironment The current grid cell 
     @param actingStock The acting stock  
     @param currentTimeStep The current model time step 
     @param deciduous Whether the acting stock consists of deciduous leaves */
-    double UpdateLeafStock( Environment* , Stock* , bool deciduous );
+    double UpdateLeafStock( EnvironmentCell* , Stock* , bool deciduous );
     
 private:
     /** \brief Initialise parameters for the plant model */

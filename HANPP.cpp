@@ -18,7 +18,7 @@
     HumanAutotrophMatterAppropriation::HumanAutotrophMatterAppropriation( ) {
     }
     //----------------------------------------------------------------------------------------------
-    double HumanAutotrophMatterAppropriation::RemoveHumanAppropriatedMatter(Environment* LocalEnvironment, double NPPWetMatter,double fracBiomass,unsigned currentTimestep) {
+    double HumanAutotrophMatterAppropriation::RemoveHumanAppropriatedMatter(EnvironmentCell* LocalEnvironment, double NPPWetMatter,double fracBiomass,unsigned currentTimestep) {
         
         // Factor to convert NPP from units per m2 to units per km2
         double m2Tokm2Conversion = 1000000.0;

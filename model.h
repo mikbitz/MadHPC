@@ -14,6 +14,7 @@
 #include "repast_hpc/SharedDiscreteSpace.h"
 #include "repast_hpc/GridComponents.h"
 #include "Environment.h"
+#include "EnvironmentCell.h"
 #include "agent.h"
 
 
@@ -105,7 +106,8 @@ public:
     int _xlo,_xhi,_ylo,_yhi;
     int _noLongitudeWrap; //1 if domain does *not* span the global longitude range
     string _dispersalSelection;
-    vector<Environment*> _Env;
+    Environment _Env;
+    
 	MadModel(repast::Properties& ,  boost::mpi::communicator* comm);
 	~MadModel();
 	void init();

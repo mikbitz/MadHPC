@@ -11,7 +11,7 @@
 #ifndef AUTOTROPHPROCESSOR
 #define AUTOTROPHPROCESSOR
 
-#include "Environment.h"
+#include "EnvironmentCell.h"
 
 /** \brief Class for converting primary productivity estimates to autotroph biomass */
 class AutotrophProcessor {
@@ -22,7 +22,7 @@ public:
     /** \brief Convert NPP estimate into biomass of an autotroph stock
     @param gcl The current grid cell 
     @param actingStock The stock to add biomass to */
-    double ConvertNPPToAutotroph( Environment*);
+    double ConvertNPPToAutotroph( EnvironmentCell*);
 
     /** \brief Factor to convert phytoplankton biomass from grams carbon to grams wet weight
     @remark Currently derived from Ho et al. (2003) J. Phycol., Dalsgaard and Pauly (1997) and Strickland (1966)*/

@@ -15,7 +15,7 @@ AutotrophProcessor::AutotrophProcessor( ) {
     mMsqToKmSqConversion = 1000000;
 }
 
-double AutotrophProcessor::ConvertNPPToAutotroph( Environment* LocalEnvironment) {
+double AutotrophProcessor::ConvertNPPToAutotroph( EnvironmentCell* LocalEnvironment) {
     // Get NPP from the cell environment
     double NPP = LocalEnvironment->NPP();
     double MissingValue=-9999;

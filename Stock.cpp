@@ -13,7 +13,7 @@
 #include "Stock.h"
 #include "Cohort.h"
 
-#include "Environment.h"
+#include "EnvironmentCell.h"
 #include "AutotrophProcessor.h"
 #include "TerrestrialCarbon.h"
 #include "HANPP.h"
@@ -47,7 +47,7 @@ void Stock::PushThingsIntoPackage( AgentPackage& package ) {
 }
 //-------------------------------------------------------------------------------------------------------------------
  
-void Stock::setup(unsigned functionalGroup,Environment* LocalEnvironment){
+void Stock::setup(unsigned functionalGroup,EnvironmentCell* LocalEnvironment){
      _FunctionalGroupIndex = functionalGroup;
     // Get the individual body masses for organisms in each stock functional group
 
@@ -71,7 +71,7 @@ void Stock::setup(unsigned functionalGroup,Environment* LocalEnvironment){
 
 }
 //-------------------------------------------------------------------------------------------------------------------
-void Stock::step(double& AllBiomass,Environment* LocalEnvironment,const unsigned CurrentTimeStep) {
+void Stock::step(double& AllBiomass,EnvironmentCell* LocalEnvironment,const unsigned CurrentTimeStep) {
 
 
     if( _Marine ) {

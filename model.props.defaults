@@ -30,6 +30,9 @@ experiment.description=huh?
 #random seed broadcast to all threads
 global.random.seed = 85946
 
+
+#initial number of explicit humans
+human.count = 0
 # initial number of cohorts per functional group per cell 
 cohort.count = 10
 # stocks per cell - this will not usually need to be modified

@@ -218,7 +218,7 @@ void Cohort::ResetAccounts( ) {
 }
 //used to create an initial set of cohorts at the start of a run
 //------------------------------------------------------------------------------------------------------------
-void Cohort::setup(unsigned functionalGroup,unsigned numCohortsThisCell,Environment* e,randomizer* r){
+void Cohort::setup(unsigned functionalGroup,unsigned numCohortsThisCell,EnvironmentCell* e,randomizer* r){
     ResetAccounts( );
 
     _FunctionalGroupIndex=functionalGroup;
@@ -390,7 +390,7 @@ void Cohort::setupOffspring( Cohort* actingCohort, double juvenileBodyMass, doub
 
 }
 //------------------------------------------------------------------------------------------------------------
-void Cohort::step(Environment* e,vector<Cohort*>& preys,vector<Stock*>& stocks,const unsigned Timestep,MadModel* m) {
+void Cohort::step(EnvironmentCell* e,vector<Cohort*>& preys,vector<Stock*>& stocks,const unsigned Timestep,MadModel* m) {
     _newH=NULL;//make sure the reproduction pointer has been zeroed out
 
     if (_CohortAbundance - Parameters::Get( )->GetExtinctionThreshold( ) <= 0)return;
@@ -418,7 +418,7 @@ void Cohort::markForDeath(){
     }
 }
 //------------------------------------------------------------------------------------------------------------
-void Cohort::moveIt(Environment* e,MadModel* m){
+void Cohort::moveIt(EnvironmentCell* e,MadModel* m){
 
         _moved=false;
 
@@ -506,7 +506,7 @@ void Cohort::moveIt(Environment* e,MadModel* m){
       
 }
 //------------------------------------------------------------------------------------------------------------
-void Cohort::TryToDisperse(double dispersalSpeed, Environment* e,MadModel* m){
+void Cohort::TryToDisperse(double dispersalSpeed, EnvironmentCell* e,MadModel* m){
     double randomDirection = repast::Random::instance()->nextDouble()* 2 * _Pi;
 
     // Calculate the u and v components given the dispersal speed
@@ -515,7 +515,7 @@ void Cohort::TryToDisperse(double dispersalSpeed, Environment* e,MadModel* m){
     TryToDisperse(uSpeed, vSpeed,e,m);
  }
   //------------------------------------------------------------------------------------------------------------
-void Cohort::TryToDisperse(double uSpeed, double vSpeed,Environment* e, MadModel* m){
+void Cohort::TryToDisperse(double uSpeed, double vSpeed,EnvironmentCell* e, MadModel* m){
 
       vector<double> uv={0,0};//default to no dispersal
       if (m->_dispersalSelection=="probabilistic") uv=dProb  (uSpeed,vSpeed,e);
@@ -537,7 +537,7 @@ void Cohort::TryToDisperse(double uSpeed, double vSpeed,Environment* e, MadModel
      int xw=floor(x+signu);
      if (yw >= m->_minY && yw <= m->_maxY){
          if (xw >= m->_minX && xw <= m->_maxX) {
-           Environment* E=m->_Env[xw - m->_minX + (m->_maxX - m->_minX + 1)*(yw - m->_minY)];     // get environment of destination cell
+           EnvironmentCell* E=m->_Env[xw - m->_minX + (m->_maxX - m->_minX + 1)*(yw - m->_minY)];     // get environment of destination cell
            if (E->_Realm==_Realm || _Realm=="all"){// no movement if wrong realm at destination
                _destination[0]=x+signu;_destination[1]=y+signv;
                if (xw!=floor(_location[0]) || yw!=floor(_location[1]))_moved=true;//special treatment needed if we have changed cell
@@ -546,7 +546,7 @@ void Cohort::TryToDisperse(double uSpeed, double vSpeed,Environment* e, MadModel
      } 
    }
 //------------------------------------------------------------------------------------------------------------
- vector<double> Cohort::dProb(double uSpeed, double vSpeed,Environment* e){
+ vector<double> Cohort::dProb(double uSpeed, double vSpeed,EnvironmentCell* e){
      //original madingely model dispersal when cohorts are only able to be present at fixed integer cell co-ordinates
     double latCellLength = e->Height();
     double lonCellLength = e->Width();
@@ -593,7 +593,7 @@ void Cohort::TryToDisperse(double uSpeed, double vSpeed,Environment* e, MadModel
    return vector<double>({signu,signv});
  }
 //------------------------------------------------------------------------------------------------------------
- vector<double> Cohort::dDirect(double uSpeed, double vSpeed,Environment* e){
+ vector<double> Cohort::dDirect(double uSpeed, double vSpeed,EnvironmentCell* e){
     //dispersal where cohorts can take on fractional cell co-ordinates
     //this is *required* when cross-cell interaction becomes important
     // Calculate the fraction of the grid cell in the u direction 
@@ -604,7 +604,7 @@ void Cohort::TryToDisperse(double uSpeed, double vSpeed,Environment* e, MadModel
     return vector<double>({ufrac,vfrac});
  }
 //------------------------------------------------------------------------------------------------------------
-void Cohort::assignTimeActive(Environment* e){
+void Cohort::assignTimeActive(EnvironmentCell* e){
 
     double WarmingTolerance = 0;
     double ThermalSafetyMargin = 0;
@@ -680,10 +680,10 @@ double Cohort::distance(MadAgent* a1, MadAgent* a2,MadModel* m){
     double wrappedDistX=abs(a1->_location[0]-a2->_location[0]);
     if (!m->_noLongitudeWrap)wrappedDistX=min(wrappedDistX,(m->_maxX - m->_minX+1)-wrappedDistX);
     return max(wrappedDistX,abs( a1->_location[1] - a2->_location[1]));
-    //return sqrt( wrappedDistX*wrappedDistX  +  ( a1->_location[1] - a2->_location[1])*( a1->_location[1] - a2->_location[1]) );
+    //return sqrt( wrappedDistX*wrappedDistX  +  ( a1->_location[1] - a2->_location[1])*( a1->_location[1] - a2->_location[1]) );//should use proper spherical distance, but needs to be <= cell size.
 }
 //------------------------------------------------------------------------------------------------------------
-void Cohort::eat(Environment* e,vector<Cohort*>& preys,vector<Stock*>& stocks,MadModel* m){
+void Cohort::eat(EnvironmentCell* e,vector<Cohort*>& preys,vector<Stock*>& stocks,MadModel* m){
     
     double  PotentialBiomassEaten=0.,HandlingTime=0.,HandlingTimeScaled=0.,BiomassesEaten=0.,IndividualHerbivoryRate=0.;
     double edibleFraction=0,AttackRateExponent=0, HandlingTimeExponent=0,HandlingTimeScalar=0;
@@ -852,7 +852,7 @@ void Cohort::eat(Environment* e,vector<Cohort*>& preys,vector<Stock*>& stocks,Ma
 
 }
 //------------------------------------------------------------------------------------------------------------
-void Cohort::metabolize(Environment* e){
+void Cohort::metabolize(EnvironmentCell* e){
     if (_Ectotherm){
     
 
@@ -897,7 +897,7 @@ void Cohort::metabolize(Environment* e){
     //heterotroph - in the original model but not used */
 }
 //------------------------------------------------------------------------------------------------------------
-void Cohort::reproduce(Environment* e){
+void Cohort::reproduce(EnvironmentCell* e){
     _newH=NULL;//memory allocation for new cohorts is dealt with via the model list of agents 
     // Biomass per individual in each cohort to be assigned to reproductive potential
     double BiomassToAssignToReproductivePotential;
@@ -941,7 +941,7 @@ void Cohort::reproduce(Environment* e){
     // due to other ecological processes
 
     const std:: string _TimeUnitImplementation = "month";
-    // Calculate the scalar to convert from the time step units used by this implementation of dispersal to the global model time step units
+    // Calculate the scalar to convert from the time step units used by this implementation to the global model time step units
     double DeltaT = Constants::cMonth;
 
     // Adult non-reproductive biomass lost by semelparous organisms
@@ -1150,7 +1150,7 @@ void Cohort::mort(){
     _Accounting["organicpool"]["mortality"] = ( 1 - MortalityTotal ) * _CohortAbundance * ( BodyMassIncludingChangeThisTimeStep + ReproductiveMassIncludingChangeThisTimeStep );
 }
 //------------------------------------------------------------------------------------------------------------
-void Cohort::applyEcology(Environment* e){
+void Cohort::applyEcology(EnvironmentCell* e){
     // Variable to calculate net abundance change to check that cohort abundance will not become negative
     double NetAbundanceChange = 0.0;
     // Loop over all abundance deltas
@@ -1237,7 +1237,7 @@ void Cohort::applyEcology(Environment* e){
 }
 //------------------------------------------------------------------------------------------------------------
 
-void Cohort::updatePools( Environment* e) {
+void Cohort::updatePools( EnvironmentCell* e) {
     // Loop over all keys in the organic pool deltas sorted list
     for( auto &D: _Accounting["organicpool"] ) {
         // Check that the delta value is not negative
