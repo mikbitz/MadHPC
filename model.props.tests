@@ -71,11 +71,15 @@ input.EnvironmentVariablesFile= EnvironmentalDataLayers.csv
 simulation.RootDataDirectory=./MadingleyData-master/
 
 #model run time
-#if stop.at is present, it gives the number of model time step to run
-#otherwise this value is deduced from the simulation length in years and the timstepunit (currently always assumed to be month!)
-stop.at = 3
+
 simulation.TimeStepUnits             =  month
-simulation.LengthOfSimulationInYears =  10
+#Length of a timestep in above units - if not set this defaults to 1
+simulation.TimeStepLength            =  1
+#length of simulation in above units (e.g number of days: NB at present Environmental DATA is assumed to be monthly, irrespective of simulation timestep)
+simulation.LengthOfSimulation        =  12
+#NB command line values of RepastHPC parameter stop.at can be used to change this on the command line, or here, to an explicit number of steps
+#this overrides length of simulation above.
+#stop.at = 10
 
 #NB movement will (only) be wrapped in longitude if (minLon-maxLon) mod 360==0 exactly.
 #Currently max and min lat must be away from the poles (no code for cross-polar movement)
@@ -83,7 +87,7 @@ simulation.minimumLongitude          = -180
 simulation.maximumLongitude          =  180
 simulation.minimumLatitude           = -65
 simulation.maximumLatitude           =  65 
-simulation.GridCellSize              =  10
+simulation.GridCellSize              =  2
 
 simulation.ExtinctionThreshold       =   1
 simulation.MaximumNumberOfCohorts    =  100
@@ -99,16 +103,17 @@ simulation.RecoverySteps             =  0
 
 #running without cross-grid cell predation or herbivory, and is faster, but less accurate
 #if interaction is set to true, the size of the "haloe" area around each subsection of the grid 
-#for communication across threads will be set to 2: this leads to quite a bit of extra (necessary) copying across threads 
+#for communication across threads will be set to 2: this leads to quite a bit of extra (necessary) copying across threads
+#setting true here needs at least 8 cores at present
 
-simulation.CrossCellInteraction      =  true
+simulation.CrossCellInteraction      =  false
 
 #useful values here are direct or probabilistic - other values will lead to no dispersal
 #direct dispersal allows cohorts to move arbitrary fractions of a cell
 #probabilistic leads to cohorts being placed at integer cell coordinates
 #when allowing cross cell interaction, direct dispersal is required and will override probabilistic
 
-simulation.DispersalSelection        = direct
+simulation.DispersalSelection        = probabilistic
 
 #Shared constants for Cohorts not otherwise defined in the functional group
 #Herbivores

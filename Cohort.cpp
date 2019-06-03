@@ -51,9 +51,9 @@ using namespace repast;
     double Cohort::_AdvectiveModelTimeStepLengthHours           = 18;
     double Cohort::_HorizontalDiffusivityKmSqPerADTimeStep      = _HorizontalDiffusivity / ( 1000 * 1000 ) * 60 * 60 * _AdvectiveModelTimeStepLengthHours;
     // Initialise the advective dispersal temporal scaling to adjust between time steps appropriately
-    double Cohort::_AdvectionTimeStepsPerModelTimeStep          = Constants::cDay * 24 / _AdvectiveModelTimeStepLengthHours;
+    double Cohort::_AdvectionTimeStepsPerModelTimeStep          = Parameters::Get()->DaysPerTimeStep() * 24 / _AdvectiveModelTimeStepLengthHours;
     // Convert velocity from m/s to km/month. Note that if the _TimeUnitImplementation changes, this will also have to change.
-    double Cohort::_VelocityUnitConversion                      = 60 * 60 * 24 * Constants::cDay * Constants::cMonth  / 1000;
+    double Cohort::_VelocityUnitConversion                      = 60 * 60 * 24 * Parameters::Get()->DaysPerTimeStep() * Parameters::Get()->MonthsPerTimeStep()  / 1000;
     //responsive dispersal
     double Cohort::_DensityThresholdScaling                     = 50000;
     double Cohort::_StarvationDispersalBodyMassThreshold        = 0.8;
@@ -145,9 +145,9 @@ void Cohort::setParameters(repast::Properties* props){
      _AdvectiveModelTimeStepLengthHours           = repast::strToDouble(props->getProperty("CohortParameters.AdvectiveModelTimeStepLengthHours"));
      _HorizontalDiffusivityKmSqPerADTimeStep      = _HorizontalDiffusivity / ( 1000 * 1000 ) * 60 * 60 * _AdvectiveModelTimeStepLengthHours;
      // Initialise the advective dispersal temporal scaling to adjust between time steps appropriately
-     _AdvectionTimeStepsPerModelTimeStep          = Constants::cDay * 24 / _AdvectiveModelTimeStepLengthHours;
+     _AdvectionTimeStepsPerModelTimeStep          = Parameters::Get()->DaysPerTimeStep() * 24 / _AdvectiveModelTimeStepLengthHours;
      // Convert velocity from m/s to km/month. Note that if the _TimeUnitImplementation changes, this will also have to change.
-     _VelocityUnitConversion                      = 60 * 60 * 24 * Constants::cDay * Constants::cMonth  / 1000; 
+     _VelocityUnitConversion                      = 60 * 60 * 24 * Parameters::Get()->DaysPerTimeStep() * Parameters::Get()->MonthsPerTimeStep()  / 1000; 
      _DensityThresholdScaling                     = repast::strToDouble(props->getProperty("CohortParameters.DensityThresholdScaling"));
      _StarvationDispersalBodyMassThreshold        = repast::strToDouble(props->getProperty("CohortParameters.StarvationDispersalBodyMassThreshold"));
 
@@ -426,7 +426,7 @@ void Cohort::moveIt(EnvironmentCell* e,MadModel* m){
         _destination=_location;
         vector<int> movement={0,0};
        // Calculate the scalar to convert from the time step units used by this implementation of dispersal to the global model time step units
-        double DeltaT = Constants::cMonth;
+        double DeltaT = Parameters::Get()->MonthsPerTimeStep();
         double CellArea      = e->Area();
 
         
@@ -687,7 +687,7 @@ void Cohort::eat(EnvironmentCell* e,vector<Cohort*>& preys,vector<Stock*>& stock
     
     double  PotentialBiomassEaten=0.,HandlingTime=0.,HandlingTimeScaled=0.,BiomassesEaten=0.,IndividualHerbivoryRate=0.;
     double edibleFraction=0,AttackRateExponent=0, HandlingTimeExponent=0,HandlingTimeScalar=0;
-    double _DaysInATimeStep=Constants::cDay;
+    double _DaysInATimeStep=Parameters::Get()->DaysPerTimeStep();
     double PredatorAbundanceMultipliedByTimeEating=0;
     double CellAreaHectares=e->Area() * _CellAreaToHectares;
 
@@ -807,7 +807,7 @@ void Cohort::eat(EnvironmentCell* e,vector<Cohort*>& preys,vector<Stock*>& stock
               PotentialBiomassEaten               = IndividualHerbivoryRate   * pow( (stock->_TotalBiomass*edibleFraction) / CellAreaHectares, AttackRateExponent );
               EdibleMass                          = stock->_TotalBiomass*edibleFraction;
               InstantFractionEaten                = _CohortAbundance * ( ( PotentialBiomassEaten / ( 1 + HandlingTime ) ) / EdibleMass );
-              BiomassesEaten                      = EdibleMass * ( 1 - exp( -InstantFractionEaten * Constants::cDay*_ProportionTimeActive ) ); // should be min(stock._TotalBiomass,...)
+              BiomassesEaten                      = EdibleMass * ( 1 - exp( -InstantFractionEaten * Parameters::Get()->DaysPerTimeStep()*_ProportionTimeActive ) ); // should be min(stock._TotalBiomass,...)
               stock->_TotalBiomass               = stock->_TotalBiomass - BiomassesEaten;
             } 
 
@@ -857,7 +857,7 @@ void Cohort::metabolize(EnvironmentCell* e){
     
 
     // Calculate the scalar to convert from the time step units used by this implementation of metabolism to the global  model time step units
-    double DeltaT = Constants::cDay;
+    double DeltaT = Parameters::Get()->DaysPerTimeStep();
     double temperature=e->Temperature() + _TemperatureUnitsConvert;
     bool ProportionTimeActiveCalculatedThisTimestep = false;
     double FieldMetabolicLosskJ = _NormalizationConstantEcto    * pow( _IndividualBodyMass, _MetabolismMassExponentEcto )      * exp( -( _ActivationEnergyEcto / ( _BoltzmannConstant * temperature ) ) );
@@ -880,7 +880,7 @@ void Cohort::metabolize(EnvironmentCell* e){
     // Assume all endotherms have a constant body temperature of 37degC
     double EndothermBodyTemperature = 37.0 + _TemperatureUnitsConvert;
     // Calculate the scalar to convert from the time step units used by this implementation of metabolism to the global  model time step units
-    double DeltaT = Constants::cDay;
+    double DeltaT = Parameters::Get()->DaysPerTimeStep();
     // Calculate metabolic loss in kJ
     double metabolicLosskJ = _NormalizationConstantEndo * pow( _IndividualBodyMass, _MetabolismMassExponentEndo ) * exp( -( _ActivationEnergyEndo / ( _BoltzmannConstant * EndothermBodyTemperature ) ) );
     // metabolic loss in grams
@@ -942,7 +942,7 @@ void Cohort::reproduce(EnvironmentCell* e){
 
     const std:: string _TimeUnitImplementation = "month";
     // Calculate the scalar to convert from the time step units used by this implementation to the global model time step units
-    double DeltaT = Constants::cMonth;
+    double DeltaT = Parameters::Get()->MonthsPerTimeStep();
 
     // Adult non-reproductive biomass lost by semelparous organisms
     double adultMassLost;
@@ -1085,7 +1085,7 @@ void Cohort::mort(){
     }
     std::string TimeUnitImplementation = "Day";
     // Calculate the scalar to convert from the time step units used by this implementation of mortality to the global model time step units
-    double DeltaT = Constants::cDay;
+    double DeltaT = Parameters::Get()->DaysPerTimeStep();
     
     
     ReproductiveMassIncludingChangeThisTimeStep += _IndividualReproductivePotentialMass;

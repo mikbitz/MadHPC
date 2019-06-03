@@ -32,5 +32,8 @@ Environment::Environment(int minX,int maxX,int minY,int maxY) {
     }
 }
 
+void Environment::update(unsigned CurrentTimeStep){
+  TimeStep::Get( )->SetMonthly( CurrentTimeStep*Parameters::Get()->MonthsPerTimeStep());
+}
 
 

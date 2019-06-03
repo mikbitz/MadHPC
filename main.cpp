@@ -108,6 +108,7 @@ int main(int argc, char **argv) {
     if (props.getProperty("simulation.CrossCellInteraction")=="true"){
         props.putProperty("grid.buffer",2);
         props.putProperty("simulation.DispersalSelection","direct");
+        if (world.rank()==0 && world.size()<8) {cout<<"\n *********** Cross cell interaction currently requires at least 8 cores ***********"<<endl; exit(1);}
     }
   //initialise parameters and read datafiles
   //data will be held in a singleton for later use
@@ -119,7 +120,7 @@ int main(int argc, char **argv) {
   props.putProperty("date_time.run", time);
 
   props.putProperty("process.count", world.size());
-  props.putProperty ("code.version","04_2019_v0.21");
+  props.putProperty ("code.version","06_2019_v0.22");
   if(world.rank() == 0) std::cout << " Starting... " << std::endl;
 
   //initialize default random number generator

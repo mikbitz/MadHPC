@@ -21,7 +21,7 @@ public:
     Environment(int,int,int,int);
 	~Environment() {}
 	EnvironmentCell* operator[](unsigned i){assert(i<_Cells.size());return _Cells[i];}
-    void update(unsigned CurrentTimeStep){TimeStep::Get( )->SetMonthly( CurrentTimeStep);}
+    void update(unsigned );
 private:
 
 std::vector<EnvironmentCell*> _Cells;

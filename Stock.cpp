@@ -18,6 +18,7 @@
 #include "TerrestrialCarbon.h"
 #include "HANPP.h"
 #include "Groups.h"
+#include "Parameters.h"
 
 //------------------------------------------------------------------------------------------------------------
 //Required by RHPC for cross-core copy 
@@ -78,7 +79,7 @@ void Stock::step(double& AllBiomass,EnvironmentCell* LocalEnvironment,const unsi
         AutotrophProcessor A;
         double NPP=A.ConvertNPPToAutotroph(LocalEnvironment);
 
-        _TotalBiomass += NPP*Constants::cDay;
+        _TotalBiomass += NPP*Parameters::Get()->DaysPerTimeStep();
 
         // If the biomass of the autotroph stock has been made less than zero (i.e. because of negative NPP) then reset to zero
         if( _TotalBiomass < 0.0 ) _TotalBiomass = 0.0;

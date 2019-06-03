@@ -37,8 +37,9 @@ Parameters::Parameters( ) {
 bool Parameters::Initialise( repast::Properties& props ) {
     bool success=false;
     try {
-        
-        SetLengthOfSimulationInMonths(repast::strToDouble(props.getProperty("simulation.LengthOfSimulationInYears")));
+        SetTimeStepUnits             (                    props.getProperty("simulation.TimeStepUnits"));
+        SetLengthOfSimulation        (repast::strToDouble(props.getProperty("simulation.LengthOfSimulation")));
+        SetTimeStepLength            (                   (props.getProperty("simulation.TimeStepLength")));
         SetUserMinimumLongitude      (repast::strToDouble(props.getProperty("simulation.minimumLongitude")));
         SetUserMaximumLongitude      (repast::strToDouble(props.getProperty("simulation.maximumLongitude")));
         SetUserMinimumLatitude       (repast::strToDouble(props.getProperty("simulation.minimumLatitude")));
@@ -55,19 +56,26 @@ bool Parameters::Initialise( repast::Properties& props ) {
         SetDrawRandomly              (                    props.getProperty("simulation.DrawRandomly"));
         SetHumanNPPScenarioType      (                    props.getProperty("simulation.HumanNPPScenarioType"));
         SetRootDataDirectory         (                    props.getProperty("simulation.RootDataDirectory"));
-        SetTimeStepUnits             (                    props.getProperty("simulation.TimeStepUnits"));
 
+        std::map<std::string,double>t;
+        t["second"]=1./24/3600;
+        t["minute"]=1./24/60;
+        t["hour"]=1./24;
+        t["day"]=1;
+        t["month"]=30;
+        t["year"]=12*30;
+
+        //in Repast you can use stop.at onthe command line model.props to determine run-length of simulation 
+        if (props.getProperty("stop.at").length()==0)
+            props.putProperty("stop.at",unsigned(mLengthOfSimulation/mTimeStepLength));
+        else
+            SetLengthOfSimulation(repast::strToInt(props.getProperty("stop.at")));
         
-        //assume timestep is a month consistent with below!
-        //stop.at may be used in determining the number of model timesteps to run for
-        if (props.getProperty("stop.at").length()==0){
-            props.putProperty("stop.at",unsigned(mLengthOfSimulationInYears * 12));
-        }else{
-            mLengthOfSimulationInMonths=repast::strToInt(props.getProperty("stop.at"));
-            mLengthOfSimulationInYears=repast::strToInt(props.getProperty("stop.at"))/12;
-        }
-        
-        
+        //legacy values needed because data reading all assumes timesteps must be months
+        SetLengthOfSimulationInYears (mLengthOfSimulation/t["year"] *t[mTimeStepUnits]);
+        SetLengthOfSimulationInMonths(mLengthOfSimulation/t["month"]*t[mTimeStepUnits]);
+
+        SetMonthsPerTimeStep(t[mTimeStepUnits]/t["month"]*mTimeStepLength);
         
         CalculateParameters( );
         //throw "Parameters.cpp: Something bad happened when trying to read or calculate input parameters: check the model.props file? Can't continue. Exiting...";
@@ -156,6 +164,21 @@ void Parameters::CalculateParameters( ) {
     }
 }
 
+void Parameters::SetTimeStepLength( const std::string& lengthString){
+    if (lengthString.length()==0)
+        mTimeStepLength=1;
+    else
+       mTimeStepLength=repast::strToDouble(lengthString); 
+}
+void Parameters::SetMonthsPerTimeStep(float monthsPerTimeStep){
+    mMonthsPerTimeStep=monthsPerTimeStep;
+}
+float Parameters::MonthsPerTimeStep( ) const {
+    return mMonthsPerTimeStep;
+}
+float Parameters::DaysPerTimeStep() const{
+    return 30./mMonthsPerTimeStep;
+}
 std::string Parameters::GetRootDataDirectory( ) const {
     return mRootDataDirectory;
 }
@@ -231,11 +254,14 @@ void Parameters::SetRootDataDirectory( const std::string& rootDataDirectory ) {
 void Parameters::SetTimeStepUnits( const std::string& timeStepUnits ) {
     mTimeStepUnits = timeStepUnits;
 }
-
-void Parameters::SetLengthOfSimulationInMonths( const unsigned& lengthOfSimulationInYears ) {
+void Parameters::SetLengthOfSimulation( const unsigned& lengthOfSimulation ) {
+    mLengthOfSimulation = lengthOfSimulation;
+}
+void Parameters::SetLengthOfSimulationInYears( const unsigned& lengthOfSimulationInYears ) {
     mLengthOfSimulationInYears = lengthOfSimulationInYears;
-    // Calculate temporal parameters - there's something of an assumption the timestep is a month!!
-    mLengthOfSimulationInMonths = mLengthOfSimulationInYears * 12;
+}
+void Parameters::SetLengthOfSimulationInMonths( const unsigned& lengthOfSimulationInMonths ) {
+    mLengthOfSimulationInMonths = lengthOfSimulationInMonths;
 }
 
 void Parameters::SetUserMinimumLongitude( const int& userMinimumLongitude ) {

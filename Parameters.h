@@ -31,9 +31,14 @@ public:
     unsigned GetBurninSteps( ) const;
     unsigned GetImpactSteps( ) const;
     unsigned GetRecoverySteps( ) const;
-        
+    float MonthsPerTimeStep() const;
+    float DaysPerTimeStep() const;   
     void SetRootDataDirectory( const std::string& );
     void SetTimeStepUnits( const std::string& );
+    void SetTimeStepLength( const std::string& );
+    void SetMonthsPerTimeStep(float);
+    void SetLengthOfSimulation( const unsigned& );
+    void SetLengthOfSimulationInYears( const unsigned& );
     void SetLengthOfSimulationInMonths( const unsigned& );
     void SetUserMinimumLongitude( const int& );
     void SetUserMaximumLongitude( const int& );
@@ -92,7 +97,7 @@ private:
     // User defined parameters
     std::string mRootDataDirectory;
     std::string mTimeStepUnits;
-    unsigned mLengthOfSimulationInYears;
+    float mTimeStepLength;
     int mUserMinimumLongitude;
     int mUserMaximumLongitude;
     int mUserMinimumLatitude;
@@ -106,11 +111,14 @@ private:
     std::string mHumanNPPScenarioType;
     double mHumanNPPExtractionScale;
     double mHumanNPPScenarioDuration;
+    float mMonthsPerTimeStep;
     unsigned mBurninSteps;
     unsigned mImpactSteps;
     unsigned mRecoverySteps;
     // Calculated parameters
     unsigned mLengthOfSimulationInMonths;
+    unsigned mLengthOfSimulationInYears;
+    unsigned mLengthOfSimulation;
     unsigned mNumberOfGridCells;
     unsigned mLengthDataLongitudeArray;
     unsigned mLengthDataLatitudeArray;

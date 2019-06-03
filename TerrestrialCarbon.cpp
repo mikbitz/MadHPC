@@ -6,8 +6,8 @@
  *  Derived from Origianl C# code by
  * Emergent Global Patterns of Ecosystem Structure and Function from a Mechanistic General Ecosystem Model , Michael B. J. Harfoot , Tim Newbold, Derek P. Tittensor,  Stephen Emmott, Jon Hutton, Vassily Lyutsarev, Matthew J. Smith, Jörn P. W. Scharlemann, Drew W. Purves PLOS Biology 12(4) 2014 e1001841 https://doi.org/10.1371/journal.pbio.1001841
  */
- #include "TerrestrialCarbon.h"
-
+#include "TerrestrialCarbon.h"
+#include "Parameters.h"
 
 TerrestrialCarbon::TerrestrialCarbon( ) {
     // Initialise parameters
@@ -146,7 +146,7 @@ double TerrestrialCarbon::UpdateLeafStock( EnvironmentCell* LocalEnvironment, St
         // For deciduous plants monthly leaf mortality is weighted by temperature deviance from the average, to capture seasonal patterns
         double Weight = LocalEnvironment->ExpTDevWeight();
         MonthlyLeafMortRate = AnnualLeafMortRate * Weight;
-        TimeStepLeafMortRate = MonthlyLeafMortRate * Constants::cMonth;
+        TimeStepLeafMortRate = MonthlyLeafMortRate * Parameters::Get()->MonthsPerTimeStep();
 
     } else {
         // Calculate annual evergreen leaf mortality
@@ -154,7 +154,7 @@ double TerrestrialCarbon::UpdateLeafStock( EnvironmentCell* LocalEnvironment, St
 
         // For evergreen plants, leaf mortality is assumed to be equal throughout the year
         MonthlyLeafMortRate = AnnualLeafMortRate * ( 1.0 / 12.0 );
-        TimeStepLeafMortRate = MonthlyLeafMortRate * Constants::cMonth;;
+        TimeStepLeafMortRate = MonthlyLeafMortRate * Parameters::Get()->MonthsPerTimeStep();;
     }
 
     // Calculate fine root mortality rate
@@ -188,7 +188,7 @@ double TerrestrialCarbon::UpdateLeafStock( EnvironmentCell* LocalEnvironment, St
     // Convert from carbon to leaf wet matter
     double WetMatterIncrement = ConvertToLeafWetMass( LeafCFixation, LocalEnvironment->Area() );
     // Convert from the monthly time step used for this process to the global model time step unit
-    WetMatterIncrement *= Constants::cMonth;
+    WetMatterIncrement *= Parameters::Get()->MonthsPerTimeStep();
 
     // Add the leaf wet matter to the acting stock - this line has been change in the latest version!
     // actingStock.TotalBiomass += max( -actingStock.TotalBiomass, WetMatterIncrement );
