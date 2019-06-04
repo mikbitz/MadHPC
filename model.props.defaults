@@ -71,7 +71,7 @@ input.EnvironmentVariablesFile= EnvironmentalDataLayers.csv
 simulation.RootDataDirectory=./MadingleyData-master/
 
 #model run time
-
+#allowed values for TimeStepUints are second,minute,hour,day,month or year
 simulation.TimeStepUnits             =  day
 #Length of a timestep in above units - if not set this defaults to 1
 simulation.TimeStepLength            =  15

@@ -71,15 +71,15 @@ input.EnvironmentVariablesFile= EnvironmentalDataLayers.csv
 simulation.RootDataDirectory=./MadingleyData-master/
 
 #model run time
-
+#allowed values for TimeStepUints are second,minute,hour,day,month or year
 simulation.TimeStepUnits             =  month
 #Length of a timestep in above units - if not set this defaults to 1
-simulation.TimeStepLength            =  1
+simulation.TimeStepLength            =  15
 #length of simulation in above units (e.g number of days: NB at present Environmental DATA is assumed to be monthly, irrespective of simulation timestep)
-simulation.LengthOfSimulation        =  12
+simulation.LengthOfSimulation        =  100
 #NB command line values of RepastHPC parameter stop.at can be used to change this on the command line, or here, to an explicit number of steps
 #this overrides length of simulation above.
-#stop.at = 10
+stop.at = 1
 
 #NB movement will (only) be wrapped in longitude if (minLon-maxLon) mod 360==0 exactly.
 #Currently max and min lat must be away from the poles (no code for cross-polar movement)
@@ -87,7 +87,7 @@ simulation.minimumLongitude          = -180
 simulation.maximumLongitude          =  180
 simulation.minimumLatitude           = -65
 simulation.maximumLatitude           =  65 
-simulation.GridCellSize              =  2
+simulation.GridCellSize              =  10
 
 simulation.ExtinctionThreshold       =   1
 simulation.MaximumNumberOfCohorts    =  100

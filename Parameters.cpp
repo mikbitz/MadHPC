@@ -64,7 +64,7 @@ bool Parameters::Initialise( repast::Properties& props ) {
         t["day"]=1;
         t["month"]=30;
         t["year"]=12*30;
-
+        assert(mTimeStepUnits=="second" || mTimeStepUnits=="minute" || mTimeStepUnits=="hour" || mTimeStepUnits=="day" || mTimeStepUnits=="month" || mTimeStepUnits=="year");
         //in Repast you can use stop.at onthe command line model.props to determine run-length of simulation 
         if (props.getProperty("stop.at").length()==0)
             props.putProperty("stop.at",unsigned(mLengthOfSimulation/mTimeStepLength));
