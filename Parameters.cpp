@@ -177,7 +177,7 @@ float Parameters::MonthsPerTimeStep( ) const {
     return mMonthsPerTimeStep;
 }
 float Parameters::DaysPerTimeStep() const{
-    return 30./mMonthsPerTimeStep;
+    return 30.*mMonthsPerTimeStep;
 }
 std::string Parameters::GetRootDataDirectory( ) const {
     return mRootDataDirectory;
