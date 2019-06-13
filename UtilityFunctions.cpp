@@ -115,7 +115,18 @@ double UtilityFunctions::CalculateLengthOfDegreeLongitude( float latitude ) {
     // Length of longitude (km)
     return PI / 180 * cos( latitudeRad ) * NPhi / 1000;
 }
-
+double UtilityFunctions::HaversineDistance(double lon1,double lat1,double lon2,double lat2){
+    //inputs in degrees.
+    //approximate distance between two points
+    //more accurate version would use something like Vincenty's method
+    double phi1=DegreesToRadians( lat1 );
+    double phi2=DegreesToRadians( lat2 );
+    double lam1=DegreesToRadians( lon1 );
+    double lam2=DegreesToRadians( lon2 );
+    double r=(6378137+6356752.3142)/2./1000.; //value in km, assuming a sphere
+    //use min function to ensure sqrt argument doesn't try to exceed 1
+    return 2 * r * asin( sqrt( min( 1., ( pow( sin( (phi2-phi1)/2 ), 2 ) + cos(phi1) * cos(phi2) * pow( sin( (lam2-lam1)/2 ),2 ) ) ) ) );
+}
 double UtilityFunctions::DegreesToRadians( double degrees ) {
     const double PI = acos( -1. );
     return (degrees * PI / 180.0 );

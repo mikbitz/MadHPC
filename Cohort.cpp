@@ -17,6 +17,7 @@
 #include "Cohort.h"
 #include "Stock.h"
 #include "Parameters.h"
+#include "UtilityFunctions.h"
 #include "model.h"
 
 using namespace repast;
@@ -52,8 +53,8 @@ using namespace repast;
     double Cohort::_HorizontalDiffusivityKmSqPerADTimeStep      = _HorizontalDiffusivity / ( 1000 * 1000 ) * 60 * 60 * _AdvectiveModelTimeStepLengthHours;
     // Initialise the advective dispersal temporal scaling to adjust between time steps appropriately
     double Cohort::_AdvectionTimeStepsPerModelTimeStep          = Parameters::Get()->DaysPerTimeStep() * 24 / _AdvectiveModelTimeStepLengthHours;
-    // Convert velocity from m/s to km/month. Note that if the _TimeUnitImplementation changes, this will also have to change.
-    double Cohort::_VelocityUnitConversion                      = 60 * 60 * 24 * Parameters::Get()->DaysPerTimeStep() * Parameters::Get()->MonthsPerTimeStep()  / 1000;
+    // Convert velocity from m/s to km/month. Assumes this is the correct scale factor for the velocity files!
+    double Cohort::_VelocityUnitConversion                      = 60 * 60 * 24 * 30  / 1000;
     //responsive dispersal
     double Cohort::_DensityThresholdScaling                     = 50000;
     double Cohort::_StarvationDispersalBodyMassThreshold        = 0.8;
@@ -146,8 +147,8 @@ void Cohort::setParameters(repast::Properties* props){
      _HorizontalDiffusivityKmSqPerADTimeStep      = _HorizontalDiffusivity / ( 1000 * 1000 ) * 60 * 60 * _AdvectiveModelTimeStepLengthHours;
      // Initialise the advective dispersal temporal scaling to adjust between time steps appropriately
      _AdvectionTimeStepsPerModelTimeStep          = Parameters::Get()->DaysPerTimeStep() * 24 / _AdvectiveModelTimeStepLengthHours;
-     // Convert velocity from m/s to km/month. Note that if the _TimeUnitImplementation changes, this will also have to change.
-     _VelocityUnitConversion                      = 60 * 60 * 24 * Parameters::Get()->DaysPerTimeStep() * Parameters::Get()->MonthsPerTimeStep()  / 1000; 
+     // Convert velocity from m/s to km/month. 
+     _VelocityUnitConversion                      = 60 * 60 * 24 * 30 / 1000; 
      _DensityThresholdScaling                     = repast::strToDouble(props->getProperty("CohortParameters.DensityThresholdScaling"));
      _StarvationDispersalBodyMassThreshold        = repast::strToDouble(props->getProperty("CohortParameters.StarvationDispersalBodyMassThreshold"));
 
@@ -421,7 +422,6 @@ void Cohort::markForDeath(){
 void Cohort::moveIt(EnvironmentCell* e,MadModel* m){
 
         _moved=false;
-
         if (!_alive)return;
         _destination=_location;
         vector<int> movement={0,0};
@@ -446,10 +446,10 @@ void Cohort::moveIt(EnvironmentCell* e,MadModel* m){
 
             // Note that this formulation drops the delta t because we set the horizontal diffusivity to be at the same temporal scale as the time step
             
-            // Calculate the distance travelled in this dispersal (not global) time step. both advective and diffusive speeds need to have been converted to km / advective model time step
-            //assuming timestep=1 month
-            double uSpeed = uAdvectiveSpeed * _VelocityUnitConversion / _AdvectionTimeStepsPerModelTimeStep + NJ.next() * sqrt( ( 2.0 * _HorizontalDiffusivityKmSqPerADTimeStep ) );
-            double vSpeed = vAdvectiveSpeed * _VelocityUnitConversion / _AdvectionTimeStepsPerModelTimeStep + NJ.next() * sqrt( ( 2.0 * _HorizontalDiffusivityKmSqPerADTimeStep ) );
+            // Calculate the distance travelled in this dispersal (not global) time step. both advective and diffusive speeds need be converted to km / advective model time step 
+            // Velcity unit conversion goes to km/month, so need to scale by fraction of a month in one advective timestep in the first term. Diffusive term already scaled.
+            double uSpeed = uAdvectiveSpeed * _VelocityUnitConversion * _AdvectiveModelTimeStepLengthHours /24/30 + NJ.next() * sqrt( ( 2.0 * _HorizontalDiffusivityKmSqPerADTimeStep  ) );
+            double vSpeed = vAdvectiveSpeed * _VelocityUnitConversion * _AdvectiveModelTimeStepLengthHours /24/30 + NJ.next() * sqrt( ( 2.0 * _HorizontalDiffusivityKmSqPerADTimeStep  ) );
             TryToDisperse( uSpeed,vSpeed,e,m );
           }
 
@@ -459,7 +459,7 @@ void Cohort::moveIt(EnvironmentCell* e,MadModel* m){
 
           //dispersalName = "responsive";
 
-            dispersalSpeed= _DispersalSpeedBodyMassScalar * pow( _AdultMass, _DispersalSpeedBodyMassExponent);
+            dispersalSpeed= _DispersalSpeedBodyMassScalar * pow( _AdultMass, _DispersalSpeedBodyMassExponent) * DeltaT;
 
 
           // Check for starvation-driven dispersal
@@ -496,7 +496,7 @@ void Cohort::moveIt(EnvironmentCell* e,MadModel* m){
         }// If the cohort is immature, run diffusive dispersal
         else {
 
-            dispersalSpeed=_DispersalSpeedBodyMassScalar * pow( _IndividualBodyMass, _DispersalSpeedBodyMassExponent);
+            dispersalSpeed=_DispersalSpeedBodyMassScalar * pow( _IndividualBodyMass, _DispersalSpeedBodyMassExponent) * DeltaT;
 
 
                 TryToDisperse( dispersalSpeed,e,m );
@@ -673,14 +673,21 @@ void Cohort::assignTimeActive(EnvironmentCell* e){
             }
         }
     }
-}
-//------------------------------------------------------------------------------------------------------------
-double Cohort::distance(MadAgent* a1, MadAgent* a2,MadModel* m){
+} //------------------------------------------------------------------------------------------------------------
+bool Cohort::inDistance(MadAgent* a1, MadAgent* a2,MadModel* m){
     //simply - the number of cell widths, Manhattan style
-    double wrappedDistX=abs(a1->_location[0]-a2->_location[0]);
-    if (!m->_noLongitudeWrap)wrappedDistX=min(wrappedDistX,(m->_maxX - m->_minX+1)-wrappedDistX);
-    return max(wrappedDistX,abs( a1->_location[1] - a2->_location[1]));
-    //return sqrt( wrappedDistX*wrappedDistX  +  ( a1->_location[1] - a2->_location[1])*( a1->_location[1] - a2->_location[1]) );//should use proper spherical distance, but needs to be <= cell size.
+   // double wrappedDistX=abs(a1->_location[0]-a2->_location[0]);
+   // if (!m->_noLongitudeWrap)wrappedDistX=min(wrappedDistX,(m->_maxX - m->_minX+1)-wrappedDistX);
+   // return max(wrappedDistX,abs( a1->_location[1] - a2->_location[1]))<1;
+    
+    double dg=Parameters::Get()->GetGridCellSize(); 
+    double lon1 = Parameters::Get()->GetUserLongitudeAtIndex(int(a1->_location[0])) + (a1->_location[0]-int(a1->_location[0]))*dg;
+    double lat1 = Parameters::Get()->GetUserLatitudeAtIndex (int(a1->_location[1])) + (a1->_location[1]-int(a1->_location[1]))*dg;
+    double lon2 = Parameters::Get()->GetUserLongitudeAtIndex(int(a2->_location[0])) + (a2->_location[0]-int(a2->_location[0]))*dg;
+    double lat2 = Parameters::Get()->GetUserLatitudeAtIndex (int(a2->_location[1])) + (a2->_location[1]-int(a2->_location[1]))*dg;
+    UtilityFunctions u;
+    return u.HaversineDistance(lon1,lat1,lon2,lat2)<=u.HaversineDistance(0,Parameters::Get()->GetUserMaximumLatitude( ),dg,Parameters::Get()->GetUserMaximumLatitude( ));
+
 }
 //------------------------------------------------------------------------------------------------------------
 void Cohort::eat(EnvironmentCell* e,vector<Cohort*>& preys,vector<Stock*>& stocks,MadModel* m){
@@ -709,7 +716,7 @@ void Cohort::eat(EnvironmentCell* e,vector<Cohort*>& preys,vector<Stock*>& stock
        }
        IndividualHerbivoryRate               = _HerbivoryRateConstant    * pow( _IndividualBodyMass, ( _HerbivoryRateMassExponent ) );
        for (auto& stock: stocks){
-        if (distance(this,stock,m)<1){
+        if (inDistance(this,stock,m)){
          if( stock->_TotalBiomass > 0.0 ) {
            PotentialBiomassEaten  = IndividualHerbivoryRate   * pow( (stock->_TotalBiomass*edibleFraction) / CellAreaHectares, AttackRateExponent ); // could store this to avoid second calc.?
            HandlingTimeScaled     = HandlingTimeScalar        * pow( ( _ReferenceMass / _IndividualBodyMass ), HandlingTimeExponent );
@@ -744,7 +751,7 @@ void Cohort::eat(EnvironmentCell* e,vector<Cohort*>& preys,vector<Stock*>& stock
 
 
         for (auto& prey:preys){
-            if (distance(this,prey,m)<1){
+            if (inDistance(this,prey,m)){
              // Calculate the difference between the actual body size ratio and the optimal ratio, 
              // and then divide by the standard deviation in log ratio space to determine in 
              // which bin to assign the prey item.
@@ -766,7 +773,7 @@ void Cohort::eat(EnvironmentCell* e,vector<Cohort*>& preys,vector<Stock*>& stock
 
         // Loop over potential prey functional groups
         for (auto& prey: preys){
-            if (distance(this,prey,m)<1){
+            if (inDistance(this,prey,m)){
                 prey->_PotentialAbundanceEaten = 0;
                 //No Cannibalism
                 if( (prey->getId().id() != getId().id()) &&  prey->_IndividualBodyMass > 0) {
@@ -800,7 +807,7 @@ void Cohort::eat(EnvironmentCell* e,vector<Cohort*>& preys,vector<Stock*>& stock
     if (_Herbivore || _Omnivore){
        //accumulate eaten
        for (auto& stock: stocks){
-           if (distance(this,stock,m)<1){
+           if (inDistance(this,stock,m)){
             double InstantFractionEaten = 0.0;
             double EdibleMass=0;
             if( stock->_TotalBiomass > 0.0 ) {
@@ -826,7 +833,7 @@ void Cohort::eat(EnvironmentCell* e,vector<Cohort*>& preys,vector<Stock*>& stock
         // Loop over potential prey functional groups
         int counter=0;
         for (auto& prey: preys){
-           if (distance(this,prey,m)<1){
+           if (inDistance(this,prey,m)){
               counter++;
                 // Calculate the actual abundance of prey eaten from this cohort
                 double _AbundancesEaten = 0;

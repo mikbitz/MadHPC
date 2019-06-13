@@ -42,6 +42,8 @@
 #include "randomizer.h"
 #include "RandomRepast.h"
 #include "AgentPackage.h"
+#include "UtilityFunctions.h"
+
 #include <netcdf>
 
 //repast shuffleList only works on pointers

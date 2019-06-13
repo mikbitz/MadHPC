@@ -187,7 +187,7 @@ public:
     void TryToDisperse(double,double,EnvironmentCell*,MadModel*);
     vector<double> dProb(double,double,EnvironmentCell*);
     vector<double> dDirect(double,double,EnvironmentCell*);
-    double distance(MadAgent*, MadAgent*,MadModel *);
+    bool inDistance(MadAgent*, MadAgent*,MadModel *);
     void PushThingsIntoPackage( AgentPackage& );
     void PullThingsOutofPackage( const AgentPackage& );
     void ResetAccounts();

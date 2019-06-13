@@ -69,6 +69,14 @@ public:
     @return The length of a degree of longitude in kilometres MB ?? This is not consistent with cellarea in the original code */
     double CalculateLengthOfDegreeLongitude( float latitude );
 
+    /** \brief Calculate the approximate distance between two points on a sphere
+    @param lon1 The longitude of the first point
+    @param lat1 The latitude of the first point
+    @param lon2 The longitude of the second point
+    @param lat2 The latitude of the second point
+    @return The distance between two points in kilometres */
+    double HaversineDistance(double lon1,double lat1,double lon2,double lat2);
+    
     /** \brief Convert from degrees to radians
     @param degrees The value in degrees to convert
     @return The value converted to radians</returns> */
