@@ -21,7 +21,7 @@
 #include "Parameters.h"
 
 //------------------------------------------------------------------------------------------------------------
-//Required by RHPC for cross-core copy 
+//Required by RHPC for cross-core copy and currently import of output serialized files
 void Stock::PullThingsOutofPackage( const AgentPackage& package ) {
 
     _FunctionalGroupIndex = package._contents._FunctionalGroupIndex;
@@ -31,10 +31,11 @@ void Stock::PullThingsOutofPackage( const AgentPackage& package ) {
     _IndividualBodyMass   = package._contents._IndividualBodyMass;
     _alive                = package._contents._alive;
     _location             = package._contents._location;
+    setPropertiesFromFunctionalGroupIndex( _FunctionalGroupIndex );
     
 }
 //------------------------------------------------------------------------------------------------------------
-//Required by RHPC for cross-core copy
+//Required by RHPC for cross-core copy and currently serialization of output
 void Stock::PushThingsIntoPackage( AgentPackage& package ) {
   
     package._contents._FunctionalGroupIndex = _FunctionalGroupIndex;
@@ -47,15 +48,17 @@ void Stock::PushThingsIntoPackage( AgentPackage& package ) {
 
 }
 //-------------------------------------------------------------------------------------------------------------------
- 
-void Stock::setup(unsigned functionalGroup,EnvironmentCell* LocalEnvironment){
-     _FunctionalGroupIndex = functionalGroup;
-    // Get the individual body masses for organisms in each stock functional group
-
-     _IndividualBodyMass = StockDefinitions::Get()->Property(functionalGroup, "individual mass" );
+void Stock::setPropertiesFromFunctionalGroupIndex( unsigned& functionalGroup ) {
+    _IndividualBodyMass = StockDefinitions::Get()->Property(functionalGroup, "individual mass" );
     
     _Marine              =(StockDefinitions::Get()->Trait(functionalGroup   , "realm")         =="marine");
     _Deciduous           =(StockDefinitions::Get()->Trait(functionalGroup   , "leaf strategy") =="deciduous");
+}
+//-------------------------------------------------------------------------------------------------------------------
+void Stock::setup(unsigned functionalGroup,EnvironmentCell* LocalEnvironment){
+     _FunctionalGroupIndex = functionalGroup;
+    // Get the individual body masses for organisms in each stock functional group
+    setPropertiesFromFunctionalGroupIndex( _FunctionalGroupIndex );
 
     // If it is a functional group that corresponds to the current realm, then seed the stock
     if( ! _Marine && LocalEnvironment->Precipitation() != Constants::cMissingValue && LocalEnvironment->Temperature()!= Constants::cMissingValue ) {

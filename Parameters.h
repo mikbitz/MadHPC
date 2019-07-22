@@ -77,6 +77,7 @@ public:
     float GetUserLongitudeAtIndex( const unsigned& ) const;
     float GetUserLatitudeAtIndex( const unsigned& ) const;
 
+    unsigned* GetTimeStepArray( ) const;
     unsigned* GetMonthlyTimeStepArray( ) const;
     unsigned* GetAnnualTimeStepArray( ) const;
     //float* GetDataLongitudeArray( ) const;
@@ -130,6 +131,7 @@ private:
     unsigned mDataIndexOfUserMaximumLatitude;
     unsigned mSizeOfMonthlyGridDatum;
     unsigned mSizeOfAnnualGridDatum;
+    unsigned* mTimeStepArray;
     unsigned* mMonthlyTimeStepArray;
     unsigned* mAnnualTimeStepArray;
     float* mDataLongitudeArray;

@@ -27,7 +27,7 @@ public:
     bool _Marine,_Deciduous;
     unsigned _FunctionalGroupIndex;
     double _IndividualBodyMass;
-
+    void setPropertiesFromFunctionalGroupIndex( unsigned& );
     void PushThingsIntoPackage( AgentPackage& );
     void PullThingsOutofPackage( const AgentPackage& );              
 };

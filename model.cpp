@@ -787,7 +787,7 @@ void MadModel::setupNcOutput(){
         netCDF::NcFile cohortBreakdownFile( filePath.c_str(), netCDF::NcFile::replace ); // Creates file
         netCDF::NcDim TimeNcDim = cohortBreakdownFile.addDim( "time", _stopAt ); // Creates dimension
         netCDF::NcVar TimeNcVar = cohortBreakdownFile.addVar( "time", netCDF::ncUint, TimeNcDim ); // Creates variable
-        TimeNcVar.putVar( Parameters::Get( )->GetMonthlyTimeStepArray( ) );
+        TimeNcVar.putVar( Parameters::Get( )->GetTimeStepArray( ) );
         TimeNcVar.putAtt( "units", "month" );
                 
         netCDF::NcDim FGroupDim = cohortBreakdownFile.addDim("functionalGroupNumber" , _FinalCohortBreakdown.size() );
@@ -803,6 +803,7 @@ void MadModel::setupNcOutput(){
         FGNumNcVar.putAtt("units", "number" );
 
         //***//
+        
         setNcGridFile("totalCohortBiomass", "kg/sq. km.");
         setNcGridFile("totalStockBiomass", "kg/sq. km.");
         setNcGridFile("totalCohortAbundance", "number/sq. km.");
@@ -814,11 +815,11 @@ void MadModel::setNcGridFile(std::string GridName, std::string units){
 
         std::string filePath = _filePrefix+GridName+_filePostfix+".nc";
         
-        netCDF::NcFile gridFile( filePath.c_str(), netCDF::NcFile::replace ); // Creates file
+        netCDF::NcFile gridFile( filePath.c_str(), netCDF::NcFile::replace );             // Creates file
 
-        netCDF::NcDim gTimeNcDim = gridFile.addDim( "time", _stopAt ); // Creates dimension
+        netCDF::NcDim gTimeNcDim = gridFile.addDim( "time", _stopAt );                    // Creates dimension
         netCDF::NcVar gTimeNcVar = gridFile.addVar( "time", netCDF::ncUint, gTimeNcDim ); // Creates variable
-        gTimeNcVar.putVar( Parameters::Get( )->GetMonthlyTimeStepArray( ) );
+        gTimeNcVar.putVar( Parameters::Get( )->GetTimeStepArray( ) );
         gTimeNcVar.putAtt( "units", "month" );
                 
         netCDF::NcDim longitudeDim =   gridFile.addDim( "Longitude", Parameters::Get( )->GetLengthUserLongitudeArray( ) );

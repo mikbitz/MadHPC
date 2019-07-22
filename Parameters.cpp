@@ -99,7 +99,11 @@ bool Parameters::Initialise( repast::Properties& props ) {
 
 void Parameters::CalculateParameters( ) {
 
-
+    mTimeStepArray = new unsigned[ unsigned(mLengthOfSimulation/mTimeStepLength) ];
+    mTimeStepArray[ 0 ] = 0;
+    for( unsigned index = 1; index < mLengthOfSimulation; ++index ) {
+        mTimeStepArray[ index ] = mTimeStepArray[ index - 1] + mTimeStepLength;
+    }
     mMonthlyTimeStepArray = new unsigned[ mLengthOfSimulationInMonths ];
     for( unsigned monthIndex = 0; monthIndex < mLengthOfSimulationInMonths; ++monthIndex ) {
         mMonthlyTimeStepArray[ monthIndex ] = monthIndex;
@@ -393,6 +397,9 @@ float Parameters::GetUserLatitudeAtIndex( const unsigned& index ) const {
 //float* Parameters::GetDataLatitudeArray( ) const {
 //    return mDataLatitudeArray;
 //}
+unsigned* Parameters::GetTimeStepArray( ) const {
+    return mTimeStepArray;
+}
 
 unsigned* Parameters::GetMonthlyTimeStepArray( ) const {
     return mMonthlyTimeStepArray;

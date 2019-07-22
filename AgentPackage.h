@@ -46,8 +46,8 @@
 
 #include <vector>
 #include "repast_hpc/AgentId.h"
-//content is a bit overspecified at the moment as it tries to cover cohorts, stocks and huamns
-//however, not obvious to me how to change this! (tried with polymorphic pointers, but massive memeory leaks or seg. faults)
+//content is a bit overspecified at the moment as it tries to cover cohorts, stocks and humans
+//however, not obvious to me how to change this! (tried with polymorphic pointers, but massive memory leaks or seg. faults)
 struct content {
     content(){}
 
