@@ -223,18 +223,23 @@ void MadModel::init(){
     unsigned humanCount = strToInt(_props->getProperty("human.count"));
     unsigned cohortCount = strToInt(_props->getProperty("cohort.count"));
     unsigned numStockGroups = StockDefinitions::Get()->size();
-    
-         //Values only reduced on thread 0
+
+    outputNames.push_back("totalCohortBiomass");
+    outputNames.push_back("totalStockBiomass");
+    outputNames.push_back("totalCohortAbundance");
+    //Values only reduced on thread 0
     if(repast::RepastProcess::instance()->rank() == 0){
-     _FinalCohortBiomassMap.resize( (_maxX-_minX+1) * (_maxY-_minY+1) );
-     _FinalCohortAbundanceMap.resize( (_maxX-_minX+1) * (_maxY-_minY+1) );
-     _FinalStockBiomassMap.resize( (_maxX-_minX+1) * (_maxY-_minY+1) );
+      outputUnits["totalCohortBiomass"]   ="kg/sq. km.";
+      outputUnits["totalStockBiomass"]    ="kg/sq. km.";
+      outputUnits["totalCohortAbundance"] ="number/sq. km.";
+      for (auto name: outputNames) outputMaps[name]    =  vector<double> ( (_maxX-_minX+1) * (_maxY-_minY+1),0.0 );
+
      _FinalCohortBreakdown.resize(numCohortGroups);
     }
     
     
     randomizer* random=new RandomRepast;
-    //random->SetSeed(100); seed is set from model.props file - see main.cpp
+    //seed is set from model.props file - see main.cpp
 
  
     //explicitly use the local bounds of the grid on this thread to create countOfAgents per cell.
@@ -350,8 +355,8 @@ void MadModel::step(){
     vector<int> cohortBreakdown(CohortDefinitions::Get()->size(),0);
     //spatial distributions - for efficiency these should just the the local part, but easier initially to just keep the whole thing on each thread
     //with zeros for non-local, and then reduce onto thread 0
-    vector<double> cohortBiomassMap( (_maxX-_minX+1) * (_maxY-_minY+1),0.0 ),cohortAbundanceMap( (_maxX-_minX+1) * (_maxY-_minY+1),0.0 );
-    vector<double> stockBiomassMap( (_maxX-_minX+1) * (_maxY-_minY+1),0.0 );
+    map< string,vector<double> > localMaps;
+    for (auto name: outputNames) localMaps[name]    =  vector<double> ( (_maxX-_minX+1) * (_maxY-_minY+1),0.0 );
 
     int buffer=repast::strToInt(_props->getProperty("grid.buffer"));
     
@@ -522,19 +527,23 @@ void MadModel::step(){
             if (_mergers) _totalMerged+=CohortMerger::MergeToReachThresholdFast(cohorts);
             
             //set up output stock map
-            for (auto s:stocks){_totalStockBiomass+=s->_TotalBiomass/1000;stockBiomassMap[cellIndex]+=s->_TotalBiomass/1000/E->Area();_totalStocks++;}
+            for (auto s:stocks){
+                _totalStockBiomass+=s->_TotalBiomass/1000;
+                localMaps["totalStockBiomass"][cellIndex]+=s->_TotalBiomass/1000/E->Area();
+                _totalStocks++;
+            }
             //acumulate other totals and spatial maps
             for (auto c:cohorts){
                 if (c->_alive){
                     _totalCohorts++;
-                    cohortAbundanceMap[cellIndex]+= c->_CohortAbundance/E->Area();
+                    localMaps["totalCohortAbundance"][cellIndex]+= c->_CohortAbundance/E->Area();
                     _totalCohortAbundance += c->_CohortAbundance;
-                    cohortBiomassMap[cellIndex]+=( c->_IndividualBodyMass + c->_IndividualReproductivePotentialMass ) * c->_CohortAbundance / 1000.;//convert to kg
-                    _totalCohortBiomass += cohortBiomassMap[cellIndex];
+                    localMaps["totalCohortBiomass"][cellIndex]+=( c->_IndividualBodyMass + c->_IndividualReproductivePotentialMass ) * c->_CohortAbundance / 1000.;//convert to kg
+                    _totalCohortBiomass += localMaps["totalCohortBiomass"][cellIndex];
                     cohortBreakdown[c->_FunctionalGroupIndex]++;
                 }
             }
-            cohortBiomassMap[cellIndex]=cohortBiomassMap[cellIndex]/E->Area();//per square kilometre
+            localMaps["totalCohortBiomass"][cellIndex]=localMaps["totalCohortBiomass"][cellIndex]/E->Area();//per square kilometre
 
             //care with sync() here - need to get rid of not-alive agents:currently this is a lazy delete for new/non-local agents (they get removed one timestep late)?
             for (auto a:agentsInCell)if (!a->_alive)_context.removeAgent(a->getId());//does this delete the agent storage? - yes if Boost:shared_ptr works OK
@@ -590,10 +599,8 @@ void MadModel::step(){
      //numbers per functional group - here's how to add up across a vector over threads.
      MPI_Reduce(cohortBreakdown.data(), _FinalCohortBreakdown.data(), CohortDefinitions::Get()->size(), MPI::INT, MPI::SUM, 0, MPI_COMM_WORLD);
 
-     //also get the biomass maps
-     MPI_Reduce(cohortBiomassMap.data(), _FinalCohortBiomassMap.data(), (_maxX-_minX+1) * (_maxY-_minY+1), MPI::DOUBLE, MPI::SUM, 0, MPI_COMM_WORLD);
-     MPI_Reduce(cohortAbundanceMap.data(), _FinalCohortAbundanceMap.data(), (_maxX-_minX+1) * (_maxY-_minY+1), MPI::DOUBLE, MPI::SUM, 0, MPI_COMM_WORLD);
-     MPI_Reduce(stockBiomassMap.data(), _FinalStockBiomassMap.data(), (_maxX-_minX+1) * (_maxY-_minY+1), MPI::DOUBLE, MPI::SUM, 0, MPI_COMM_WORLD);
+     //also get the maps
+     for (auto name:outputNames)MPI_Reduce(localMaps[name].data(), outputMaps[name].data(), (_maxX-_minX+1) * (_maxY-_minY+1), MPI::DOUBLE, MPI::SUM, 0, MPI_COMM_WORLD);
 
      //if(repast::RepastProcess::instance()->rank() == 0){asciiOutput(CurrentTimeStep);}
      if(repast::RepastProcess::instance()->rank() == 0){netcdfOutput( CurrentTimeStep );}
@@ -770,9 +777,9 @@ void MadModel::asciiOutput( unsigned step ) {
     for (int la=NumLat-1;la>=0;la--){
      for (int lo=0;lo<NumLon;lo++){
        int cellIndex=lo-_minX+(_maxX-_minX+1)*(la-_minY);
-       Abundout<<_FinalCohortAbundanceMap[cellIndex]<<" ";
-       Biomaout<<_FinalCohortBiomassMap[cellIndex]<<" ";
-       Stockout<<_FinalStockBiomassMap[cellIndex]<<" ";
+       //Abundout<<_FinalCohortAbundanceMap[cellIndex]<<" ";
+       //Biomaout<<_FinalCohortBiomassMap[cellIndex]<<" ";
+       //Stockout<<_FinalStockBiomassMap[cellIndex]<<" ";
      }
      Abundout<<endl;
      Biomaout<<endl;
@@ -803,11 +810,7 @@ void MadModel::setupNcOutput(){
         FGNumNcVar.putAtt("units", "number" );
 
         //***//
-        
-        setNcGridFile("totalCohortBiomass", "kg/sq. km.");
-        setNcGridFile("totalStockBiomass", "kg/sq. km.");
-        setNcGridFile("totalCohortAbundance", "number/sq. km.");
-
+        for (auto name:outputNames)setNcGridFile(name,outputUnits[name]);
 
 }
 //------------------------------------------------------------------------------------------------------------
@@ -855,10 +858,7 @@ void MadModel::netcdfOutput( unsigned step ){
                 e.what( );
                 std::cout << "ERROR> Write to \"" << filePath << "\" failed." << std::endl;
         }
-        writeNcGridFile(step,_FinalCohortBiomassMap,"totalCohortBiomass");
-        writeNcGridFile(step,_FinalStockBiomassMap,"totalStockBiomass");
-        writeNcGridFile(step,_FinalCohortAbundanceMap,"totalCohortAbundance");
-
+        for (auto name:outputNames)writeNcGridFile(step,outputMaps[name],name);
 
 }
 //------------------------------------------------------------------------------------------------------------

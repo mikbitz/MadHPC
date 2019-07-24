@@ -74,9 +74,12 @@ class MadModel{
     int _totalCohorts,_totalStocks;
     double _totalCohortAbundance,_totalCohortBiomass,_totalStockBiomass,_totalOrganciPool,_totalRespiratoryCO2Pool;
     int    _totalMerged,_totalReproductions,_totalDeaths,_totalMoved;
-    vector<double> _FinalCohortBiomassMap,_FinalCohortAbundanceMap;
+    
     vector<int> _FinalCohortBreakdown;
-    vector<double> _FinalStockBiomassMap;
+      
+    map< string,vector<double> > outputMaps;
+    map<string,string> outputUnits;
+    vector<string> outputNames;
 
     std::string _filePrefix, _filePostfix;
     void dataSetClose();
