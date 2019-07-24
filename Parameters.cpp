@@ -69,7 +69,7 @@ bool Parameters::Initialise( repast::Properties& props ) {
         if (props.getProperty("stop.at").length()==0)
             props.putProperty("stop.at",unsigned(mLengthOfSimulation/mTimeStepLength));
         else
-            SetLengthOfSimulation(repast::strToInt(props.getProperty("stop.at")));
+            SetLengthOfSimulation(repast::strToInt(props.getProperty("stop.at"))*mTimeStepLength);
         
         //legacy values needed because data reading all assumes timesteps must be months
         SetLengthOfSimulationInYears (mLengthOfSimulation/t["year"] *t[mTimeStepUnits]);
@@ -101,7 +101,7 @@ void Parameters::CalculateParameters( ) {
 
     mTimeStepArray = new unsigned[ unsigned(mLengthOfSimulation/mTimeStepLength) ];
     mTimeStepArray[ 0 ] = 0;
-    for( unsigned index = 1; index < mLengthOfSimulation; ++index ) {
+    for( unsigned index = 1; index < mLengthOfSimulation/mTimeStepLength; ++index ) {
         mTimeStepArray[ index ] = mTimeStepArray[ index - 1] + mTimeStepLength;
     }
     mMonthlyTimeStepArray = new unsigned[ mLengthOfSimulationInMonths ];
