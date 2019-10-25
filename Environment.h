@@ -20,7 +20,7 @@ public:
 	Environment();
     Environment(int,int,int,int);
 	~Environment() {}
-	EnvironmentCell* operator[](unsigned i){assert(i<_Cells.size());return _Cells[i];}
+	EnvironmentCell* operator[](unsigned i){assert(i<_Cells.size() && i>=0);return _Cells[i];}
     void update(unsigned );
 private:
 

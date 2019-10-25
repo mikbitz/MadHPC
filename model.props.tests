@@ -89,6 +89,9 @@ simulation.minimumLatitude           = -65
 simulation.maximumLatitude           =  65 
 simulation.GridCellSize              =  10
 
+#At the moment the model grid cell and data grid cell are assumed the same - but perhaps they could differ.
+#simulation.DataGridCellSize          =  10
+
 simulation.ExtinctionThreshold       =   1
 simulation.MaximumNumberOfCohorts    =  100
 simulation.PlanktonSizeThreshold     =  0.01
