@@ -795,7 +795,7 @@ void MadModel::setupNcOutput(){
         netCDF::NcDim TimeNcDim = cohortBreakdownFile.addDim( "time", _stopAt ); // Creates dimension
         netCDF::NcVar TimeNcVar = cohortBreakdownFile.addVar( "time", netCDF::ncUint, TimeNcDim ); // Creates variable
         TimeNcVar.putVar( Parameters::Get( )->GetTimeStepArray( ) );
-        TimeNcVar.putAtt( "units", "month" );
+        TimeNcVar.putAtt( "units", Parameters::Get()->GetTimeStepUnits() );
                 
         netCDF::NcDim FGroupDim = cohortBreakdownFile.addDim("functionalGroupNumber" , _FinalCohortBreakdown.size() );
         netCDF::NcVar FGNcVar = cohortBreakdownFile.addVar( "functionalGroupNumber", netCDF::ncInt, FGroupDim );
@@ -823,7 +823,7 @@ void MadModel::setNcGridFile(std::string GridName, std::string units){
         netCDF::NcDim gTimeNcDim = gridFile.addDim( "time", _stopAt );                    // Creates dimension
         netCDF::NcVar gTimeNcVar = gridFile.addVar( "time", netCDF::ncUint, gTimeNcDim ); // Creates variable
         gTimeNcVar.putVar( Parameters::Get( )->GetTimeStepArray( ) );
-        gTimeNcVar.putAtt( "units", "month" );
+        gTimeNcVar.putAtt( "units", Parameters::Get()->GetTimeStepUnits() );
                 
         netCDF::NcDim longitudeDim =   gridFile.addDim( "Longitude", Parameters::Get( )->GetLengthUserLongitudeArray( ) );
         netCDF::NcVar longitudeNcVar = gridFile.addVar( "Longitude", netCDF::ncFloat, longitudeDim );
