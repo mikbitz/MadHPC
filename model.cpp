@@ -257,7 +257,7 @@ void MadModel::init(){
     unsigned hF=10000;//functionalgroup ID for humans
     for (int x = _xlo; x < _xhi; x++){
         for (int y = _ylo; y < _yhi; y++){
-             EnvironmentCell* E=_Env[x-_minX+(_maxX-_minX+1)*(y-_minY)];
+             EnvironmentCell* E=_Env[x][y];
              repast::Point<int> initialLocation(x,y);
 
 
@@ -435,9 +435,8 @@ void MadModel::step(){
 
             if (y >= _minY && y <= _maxY){
              if (x >=_minX && x <= _maxX) {
-              int cellIndex=x-_minX+(_maxX-_minX+1)*(y-_minY);
 
-                EnvironmentCell* E=_Env[cellIndex];
+                EnvironmentCell* E=_Env[x][y];
                 E->zeroPools(); 
 
                 //store current location in a repast structure for later use
@@ -493,7 +492,7 @@ void MadModel::step(){
      for(int x = _xlo; x < _xhi; x++){
       int cellIndex=x-_minX+(_maxX-_minX+1)*(y-_minY);
             
-            EnvironmentCell* E=_Env[cellIndex];
+            EnvironmentCell* E=_Env[x][y];
 
             //store current location in a repast structure for later use
             repast::Point<int> location(x,y);
@@ -558,7 +557,7 @@ void MadModel::step(){
     vector<Cohort*> movers;
     for(int x = _xlo; x < _xhi; x++){
         for(int y = _ylo; y < _yhi; y++){
-            EnvironmentCell* E=_Env[x-_minX+(_maxX-_minX+1)*(y-_minY)];
+            EnvironmentCell* E=_Env[x][y];
             repast::Point<int> location(x,y);
             std::vector<MadAgent*> agentsInCell;
             //query four neighbouring cells, distance 0 (i.e. just the centre cell) - "true" keeps the centre cell.
@@ -924,7 +923,7 @@ void MadModel::tests(){
     int x=_xlo,y=_ylo;
     repast::Point<int> initialLocation(x,y);
     repast::Point<int> origin(_minX,_minY);
-    EnvironmentCell* E=_Env[x-_minX+(_maxX-_minX+1)*(y-_minY)];
+    EnvironmentCell* E=_Env[x][y];
     
     //---------------------------------------------------
     //***-------------------TEST 1-------------------***//
@@ -1418,7 +1417,7 @@ void MadModel::tests(){
       repast::AgentId id(Cohort::_NextID, rank, _cohortType);
       id.currentRank(rank);
       Cohort* c = new Cohort(id);
-      E=_Env[x - _minX + (_maxX - _minX + 1)*(y - _minY)];
+      E=_Env[x][y];
       c->setup(0,1, E,random);
       _context.addAgent(c);
       discreteSpace->moveTo(id, initialLocation);
@@ -1528,7 +1527,7 @@ void MadModel::tests(){
       repast::AgentId id(Cohort::_NextID, rank, _cohortType);
       id.currentRank(rank);
       Cohort* c = new Cohort(id);
-      E=_Env[x - _minX + (_maxX - _minX + 1)*(y - _minY)];
+      E=_Env[x][y];
       c->setup(9,1, E,random);
       _context.addAgent(c);
       discreteSpace->moveTo(id, initialLocation);

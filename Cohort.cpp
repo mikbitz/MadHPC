@@ -537,8 +537,8 @@ void Cohort::TryToDisperse(double uSpeed, double vSpeed,EnvironmentCell* e, MadM
      int xw=floor(x+signu);
      if (yw >= m->_minY && yw <= m->_maxY){
          if (xw >= m->_minX && xw <= m->_maxX) {
-           EnvironmentCell* E=m->_Env[xw - m->_minX + (m->_maxX - m->_minX + 1)*(yw - m->_minY)];     // get environment of destination cell
-           if (E->_Realm==_Realm || _Realm=="all"){// no movement if wrong realm at destination
+             EnvironmentCell* E=m->_Env[xw][yw];
+             if (E->_Realm==_Realm || _Realm=="all"){// no movement if wrong realm at destination
                _destination[0]=x+signu;_destination[1]=y+signv;
                if (xw!=floor(_location[0]) || yw!=floor(_location[1]))_moved=true;//special treatment needed if we have changed cell
            }          

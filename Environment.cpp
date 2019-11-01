@@ -23,11 +23,10 @@
 
 Environment::Environment() {}
 Environment::Environment(int minX,int maxX,int minY,int maxY) {
-    _Cells.resize( (maxX-minX+1) * (maxY-minY+1) );
     for(int x=minX;x<=maxX;x++) {
         for(int y=minY;y<=maxY;y++) {
             EnvironmentCell* E=new EnvironmentCell(x,y);
-            _Cells[x-minX+(maxX-minX+1)*(y-minY)]=E;
+            _Cells[x][y]=E;
         }
     }
     
