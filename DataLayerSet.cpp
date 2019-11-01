@@ -4,6 +4,7 @@
 #include "InputData.h"
 #include "DataLayerProcessor.h"
 #include "Convertor.h"
+#include "Parameters.h"
 
 
 Types::DataLayerSetPointer DataLayerSet::mThis = NULL;
@@ -74,4 +75,12 @@ float DataLayerSet::GetDataAtCellIndexFor( const std::string name, const unsigne
     }
     
     return value;
+}
+float DataLayerSet::GetDataAtCellLonLatFor( const std::string name, const double Longitude, const double Latitude ) {
+    
+    unsigned x=(Longitude- Parameters::Get()->GetUserMinimumLongitude( ) )/ Parameters::Get()->GetGridCellSize( );
+    unsigned y=(Latitude - Parameters::Get()->GetUserMinimumLatitude( ) ) / Parameters::Get()->GetGridCellSize( );
+    unsigned cellIndex=x+y*Parameters::Get()->GetLengthUserLongitudeArray( );
+
+    return GetDataAtCellIndexFor( name, cellIndex );
 }

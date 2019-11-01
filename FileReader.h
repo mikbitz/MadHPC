@@ -20,7 +20,7 @@ private:
     
     std::string mFilePath;
     Types::StringVector mMetadataHeadings;
-    Types::StringMatrix mMetadata;
+    Types::StringMatrix mMetadata; //vector of vector of strings
     
     Types::IntegerVector mAllocatedCellIndices;
 

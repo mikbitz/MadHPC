@@ -46,13 +46,10 @@ public:
     double TerrestrialHANPP();
     double uVel();
     double vVel();
-    unsigned index(){return _cellIndex;}
     double cellSize();
     double Latitude();
     double Longitude();
-    unsigned LatitudeIndex();
-    unsigned LongitudeIndex();
-    unsigned _cellIndex;
+    unsigned _x,_y;
     void addToOrganicPool(double d){_OrganicPool+=d;}
     void addToRespiratoryCO2Pool(double d){_RespiratoryCO2Pool+=d;}
     double organicPool(){return _OrganicPool;};

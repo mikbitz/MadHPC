@@ -45,6 +45,7 @@ bool FileReader::ReadTextFile( const std::string& filePath ) {
 
         while( std::getline( fileStream, readLine ) ) {
             if( lineCount > 0 && readLine[ 0 ] != Constants::cTextFileCommentCharacter ) {
+                //StringToWords returns a string split into a vector using the Delimiter value
                 mMetadata.push_back( Convertor::Get( )->StringToWords( readLine, Constants::cDataDelimiterValue ) );
             } else if( lineCount == 0 ) {
                 mMetadataHeadings = Convertor::Get( )->StringToWords( readLine, Constants::cDataDelimiterValue );
@@ -62,7 +63,7 @@ bool FileReader::ReadTextFile( const std::string& filePath ) {
 }
 
 bool FileReader::ReadInputDataFiles(repast::Properties& props ) {
-
+    //this file is expected to list the internal vaiable name for the model, the file path below the root (including filename extension) and the default variable name in the file to be read in.
     bool success = ReadTextFile(props.getProperty("input.DataDirectory") + "/" + props.getProperty("input.EnvironmentVariablesFile") );
 
     if( success == true ) {
@@ -74,7 +75,7 @@ bool FileReader::ReadInputDataFiles(repast::Properties& props ) {
             for( unsigned environmentalDataFileIndex = 0; environmentalDataFileIndex < mMetadata.size( ); ++environmentalDataFileIndex ) {
 
                 std::string filePath = Parameters::Get( )->GetRootDataDirectory( );
-                filePath.append( Convertor::Get( )->ToString( Parameters::Get( )->GetGridCellSize( ) ) );
+                filePath.append( Convertor::Get( )->ToString( Parameters::Get( )->GetDataGridCellSize( ) ) );
                 filePath.append( "deg/" );
                 filePath.append( mMetadata[ environmentalDataFileIndex ][ Constants::eFilePath ] );
                 if (_verbose)std::cout << "Reading NetCDF file \"" << filePath << "\"..." << std::endl;

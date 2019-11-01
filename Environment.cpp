@@ -30,6 +30,7 @@ Environment::Environment(int minX,int maxX,int minY,int maxY) {
             _Cells[x-minX+(maxX-minX+1)*(y-minY)]=E;
         }
     }
+    
 }
 
 void Environment::update(unsigned CurrentTimeStep){

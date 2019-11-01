@@ -14,7 +14,7 @@ public:
     void SetDataLayers( const Types::InputDataPointer );
     
     float GetDataAtCellIndexFor( const std::string, const unsigned );
-    
+    float GetDataAtCellLonLatFor( const std::string, const double, const double );
 private:
     DataLayerSet( );
     

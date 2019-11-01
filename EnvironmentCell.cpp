@@ -24,8 +24,7 @@
 EnvironmentCell::EnvironmentCell() {}
 
 //------------------------------------------------------------------------------
-EnvironmentCell::EnvironmentCell(int x,int y){
-    _cellIndex=x+y*Parameters::Get()->GetLengthUserLongitudeArray( );//based on 1-D representation of 2D arrays
+EnvironmentCell::EnvironmentCell(int x,int y):_x(x),_y(y){
     UtilityFunctions Utility;
     _Area=   Utility.CalculateGridCellArea(Latitude(),cellSize());//in sqkm
     _Width=  Utility.CalculateLengthOfDegreeLatitude( Latitude()) *cellSize();
@@ -43,14 +42,15 @@ EnvironmentCell::EnvironmentCell(int x,int y){
     //make sure all time dependent fields set to the start
 
     TimeStep::Get( )->SetMonthly( 0);
+
 }
 //------------------------------------------------------------------------------
 
 void EnvironmentCell::SetRealm( ) {
     _Realm="none";
-    if( DataLayerSet::Get( )->GetDataAtCellIndexFor( "Realm", _cellIndex ) == 1 ) {
+    if( DataLayerSet::Get( )->GetDataAtCellLonLatFor( "Realm", Longitude(),  Latitude() ) == 1 ) {
           _Realm="marine";
-    } else if( DataLayerSet::Get( )->GetDataAtCellIndexFor( "Realm", _cellIndex ) == 2 ) {
+    } else if( DataLayerSet::Get( )->GetDataAtCellLonLatFor( "Realm", Longitude(),  Latitude() ) == 2 ) {
           _Realm="terrestrial";
     }
 }
@@ -164,7 +164,7 @@ void EnvironmentCell::SetFrostandFire( ) {
 
             TimeStep::Get( )->SetMonthly( timeIndex );
             if(_Realm=="terrestrial" ) {
-                FrostDays[timeIndex] = DataLayerSet::Get( )->GetDataAtCellIndexFor( "TerrestrialFrost", _cellIndex );
+                FrostDays[timeIndex] = DataLayerSet::Get( )->GetDataAtCellLonLatFor( "TerrestrialFrost", Longitude(),  Latitude() );
                 Precip[timeIndex] = Precipitation();
                 Temp[timeIndex] = Temperature();
             }
@@ -176,7 +176,7 @@ void EnvironmentCell::SetFrostandFire( ) {
         //for( int timeIndex = 0; timeIndex < 12; timeIndex++ ) {
         //    _FractionMonthFrost[timeIndex ] = std::min( FrostDays[timeIndex] / MonthDays[timeIndex], ( double )1.0 );
         //}
-        double AWC = DataLayerSet::Get( )->GetDataAtCellIndexFor( "TerrestrialAWC", _cellIndex );
+        double AWC = DataLayerSet::Get( )->GetDataAtCellLonLatFor( "TerrestrialAWC", Longitude(),  Latitude() );
         
         std::tuple< std::vector< double >, double, double > TempTuple = CVC.MonthlyActualEvapotranspirationSoilMoisture( AWC, Precip, Temp );
         _TotalAET = 0;
@@ -286,7 +286,7 @@ double EnvironmentCell::SDTemperature(){return _SDTemperature;}
 double EnvironmentCell::GetVariableFromDatasetNamed(std:: string s){
 
     double d = Constants::cMissingValue;
-    d = DataLayerSet::Get( )->GetDataAtCellIndexFor( s, _cellIndex );
+    d = DataLayerSet::Get( )->GetDataAtCellLonLatFor( s, Longitude(),  Latitude() );
     if( d == Constants::cMissingValue ) {
       std::cout << "Warning EnvironmentCell::GetVariableFromDatasetNamed- missing values in "<<s<<" field!!"<< std::endl;
     }
@@ -294,21 +294,11 @@ double EnvironmentCell::GetVariableFromDatasetNamed(std:: string s){
 }
 //------------------------------------------------------------------------------
 double EnvironmentCell::Latitude(){
-    return Parameters::Get()->GetUserLatitudeAtIndex(LatitudeIndex());
+    return Parameters::Get()->GetUserLatitudeAtIndex(_y);
 }
 //------------------------------------------------------------------------------
 double EnvironmentCell::Longitude(){
-    return Parameters::Get()->GetUserLongitudeAtIndex(LongitudeIndex());
-}
-//------------------------------------------------------------------------------
-unsigned EnvironmentCell::LatitudeIndex(){
-    Types::DataIndicesPointer indices = Parameters::Get( )->GetDataIndicesFromCellIndex( _cellIndex );
-    return indices->GetY( );
-}
-//------------------------------------------------------------------------------
-unsigned EnvironmentCell::LongitudeIndex(){
-    Types::DataIndicesPointer indices = Parameters::Get( )->GetDataIndicesFromCellIndex( _cellIndex );
-    return indices->GetX( );
+    return Parameters::Get()->GetUserLongitudeAtIndex(_x);
 }
 //------------------------------------------------------------------------------
 double EnvironmentCell::cellSize(){

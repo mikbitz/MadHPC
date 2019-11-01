@@ -20,6 +20,7 @@ public:
     int GetUserMinimumLongitude( ) const;
     int GetUserMaximumLongitude( ) const;
     double GetGridCellSize( ) const;
+    double GetDataGridCellSize() const;
     float GetExtinctionThreshold( ) const;
     unsigned GetMaximumNumberOfCohorts( ) const;
     float GetPlanktonSizeThreshold( ) const;
@@ -45,6 +46,7 @@ public:
     void SetUserMinimumLatitude( const int& );
     void SetUserMaximumLatitude( const int& );
     void SetGridCellSize( const double& );
+    void SetDataGridCellSize( const double& );
     void SetExtinctionThreshold( const float& );
     void SetMaximumNumberOfCohorts( const unsigned& );
     void SetPlanktonSizeThreshold( const float& );
@@ -104,6 +106,7 @@ private:
     int mUserMinimumLatitude;
     int mUserMaximumLatitude;
     double mGridCellSize;
+    double mDataGridCellSize;
     float mExtinctionThreshold;
     unsigned mMaximumNumberOfCohorts;
     float mPlanktonSizeThreshold;

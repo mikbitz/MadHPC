@@ -44,6 +44,7 @@ bool Parameters::Initialise( repast::Properties& props ) {
         SetUserMaximumLongitude      (repast::strToDouble(props.getProperty("simulation.maximumLongitude")));
         SetUserMinimumLatitude       (repast::strToDouble(props.getProperty("simulation.minimumLatitude")));
         SetUserMaximumLatitude       (repast::strToDouble(props.getProperty("simulation.maximumLatitude")));
+        SetDataGridCellSize          (repast::strToDouble(props.getProperty("simulation.DataGridCellSize")));
         SetGridCellSize              (repast::strToDouble(props.getProperty("simulation.GridCellSize")));
         SetExtinctionThreshold       (repast::strToDouble(props.getProperty("simulation.ExtinctionThreshold")));
         SetMaximumNumberOfCohorts    (repast::strToDouble(props.getProperty("simulation.MaximumNumberOfCohorts")));
@@ -115,35 +116,36 @@ void Parameters::CalculateParameters( ) {
     }
 
     // Calculate spatial parameters
-    mLengthDataLongitudeArray = 360 / mGridCellSize;
+    mLengthDataLongitudeArray = 360 / mDataGridCellSize;
 
     //there are some assumptions here about lat. and long ranges - this code may not work for grid boxes spanning the dateline.
     mDataLongitudeArray = new float[ mLengthDataLongitudeArray ];
     for( unsigned longitudeIndex = 0; longitudeIndex < mLengthDataLongitudeArray; ++longitudeIndex ) {
-        mDataLongitudeArray[ longitudeIndex ] = ( -180 + ( ( float )mGridCellSize / 2 ) ) + ( longitudeIndex * ( float )mGridCellSize );
+        mDataLongitudeArray[ longitudeIndex ] = ( -180 + ( ( float )mDataGridCellSize / 2 ) ) + ( longitudeIndex * ( float )mDataGridCellSize );
     }
-    mLengthDataLatitudeArray = 180 / mGridCellSize;
+    mLengthDataLatitudeArray = 180 / mDataGridCellSize;
     mDataLatitudeArray = new float[ mLengthDataLatitudeArray ];
     for( unsigned latitudeIndex = 0; latitudeIndex < mLengthDataLatitudeArray; ++latitudeIndex ) {
-        mDataLatitudeArray[ latitudeIndex ] = ( -90 + ( ( float )mGridCellSize / 2 ) ) + ( latitudeIndex * ( float )mGridCellSize );
+        mDataLatitudeArray[ latitudeIndex ] = ( -90 + ( ( float )mDataGridCellSize / 2 ) ) + ( latitudeIndex * ( float )mDataGridCellSize );
     }
 
     mDataIndexOfUserMinimumLongitude = Processor::Get( )->CalculateArrayIndexOfValue( mDataLongitudeArray, mLengthDataLongitudeArray, mUserMinimumLongitude );
     mDataIndexOfUserMaximumLongitude = Processor::Get( )->CalculateArrayIndexOfValue( mDataLongitudeArray, mLengthDataLongitudeArray, mUserMaximumLongitude );
-    mLengthUserLongitudeArray = ( mDataIndexOfUserMaximumLongitude - mDataIndexOfUserMinimumLongitude ) + 1;
+    mLengthUserLongitudeArray = ( mUserMaximumLongitude - mUserMinimumLongitude )/mGridCellSize + 1;
 
     mUserLongitudeArray = new float[ mLengthUserLongitudeArray ];
     for( unsigned userLongitudeIndex = 0; userLongitudeIndex < mLengthUserLongitudeArray; ++userLongitudeIndex ) {
-        mUserLongitudeArray[ userLongitudeIndex ] = mDataLongitudeArray[ userLongitudeIndex + mDataIndexOfUserMinimumLongitude ];
-    }
+        mUserLongitudeArray[ userLongitudeIndex ] = (mUserMinimumLongitude + ( ( float )mGridCellSize / 2 ) ) + ( userLongitudeIndex * ( float )mGridCellSize );
 
+    }
+std::cout<<std::endl;
     mDataIndexOfUserMinimumLatitude = Processor::Get( )->CalculateArrayIndexOfValue( mDataLatitudeArray, mLengthDataLatitudeArray, mUserMinimumLatitude );
     mDataIndexOfUserMaximumLatitude = Processor::Get( )->CalculateArrayIndexOfValue( mDataLatitudeArray, mLengthDataLatitudeArray, mUserMaximumLatitude );
-    mLengthUserLatitudeArray = ( mDataIndexOfUserMaximumLatitude - mDataIndexOfUserMinimumLatitude ) + 1;
+    mLengthUserLatitudeArray = ( mUserMaximumLatitude - mUserMinimumLatitude )/mGridCellSize + 1;
 
     mUserLatitudeArray = new float[ mLengthUserLatitudeArray ];
     for( unsigned userLatitudeIndex = 0; userLatitudeIndex < mLengthUserLatitudeArray; ++userLatitudeIndex ) {
-        mUserLatitudeArray[ userLatitudeIndex ] = mDataLatitudeArray[ userLatitudeIndex + mDataIndexOfUserMinimumLatitude ];
+        mUserLatitudeArray[ userLatitudeIndex ] = (mUserMinimumLatitude + ( ( float )mGridCellSize / 2 ) ) + ( userLatitudeIndex * ( float )mGridCellSize );
     }
 
     mNumberOfGridCells = mLengthUserLongitudeArray * mLengthUserLatitudeArray;
@@ -213,6 +215,10 @@ int Parameters::GetUserMaximumLatitude( ) const {
 
 double Parameters::GetGridCellSize( ) const {
     return mGridCellSize;
+}
+
+double Parameters::GetDataGridCellSize( ) const {
+    return mDataGridCellSize;
 }
 
 float Parameters::GetExtinctionThreshold( ) const {
@@ -286,6 +292,10 @@ void Parameters::SetUserMaximumLatitude( const int& userMaximumLatitude ) {
 
 void Parameters::SetGridCellSize( const double& gridCellSize ) {
     mGridCellSize = gridCellSize;
+}
+
+void Parameters::SetDataGridCellSize( const double& gridDataCellSize ) {
+    mDataGridCellSize = gridDataCellSize;
 }
 
 void Parameters::SetExtinctionThreshold( const float& extinctionThreshold ) {

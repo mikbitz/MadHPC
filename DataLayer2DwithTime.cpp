@@ -17,7 +17,7 @@ DataLayer2DwithTime::~DataLayer2DwithTime( ) {
 }
 
 float DataLayer2DwithTime::GetDataAtCellIndex( const unsigned cellIndex ) const {
-    // FIX: The way the month index is calculated here is due to the use of an annual climatology
+    // FIX: The way the month index is calculated here is due to the use of an annual climatology - also assumes time units of month in the data
     unsigned monthIndex = Maths::Get( )->Mod( TimeStep::Get( )->Get( Constants::cMonthlyTimeUnitName ), 12 );
     unsigned dataIndex = cellIndex + ( monthIndex * Parameters::Get( )->GetNumberOfGridCells( ) );
 
