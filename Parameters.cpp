@@ -3,9 +3,6 @@
 #include "Constants.h"
 #include "Convertor.h"
 #include "Maths.h"
-#include "Processor.h"
-#include "DataCoords.h"
-#include "DataIndices.h"
 #include "repast_hpc/Utilities.h"
 #include <iostream>
 
@@ -129,8 +126,8 @@ void Parameters::CalculateParameters( ) {
         mDataLatitudeArray[ latitudeIndex ] = ( -90 + ( ( float )mDataGridCellSize / 2 ) ) + ( latitudeIndex * ( float )mDataGridCellSize );
     }
 
-    mDataIndexOfUserMinimumLongitude = Processor::Get( )->CalculateArrayIndexOfValue( mDataLongitudeArray, mLengthDataLongitudeArray, mUserMinimumLongitude );
-    mDataIndexOfUserMaximumLongitude = Processor::Get( )->CalculateArrayIndexOfValue( mDataLongitudeArray, mLengthDataLongitudeArray, mUserMaximumLongitude );
+//    mDataIndexOfUserMinimumLongitude = Processor::Get( )->CalculateArrayIndexOfValue( mDataLongitudeArray, mLengthDataLongitudeArray, mUserMinimumLongitude );
+//    mDataIndexOfUserMaximumLongitude = Processor::Get( )->CalculateArrayIndexOfValue( mDataLongitudeArray, mLengthDataLongitudeArray, mUserMaximumLongitude );
     mLengthUserLongitudeArray = ( mUserMaximumLongitude - mUserMinimumLongitude )/mGridCellSize + 1;
 
     mUserLongitudeArray = new float[ mLengthUserLongitudeArray ];
@@ -138,9 +135,8 @@ void Parameters::CalculateParameters( ) {
         mUserLongitudeArray[ userLongitudeIndex ] = (mUserMinimumLongitude + ( ( float )mGridCellSize / 2 ) ) + ( userLongitudeIndex * ( float )mGridCellSize );
 
     }
-std::cout<<std::endl;
-    mDataIndexOfUserMinimumLatitude = Processor::Get( )->CalculateArrayIndexOfValue( mDataLatitudeArray, mLengthDataLatitudeArray, mUserMinimumLatitude );
-    mDataIndexOfUserMaximumLatitude = Processor::Get( )->CalculateArrayIndexOfValue( mDataLatitudeArray, mLengthDataLatitudeArray, mUserMaximumLatitude );
+//    mDataIndexOfUserMinimumLatitude = Processor::Get( )->CalculateArrayIndexOfValue( mDataLatitudeArray, mLengthDataLatitudeArray, mUserMinimumLatitude );
+//    mDataIndexOfUserMaximumLatitude = Processor::Get( )->CalculateArrayIndexOfValue( mDataLatitudeArray, mLengthDataLatitudeArray, mUserMaximumLatitude );
     mLengthUserLatitudeArray = ( mUserMaximumLatitude - mUserMinimumLatitude )/mGridCellSize + 1;
 
     mUserLatitudeArray = new float[ mLengthUserLatitudeArray ];
@@ -151,7 +147,7 @@ std::cout<<std::endl;
     mNumberOfGridCells = mLengthUserLongitudeArray * mLengthUserLatitudeArray;
     mSizeOfMonthlyGridDatum = mNumberOfGridCells * mLengthOfSimulationInMonths;
     mSizeOfAnnualGridDatum = mNumberOfGridCells * mLengthOfSimulationInYears;
-
+/*
     unsigned cellIndex = 0;
     mCoordsIndicesLookup.resize( mNumberOfGridCells );
     for( unsigned latitudeIndex = 0; latitudeIndex < mLengthUserLatitudeArray; ++latitudeIndex ) {
@@ -168,6 +164,7 @@ std::cout<<std::endl;
             cellIndex += 1;
         }
     }
+    */
 }
 
 void Parameters::SetTimeStepLength( const std::string& lengthString){
@@ -430,14 +427,14 @@ float* Parameters::GetUserLatitudeArray( ) const {
 int Parameters::GetCellIndexFromDataIndices( const unsigned& longitudeIndex, const unsigned& latitudeIndex ) const {
 
     int cellIndex = Constants::cMissingValue;
-    for( unsigned index = 0; index < mNumberOfGridCells; ++index ) {
+/*    for( unsigned index = 0; index < mNumberOfGridCells; ++index ) {
         Types::DataIndicesPointer indices = mCoordsIndicesLookup[ index ].second;
 
         if( indices->GetX( ) == longitudeIndex && indices->GetY( ) == latitudeIndex ) {
             cellIndex = index;
             break;
         }
-    }
+    }*/
     return cellIndex;
 }
 

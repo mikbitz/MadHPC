@@ -5,7 +5,6 @@
 #include "InputData.h"
 #include "DataLayerSet.h"
 #include "Parameters.h"
-#include "DataCoords.h"
 
 #include <netcdf>
 
@@ -70,8 +69,6 @@ bool FileReader::ReadInputDataFiles(repast::Properties& props ) {
 
         if( mMetadata.size( ) > 0 ) {
 
-            Types::InputDataPointer initialInputData = new InputData( );
-
             for( unsigned environmentalDataFileIndex = 0; environmentalDataFileIndex < mMetadata.size( ); ++environmentalDataFileIndex ) {
 
                 std::string filePath = Parameters::Get( )->GetRootDataDirectory( );
@@ -84,27 +81,31 @@ bool FileReader::ReadInputDataFiles(repast::Properties& props ) {
                     netCDF::NcFile inputNcFile( filePath.c_str(), netCDF::NcFile::read ); // Open the file for read access
 
                     std::multimap< std::string, netCDF::NcVar > multiMap = inputNcFile.getVars( );
-
-                    // Outer variable loop
-                    for( std::multimap<std::string, netCDF::NcVar>::iterator it = multiMap.begin( ); it != multiMap.end( ); ++it ) {
-                        std::string variableName = ( *it ).first;
-                        netCDF::NcVar variableNcVar = ( *it ).second;
-                        std::vector< netCDF::NcDim > varDims = variableNcVar.getDims( );
-
-                        Types::UnsignedVector variableDimensions;
-                        unsigned variableSize = 1;
-
-                        // Inner variable dimension loop
-                        for( unsigned dimIndex = 0; dimIndex < varDims.size( ); ++dimIndex ) {
-                            variableDimensions.push_back( varDims[ dimIndex ].getSize( ) );
-                            variableSize *= varDims[ dimIndex ].getSize( );
-                        }
-
-                        float* variableData = new float[ variableSize ];
-                        variableNcVar.getVar( variableData );
-                        bool isDefault = variableName == Convertor::Get( )->ToLowercase( mMetadata[ environmentalDataFileIndex ][ Constants::eDefaultVariableName ] );
-                        initialInputData->AddVariableToDatum( mMetadata[ environmentalDataFileIndex ][ Constants::eInternalName ], variableName, variableDimensions, variableSize, variableData, isDefault );
+                    
+                    bool hasTime=(multiMap.find("time")!=multiMap.end());
+                    
+                    auto name=mMetadata[ environmentalDataFileIndex ][ Constants::eInternalName ];
+                    
+                    auto dataNc=inputNcFile.getVar(mMetadata[ environmentalDataFileIndex ][ Constants::eDefaultVariableName ]);
+                    assert (!dataNc.isNull());
+                    auto dims=dataNc.getDims();
+                    unsigned dataSize=1;
+                    for( unsigned dimIndex = 0; dimIndex < dims.size( ); ++dimIndex ) {
+                        dataSize *= dims[ dimIndex ].getSize( );
                     }
+                    float* data=new float[dataSize];
+                    dataNc.getVar( data );
+
+                    auto lon = Get1DNcFloatVector(inputNcFile, "lon" );
+                    auto lat = Get1DNcFloatVector(inputNcFile, "lat" );
+
+                    if(hasTime){
+                        auto time= Get1DNcFloatVector(inputNcFile, "time");
+                        DataLayerSet::Data( )->addLayer(name,data,lon,lat,time);
+                    }else{
+                        DataLayerSet::Data( )->addLayer(name,data,lon,lat);
+                    }
+
 
                 } catch( netCDF::exceptions::NcException& e ) {
                     std::cout<<e.what( )<<std::endl;
@@ -112,14 +113,21 @@ bool FileReader::ReadInputDataFiles(repast::Properties& props ) {
                 }
             }
 
-            DataLayerSet::Get( )->SetDataLayers( initialInputData );
             success = true;
+
         } else {
             success = false;
         }
     }
 
     return success;
+}
+std::vector<float> FileReader::Get1DNcFloatVector(netCDF::NcFile& file, std::string name) {
+    auto varNc=file.getVar(name);
+    assert(!varNc.isNull());
+    std::vector<float>var(varNc.getDims()[0].getSize());
+    varNc.getVar(var.data());
+    return var;
 }
 
 void FileReader::ClearMetadata( ) {

@@ -17,7 +17,8 @@ private:
     bool ReadInputDataFiles(repast::Properties& );
     
     void ClearMetadata( );
-    
+    std::vector<float> Get1DNcFloatVector(netCDF::NcFile& , std::string );
+
     std::string mFilePath;
     Types::StringVector mMetadataHeadings;
     Types::StringMatrix mMetadata; //vector of vector of strings

@@ -29,7 +29,7 @@ Environment::Environment(int minX,int maxX,int minY,int maxY) {
             _Cells[x][y]=E;
         }
     }
-    
+
 }
 
 void Environment::update(unsigned CurrentTimeStep){

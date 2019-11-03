@@ -48,9 +48,9 @@ EnvironmentCell::EnvironmentCell(int x,int y):_x(x),_y(y){
 
 void EnvironmentCell::SetRealm( ) {
     _Realm="none";
-    if( DataLayerSet::Get( )->GetDataAtCellLonLatFor( "Realm", Longitude(),  Latitude() ) == 1 ) {
+    if( DataLayerSet::Data( )->GetDataAtLonLatFor( "Realm", Longitude(),  Latitude() ) == 1 ) {
           _Realm="marine";
-    } else if( DataLayerSet::Get( )->GetDataAtCellLonLatFor( "Realm", Longitude(),  Latitude() ) == 2 ) {
+    } else if( DataLayerSet::Data( )->GetDataAtLonLatFor( "Realm", Longitude(),  Latitude() ) == 2 ) {
           _Realm="terrestrial";
     }
 }
@@ -164,7 +164,7 @@ void EnvironmentCell::SetFrostandFire( ) {
 
             TimeStep::Get( )->SetMonthly( timeIndex );
             if(_Realm=="terrestrial" ) {
-                FrostDays[timeIndex] = DataLayerSet::Get( )->GetDataAtCellLonLatFor( "TerrestrialFrost", Longitude(),  Latitude() );
+                FrostDays[timeIndex] = DataLayerSet::Data( )->GetDataAtLonLatFor( "TerrestrialFrost", Longitude(),  Latitude() );
                 Precip[timeIndex] = Precipitation();
                 Temp[timeIndex] = Temperature();
             }
@@ -176,7 +176,7 @@ void EnvironmentCell::SetFrostandFire( ) {
         //for( int timeIndex = 0; timeIndex < 12; timeIndex++ ) {
         //    _FractionMonthFrost[timeIndex ] = std::min( FrostDays[timeIndex] / MonthDays[timeIndex], ( double )1.0 );
         //}
-        double AWC = DataLayerSet::Get( )->GetDataAtCellLonLatFor( "TerrestrialAWC", Longitude(),  Latitude() );
+        double AWC = DataLayerSet::Data( )->GetDataAtLonLatFor( "TerrestrialAWC", Longitude(),  Latitude() );
         
         std::tuple< std::vector< double >, double, double > TempTuple = CVC.MonthlyActualEvapotranspirationSoilMoisture( AWC, Precip, Temp );
         _TotalAET = 0;
@@ -286,7 +286,7 @@ double EnvironmentCell::SDTemperature(){return _SDTemperature;}
 double EnvironmentCell::GetVariableFromDatasetNamed(std:: string s){
 
     double d = Constants::cMissingValue;
-    d = DataLayerSet::Get( )->GetDataAtCellLonLatFor( s, Longitude(),  Latitude() );
+    d = DataLayerSet::Data( )->GetDataAtLonLatFor( s, Longitude(),  Latitude() );
     if( d == Constants::cMissingValue ) {
       std::cout << "Warning EnvironmentCell::GetVariableFromDatasetNamed- missing values in "<<s<<" field!!"<< std::endl;
     }

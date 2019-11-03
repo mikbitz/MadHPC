@@ -1,86 +1,38 @@
 #include "DataLayerSet.h"
 
-#include "DataLayer.h"
-#include "InputData.h"
-#include "DataLayerProcessor.h"
-#include "Convertor.h"
-#include "Parameters.h"
-
-
-Types::DataLayerSetPointer DataLayerSet::mThis = NULL;
-
-Types::DataLayerSetPointer DataLayerSet::Get( ) {
-    if( mThis == NULL ) {
-        mThis = new DataLayerSet( );
+DataLayerSet* DataLayerSet::_DataSet = NULL;
+//------------------------------------------------------------------------------------------------------------
+DataLayerSet* DataLayerSet::Data( ) {
+    if( _DataSet == NULL ) {
+        _DataSet = new DataLayerSet( );
     }
-    return mThis;
+    return _DataSet;
 }
-
+//------------------------------------------------------------------------------------------------------------
 DataLayerSet::~DataLayerSet( ) {
 
-    for( Types::DataLayerMap::iterator iter = mDataLayerMap.begin( ); iter != mDataLayerMap.end( ); ++iter ) {
-        delete iter->second;
-    }
-
-    if( mThis != NULL ) {
-        delete mThis;
+    for( auto iter :Layers ) {
+        delete iter.second;
     }
 }
-
+//------------------------------------------------------------------------------------------------------------
 DataLayerSet::DataLayerSet( ) {
 
 }
-
-void DataLayerSet::SetDataLayers( const Types::InputDataPointer data ) {
-    DataLayerProcessor dataLayerProcessor;
-    mDataLayerMap = dataLayerProcessor.ConvertReadDataIntoLayers( data );
+//------------------------------------------------------------------------------------------------------------
+void DataLayerSet::addLayer(std::string name,float *data,std::vector<float>lon,std::vector<float>lat){
+    Layer* d=new Layer2D(data,lon,lat);
+    Layers[name]=d;
 }
-
-Types::VariablePointer DataLayerSet::GetDefaultVariableFor( const std::string& name ) {
-
-    Types::VariablePointer variable = NULL;
-
-    Types::DataLayerMap::iterator iter = mDataLayerMap.find( name );
-    
-    if( iter != mDataLayerMap.end( ) ) {
-        variable = iter->second->GetDefaultVariable( );
-    }
-
-    return variable;
+//------------------------------------------------------------------------------------------------------------
+void DataLayerSet::addLayer(std::string name,float *data,std::vector<float>lon,std::vector<float>lat,std::vector<float>time){
+    Layer* d=new Layer2DWithTime(data,lon,lat,time);
+    Layers[name]=d;
 }
-
-Types::DataLayerPointer DataLayerSet::GetDataLayerWithName( const std::string& name ) {
-
-    Types::DataLayerPointer dataLayer = NULL;
-
-    Types::DataLayerMap::iterator iter = mDataLayerMap.find( name );
-
-    if( iter != mDataLayerMap.end( ) ) {
-        dataLayer = iter->second;
-    } else {
-        std::cout << "ERROR> DataLayer with name \"" << name << "\" was not found." << std::endl;
-    }
-
-    return dataLayer;
-}
-
-float DataLayerSet::GetDataAtCellIndexFor( const std::string name, const unsigned cellIndex ) {
+//------------------------------------------------------------------------------------------------------------
+float DataLayerSet::GetDataAtLonLatFor( const std::string name, const double Longitude, const double Latitude ) {
     
-    float value = Constants::cMissingValue;
+    assert(Layers.find( name ) != Layers.end( ));
     
-    Types::DataLayerPointer dataLayer = GetDataLayerWithName( name );
-    
-    if( dataLayer != NULL ) {
-        value = dataLayer->GetDataAtCellIndex( cellIndex );
-    }
-    
-    return value;
-}
-float DataLayerSet::GetDataAtCellLonLatFor( const std::string name, const double Longitude, const double Latitude ) {
-    
-    unsigned x=(Longitude- Parameters::Get()->GetUserMinimumLongitude( ) )/ Parameters::Get()->GetGridCellSize( );
-    unsigned y=(Latitude - Parameters::Get()->GetUserMinimumLatitude( ) ) / Parameters::Get()->GetGridCellSize( );
-    unsigned cellIndex=x+y*Parameters::Get()->GetLengthUserLongitudeArray( );
-
-    return GetDataAtCellIndexFor( name, cellIndex );
+    return Layers[name]->GetDataAtLonLat(Longitude,Latitude);
 }
