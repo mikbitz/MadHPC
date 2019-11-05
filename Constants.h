@@ -5,11 +5,6 @@
 
 namespace Constants {
     
-    enum eParametersMetadata {
-        eParameterName,
-        eParameterValue
-    };
-
     enum eOutputControlParametersMetadata {
         eDatumName,
         eDatumType,
