@@ -1,4 +1,4 @@
-InternalHandle,FileSubPath,DefaultVariable
+InternalName,FilePath,DefaultVariableName
 Realm,realm_classification.nc4,realm
 TerrestrialHANPP,Terrestrial/hanpp_2005.nc4,hanpp
 TerrestrialAWC,Terrestrial/available_water_capacity.nc4,awc

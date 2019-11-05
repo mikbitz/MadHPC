@@ -2,7 +2,6 @@
 
 #include "Constants.h"
 #include "Convertor.h"
-#include "Maths.h"
 #include "repast_hpc/Utilities.h"
 #include <iostream>
 
@@ -19,8 +18,6 @@ Parameters::~Parameters( ) {
 
     delete[ ] mMonthlyTimeStepArray;
     delete[ ] mAnnualTimeStepArray;
-    delete[ ] mDataLongitudeArray;
-    delete[ ] mDataLatitudeArray;
     delete[ ] mUserLongitudeArray;
     delete[ ] mUserLatitudeArray;
 
@@ -41,7 +38,6 @@ bool Parameters::Initialise( repast::Properties& props ) {
         SetUserMaximumLongitude      (repast::strToDouble(props.getProperty("simulation.maximumLongitude")));
         SetUserMinimumLatitude       (repast::strToDouble(props.getProperty("simulation.minimumLatitude")));
         SetUserMaximumLatitude       (repast::strToDouble(props.getProperty("simulation.maximumLatitude")));
-        SetDataGridCellSize          (repast::strToDouble(props.getProperty("simulation.DataGridCellSize")));
         SetGridCellSize              (repast::strToDouble(props.getProperty("simulation.GridCellSize")));
         SetExtinctionThreshold       (repast::strToDouble(props.getProperty("simulation.ExtinctionThreshold")));
         SetMaximumNumberOfCohorts    (repast::strToDouble(props.getProperty("simulation.MaximumNumberOfCohorts")));
@@ -53,7 +49,8 @@ bool Parameters::Initialise( repast::Properties& props ) {
         SetRecoverySteps             (repast::strToDouble(props.getProperty("simulation.RecoverySteps")));
         SetDrawRandomly              (                    props.getProperty("simulation.DrawRandomly"));
         SetHumanNPPScenarioType      (                    props.getProperty("simulation.HumanNPPScenarioType"));
-        SetRootDataDirectory         (                    props.getProperty("simulation.RootDataDirectory"));
+        SetRootDataDirectory         (                    props.getProperty("input.RootNcDataDirectory"));
+        SetDataDecriptorFileName     (props.getProperty("input.DataDirectory"),props.getProperty("input.EnvironmentVariablesFile"));
 
         std::map<std::string,double>t;
         t["second"]=1./24/3600;
@@ -77,13 +74,16 @@ bool Parameters::Initialise( repast::Properties& props ) {
         
         CalculateParameters( );
         //throw "Parameters.cpp: Something bad happened when trying to read or calculate input parameters: check the model.props file? Can't continue. Exiting...";
+
         //make sure the dimensions are consistent with the environmental data files
         props.putProperty("min.x",0);
         props.putProperty("min.y",0);
         props.putProperty("max.x",GetLengthUserLongitudeArray( )-1);
         props.putProperty("max.y",GetLengthUserLatitudeArray( )-1);
-        //only wrap in longitude if the domain size is exactly 360 degrees! Not super robust...
-        props.putProperty("noLongitudeWrap",((mUserMaximumLongitude-mUserMinimumLongitude)%360 !=0));
+        //only don't wrap in longitude if set to false here 
+        std::string wrap=props.getProperty("simulation.LongitudeWrap");
+        assert(wrap=="false" || wrap=="true");
+        props.putProperty("noLongitudeWrap",(wrap=="false"));
 
   
         success = true;
@@ -112,22 +112,6 @@ void Parameters::CalculateParameters( ) {
         mAnnualTimeStepArray[ yearIndex ] = yearIndex;
     }
 
-    // Calculate spatial parameters
-    mLengthDataLongitudeArray = 360 / mDataGridCellSize;
-
-    //there are some assumptions here about lat. and long ranges - this code may not work for grid boxes spanning the dateline.
-    mDataLongitudeArray = new float[ mLengthDataLongitudeArray ];
-    for( unsigned longitudeIndex = 0; longitudeIndex < mLengthDataLongitudeArray; ++longitudeIndex ) {
-        mDataLongitudeArray[ longitudeIndex ] = ( -180 + ( ( float )mDataGridCellSize / 2 ) ) + ( longitudeIndex * ( float )mDataGridCellSize );
-    }
-    mLengthDataLatitudeArray = 180 / mDataGridCellSize;
-    mDataLatitudeArray = new float[ mLengthDataLatitudeArray ];
-    for( unsigned latitudeIndex = 0; latitudeIndex < mLengthDataLatitudeArray; ++latitudeIndex ) {
-        mDataLatitudeArray[ latitudeIndex ] = ( -90 + ( ( float )mDataGridCellSize / 2 ) ) + ( latitudeIndex * ( float )mDataGridCellSize );
-    }
-
-//    mDataIndexOfUserMinimumLongitude = Processor::Get( )->CalculateArrayIndexOfValue( mDataLongitudeArray, mLengthDataLongitudeArray, mUserMinimumLongitude );
-//    mDataIndexOfUserMaximumLongitude = Processor::Get( )->CalculateArrayIndexOfValue( mDataLongitudeArray, mLengthDataLongitudeArray, mUserMaximumLongitude );
     mLengthUserLongitudeArray = ( mUserMaximumLongitude - mUserMinimumLongitude )/mGridCellSize + 1;
 
     mUserLongitudeArray = new float[ mLengthUserLongitudeArray ];
@@ -135,8 +119,7 @@ void Parameters::CalculateParameters( ) {
         mUserLongitudeArray[ userLongitudeIndex ] = (mUserMinimumLongitude + ( ( float )mGridCellSize / 2 ) ) + ( userLongitudeIndex * ( float )mGridCellSize );
 
     }
-//    mDataIndexOfUserMinimumLatitude = Processor::Get( )->CalculateArrayIndexOfValue( mDataLatitudeArray, mLengthDataLatitudeArray, mUserMinimumLatitude );
-//    mDataIndexOfUserMaximumLatitude = Processor::Get( )->CalculateArrayIndexOfValue( mDataLatitudeArray, mLengthDataLatitudeArray, mUserMaximumLatitude );
+
     mLengthUserLatitudeArray = ( mUserMaximumLatitude - mUserMinimumLatitude )/mGridCellSize + 1;
 
     mUserLatitudeArray = new float[ mLengthUserLatitudeArray ];
@@ -145,28 +128,15 @@ void Parameters::CalculateParameters( ) {
     }
 
     mNumberOfGridCells = mLengthUserLongitudeArray * mLengthUserLatitudeArray;
-    mSizeOfMonthlyGridDatum = mNumberOfGridCells * mLengthOfSimulationInMonths;
-    mSizeOfAnnualGridDatum = mNumberOfGridCells * mLengthOfSimulationInYears;
-/*
-    unsigned cellIndex = 0;
-    mCoordsIndicesLookup.resize( mNumberOfGridCells );
-    for( unsigned latitudeIndex = 0; latitudeIndex < mLengthUserLatitudeArray; ++latitudeIndex ) {
-        for( unsigned longitudeIndex = 0; longitudeIndex < mLengthUserLongitudeArray; ++longitudeIndex ) {
 
-            float longitude = mUserLongitudeArray[ longitudeIndex ];
-            float latitude = mUserLatitudeArray[ latitudeIndex ];
 
-            Types::DataCoordsPointer coords = new DataCoords( longitude, latitude );
-            Types::DataIndicesPointer indices = new DataIndices( longitudeIndex, latitudeIndex );
-
-            mCoordsIndicesLookup[ cellIndex ] = std::make_pair( coords, indices );
-
-            cellIndex += 1;
-        }
-    }
-    */
 }
-
+void Parameters::SetDataDecriptorFileName(std::string inputDirectory, std::string EnvironmentVariablesFile){
+    _DataDescriptorFileName=inputDirectory+"/"+EnvironmentVariablesFile;
+}
+std::string Parameters::GetDataDecriptorFileName(){
+    return _DataDescriptorFileName;
+}
 void Parameters::SetTimeStepLength( const std::string& lengthString){
     if (lengthString.length()==0)
         mTimeStepLength=1;
@@ -214,9 +184,6 @@ double Parameters::GetGridCellSize( ) const {
     return mGridCellSize;
 }
 
-double Parameters::GetDataGridCellSize( ) const {
-    return mDataGridCellSize;
-}
 
 float Parameters::GetExtinctionThreshold( ) const {
     return mExtinctionThreshold;
@@ -291,9 +258,6 @@ void Parameters::SetGridCellSize( const double& gridCellSize ) {
     mGridCellSize = gridCellSize;
 }
 
-void Parameters::SetDataGridCellSize( const double& gridDataCellSize ) {
-    mDataGridCellSize = gridDataCellSize;
-}
 
 void Parameters::SetExtinctionThreshold( const float& extinctionThreshold ) {
     mExtinctionThreshold = extinctionThreshold;
@@ -341,52 +305,12 @@ unsigned Parameters::GetLengthOfSimulationInMonths( ) const {
     return mLengthOfSimulationInMonths;
 }
 
-unsigned Parameters::GetLengthDataLongitudeArray( ) const {
-    return mLengthDataLongitudeArray;
-}
-
-unsigned Parameters::GetLengthDataLatitudeArray( ) const {
-    return mLengthDataLatitudeArray;
-}
-
-unsigned Parameters::GetDataIndexOfUserMinimumLongitude( ) const {
-    return mDataIndexOfUserMinimumLongitude;
-}
-
-unsigned Parameters::GetDataIndexOfUserMaximumLongitude( ) const {
-    return mDataIndexOfUserMaximumLongitude;
-}
-
-unsigned Parameters::GetDataIndexOfUserMinimumLatitude( ) const {
-    return mDataIndexOfUserMinimumLatitude;
-}
-
-unsigned Parameters::GetDataIndexOfUserMaximumLatitude( ) const {
-    return mDataIndexOfUserMaximumLatitude;
-}
-
 unsigned Parameters::GetLengthUserLongitudeArray( ) const {
     return mLengthUserLongitudeArray;
 }
 
 unsigned Parameters::GetLengthUserLatitudeArray( ) const {
     return mLengthUserLatitudeArray;
-}
-
-unsigned Parameters::GetSizeOfMonthlyGridDatum( ) const {
-    return mSizeOfMonthlyGridDatum;
-}
-
-unsigned Parameters::GetSizeOfAnnualGridDatum( ) const {
-    return mSizeOfAnnualGridDatum;
-}
-
-float Parameters::GetDataLongitudeAtIndex( const unsigned& index ) const {
-    return mDataLongitudeArray[ index ];
-}
-
-float Parameters::GetDataLatitudeAtIndex( const unsigned& index ) const {
-    return mDataLatitudeArray[ index ];
 }
 
 float Parameters::GetUserLongitudeAtIndex( const unsigned& index ) const {
@@ -397,13 +321,6 @@ float Parameters::GetUserLatitudeAtIndex( const unsigned& index ) const {
     return mUserLatitudeArray[ index ];
 }
 
-//float* Parameters::GetDataLongitudeArray( ) const {
-//    return mDataLongitudeArray;
-//}
-//
-//float* Parameters::GetDataLatitudeArray( ) const {
-//    return mDataLatitudeArray;
-//}
 unsigned* Parameters::GetTimeStepArray( ) const {
     return mTimeStepArray;
 }
@@ -422,26 +339,4 @@ float* Parameters::GetUserLongitudeArray( ) const {
 
 float* Parameters::GetUserLatitudeArray( ) const {
     return mUserLatitudeArray;
-}
-
-int Parameters::GetCellIndexFromDataIndices( const unsigned& longitudeIndex, const unsigned& latitudeIndex ) const {
-
-    int cellIndex = Constants::cMissingValue;
-/*    for( unsigned index = 0; index < mNumberOfGridCells; ++index ) {
-        Types::DataIndicesPointer indices = mCoordsIndicesLookup[ index ].second;
-
-        if( indices->GetX( ) == longitudeIndex && indices->GetY( ) == latitudeIndex ) {
-            cellIndex = index;
-            break;
-        }
-    }*/
-    return cellIndex;
-}
-
-Types::DataCoordsPointer Parameters::GetDataCoordsFromCellIndex( const unsigned& cellIndex ) const {
-    return mCoordsIndicesLookup[ cellIndex ].first;
-}
-
-Types::DataIndicesPointer Parameters::GetDataIndicesFromCellIndex( const unsigned& cellIndex ) const {
-    return mCoordsIndicesLookup[ cellIndex ].second;
 }

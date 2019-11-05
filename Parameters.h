@@ -20,7 +20,7 @@ public:
     int GetUserMinimumLongitude( ) const;
     int GetUserMaximumLongitude( ) const;
     double GetGridCellSize( ) const;
-    double GetDataGridCellSize() const;
+
     float GetExtinctionThreshold( ) const;
     unsigned GetMaximumNumberOfCohorts( ) const;
     float GetPlanktonSizeThreshold( ) const;
@@ -46,7 +46,8 @@ public:
     void SetUserMinimumLatitude( const int& );
     void SetUserMaximumLatitude( const int& );
     void SetGridCellSize( const double& );
-    void SetDataGridCellSize( const double& );
+    void SetDataDecriptorFileName(std::string, std::string);
+    std::string GetDataDecriptorFileName();
     void SetExtinctionThreshold( const float& );
     void SetMaximumNumberOfCohorts( const unsigned& );
     void SetPlanktonSizeThreshold( const float& );
@@ -62,8 +63,7 @@ public:
     // Calculated parameters
     unsigned GetNumberOfGridCells( ) const;
     unsigned GetLengthOfSimulationInMonths( ) const;
-    unsigned GetLengthDataLongitudeArray( ) const;
-    unsigned GetLengthDataLatitudeArray( ) const;
+
     unsigned GetDataIndexOfUserMinimumLongitude( ) const;
     unsigned GetDataIndexOfUserMaximumLongitude( ) const;
     unsigned GetDataIndexOfUserMinimumLatitude( ) const;
@@ -74,22 +74,17 @@ public:
     unsigned GetSizeOfAnnualGridDatum( ) const;
     unsigned GetSizeOfMonthlyGridDatum( ) const;
 
-    float GetDataLongitudeAtIndex( const unsigned& ) const;
-    float GetDataLatitudeAtIndex( const unsigned& ) const;
+
     float GetUserLongitudeAtIndex( const unsigned& ) const;
     float GetUserLatitudeAtIndex( const unsigned& ) const;
 
     unsigned* GetTimeStepArray( ) const;
     unsigned* GetMonthlyTimeStepArray( ) const;
     unsigned* GetAnnualTimeStepArray( ) const;
-    //float* GetDataLongitudeArray( ) const;
-    //float* GetDataLatitudeArray( ) const;
+
     float* GetUserLongitudeArray( ) const;
     float* GetUserLatitudeArray( ) const;
     
-    int GetCellIndexFromDataIndices( const unsigned&, const unsigned& ) const;
-    Types::DataCoordsPointer GetDataCoordsFromCellIndex( const unsigned& ) const;
-    Types::DataIndicesPointer GetDataIndicesFromCellIndex( const unsigned& ) const;
 
 private:
     Parameters( );
@@ -106,7 +101,7 @@ private:
     int mUserMinimumLatitude;
     int mUserMaximumLatitude;
     double mGridCellSize;
-    double mDataGridCellSize;
+
     float mExtinctionThreshold;
     unsigned mMaximumNumberOfCohorts;
     float mPlanktonSizeThreshold;
@@ -124,23 +119,18 @@ private:
     unsigned mLengthOfSimulationInYears;
     unsigned mLengthOfSimulation;
     unsigned mNumberOfGridCells;
-    unsigned mLengthDataLongitudeArray;
-    unsigned mLengthDataLatitudeArray;
+
     unsigned mLengthUserLongitudeArray;
     unsigned mLengthUserLatitudeArray;
-    unsigned mDataIndexOfUserMinimumLongitude;
-    unsigned mDataIndexOfUserMaximumLongitude;
-    unsigned mDataIndexOfUserMinimumLatitude;
-    unsigned mDataIndexOfUserMaximumLatitude;
-    unsigned mSizeOfMonthlyGridDatum;
-    unsigned mSizeOfAnnualGridDatum;
+
     unsigned* mTimeStepArray;
     unsigned* mMonthlyTimeStepArray;
     unsigned* mAnnualTimeStepArray;
-    float* mDataLongitudeArray;
-    float* mDataLatitudeArray;
+
     float* mUserLongitudeArray;
     float* mUserLatitudeArray;
+    
+    std::string _DataDescriptorFileName;
 
     Types::CoordsIndicesVector mCoordsIndicesLookup;
 };

@@ -17,19 +17,6 @@ namespace Constants {
         eDataUnit
     };
 
-    enum eEnvironmentalDataLayersMetadata {
-        eInternalName,
-        eFilePath,
-        eDefaultVariableName
-    };
-
-    enum eDataLayerTypes {
-        eDataLayer2D, // Spatial: land-sea mask
-        eDataLayer2DwithTime, // Two-dimensional with time, e.g. SST.
-        eDataLayer3D, // Three-dimensional, e.g. ocean temperature.
-        eDataLayer3DwithTime // Three-dimensional with time.
-    };
-
     enum eVariableTypes {
         eLongitude,
         eLatitude,

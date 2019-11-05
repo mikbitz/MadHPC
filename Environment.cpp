@@ -13,8 +13,6 @@
 
 #include "ClimateVariablesCalculator.h"
 
-#include "DataLayerSet.h"
-#include "DataIndices.h"
 #include "TimeStep.h"
 #include "Parameters.h"
 #include "UtilityFunctions.h"

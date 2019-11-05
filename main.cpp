@@ -112,8 +112,10 @@ int main(int argc, char **argv) {
     }
   //initialise parameters and read datafiles
   //data will be held in a singleton for later use
-  FileReader f;
-  f.ReadFiles( props );
+  bool success = Parameters::Get()->Initialise( props );
+  assert(success);
+  FileReader f( (props.getProperty("verbose")=="true") );
+  f.ReadFiles();
 
   std::string time;
   repast::timestamp(time);

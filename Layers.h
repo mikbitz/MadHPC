@@ -61,6 +61,7 @@ by indexing each co-ordinate separately
     unsigned binaryChop(std::vector<float> coord, 
                         float point){
         unsigned lo=0,hi=coord.size()-1;
+        //need to make sure works for vector in increasing or decreasing order
         float sgn=1;
         if (coord[hi]<coord[lo]){sgn=-1;}
         while (hi > lo+1){
@@ -99,6 +100,7 @@ public:
 //------------------------------------------------------------------------------------------------------------
     float GetDataAtLonLat(const double Longitude,
                           const double Latitude){
+        
         unsigned lonix=binaryChop(_lon,Longitude);
         unsigned latix=binaryChop(_lat,Latitude);
         unsigned cellIndex=lonix+latix*_lon.size();

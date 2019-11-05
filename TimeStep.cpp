@@ -1,6 +1,5 @@
 #include "TimeStep.h"
-#include "Maths.h"
-
+#include "Constants.h"
 Types::TimeStepPointer TimeStep::mThis = NULL;
 
 TimeStep::TimeStep( ) {
@@ -29,9 +28,9 @@ unsigned TimeStep::Get( const std::string& timeUnit ) {
 void TimeStep::SetMonthly( const unsigned& monthlyTimeStep ) {
     mMonthlyTimeStep = monthlyTimeStep;
 
-    if( monthlyTimeStep != 0 && Maths::Get( )->Mod( mMonthlyTimeStep, 12 ) == 0 )
+    if( monthlyTimeStep != 0 && mMonthlyTimeStep % 12  == 0 )
         mAnnualTimeStep += 1;
-    mMonthlyTimeStep =Maths::Get( )->Mod( mMonthlyTimeStep, 12 );
+    mMonthlyTimeStep = mMonthlyTimeStep % 12 ;
 }
 
 void TimeStep::SetAnnual( const unsigned& annualTimeStep ) {

@@ -3,28 +3,32 @@
 
 #include "Types.h"
 #include "Constants.h"
-#include "repast_hpc/Properties.h"
+
 class FileReader {
 public:
-    FileReader( );
+    FileReader(bool);
+//------------------------------------------------------------------------------------------------------------
     ~FileReader( );
-
-    bool ReadFiles(repast::Properties&);
-
+//------------------------------------------------------------------------------------------------------------
+    bool ReadFiles();
+//------------------------------------------------------------------------------------------------------------
 private:
-    bool ReadTextFile( const std::string& );
-    
-    bool ReadInputDataFiles(repast::Properties& );
-    
-    void ClearMetadata( );
-    std::vector<float> Get1DNcFloatVector(netCDF::NcFile& , std::string );
-
+//------------------------------------------------------------------------------------------------------------
+    bool ReadFileNames( const std::string& );    
+//------------------------------------------------------------------------------------------------------------
+    bool ReadInputDataFiles();  
+//------------------------------------------------------------------------------------------------------------
+    std::vector<float> GetCoordinateVector(netCDF::NcFile& , 
+                                           std::string );
+//------------------------------------------------------------------------------------------------------------
+    float*             GetDataField       (netCDF::NcFile& , 
+                                           std::string );
+//------------------------------------------------------------------------------------------------------------
     std::string mFilePath;
-    Types::StringVector mMetadataHeadings;
-    Types::StringMatrix mMetadata; //vector of vector of strings
+    std::vector<std::string> _Headings;
+    std::map<std::string,std::string>_DataDescriptor;
+    std::vector<std::map<std::string,std::string>>_FileDescriptor;
     
-    Types::IntegerVector mAllocatedCellIndices;
-
     bool _verbose;
 };
 
