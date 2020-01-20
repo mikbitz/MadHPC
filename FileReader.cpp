@@ -7,6 +7,11 @@
 #include "Parameters.h"
 
 #include <netcdf>
+
+/**
+\file Filereader.cpp
+\brief This is the Netcdf-file reading implementation file
+*/
 //------------------------------------------------------------------------------------------------------------
 
 FileReader::FileReader(bool v ):_verbose(v) {
@@ -20,7 +25,7 @@ FileReader::~FileReader( ) {
 bool FileReader::ReadFiles() {
 
     //this file is expected to list the internal variable name for the model, the file path below the root (including filename extension) and the default variable name in the file to be read in. These are specified in the EnvironmentVariablesFile header.
-    bool success = ReadFileNames(Parameters::Get( )->GetDataDecriptorFileName() );
+    bool success = ReadFileNames(Parameters::instance()->GetDataDecriptorFileName() );
     assert(success);
     success = ReadInputDataFiles( );
     
@@ -33,7 +38,7 @@ bool FileReader::ReadInputDataFiles() {
     
     for(unsigned i=0;i< _FileDescriptor.size();i++) {
         
-        std::string filePath = Parameters::Get( )->GetRootDataDirectory( );
+        std::string filePath = Parameters::instance()->GetRootDataDirectory( );
         
         filePath.append( _FileDescriptor[i]["FilePath"]);
         if (_verbose)std::cout << "Reading NetCDF file \"" << filePath << "\"..." << std::endl;
@@ -101,13 +106,13 @@ bool FileReader::ReadFileNames( const std::string& filePath ) {
     if( fileStream.is_open( ) ) {
         std::string readLine;
         std::getline( fileStream, readLine );
+        //StringToWords returns a string split into a vector using the Delimiter value
         _Headings = Convertor::Get( )->StringToWords( readLine, Constants::cDataDelimiterValue );
         assert(_Headings[0]=="InternalName" && _Headings[1]=="FilePath" && _Headings[2]=="DefaultVariableName");
         unsigned lineCount = 0;
 
         while( std::getline( fileStream, readLine ) ) {
             if( readLine[ 0 ] != Constants::cTextFileCommentCharacter ) {
-                //StringToWords returns a string split into a vector using the Delimiter value
                 auto descriptor = ( Convertor::Get( )->StringToWords( readLine, Constants::cDataDelimiterValue ) );
                 _DataDescriptor["InternalName"]       = descriptor[0];
                 _DataDescriptor["FilePath"]           = descriptor[1];

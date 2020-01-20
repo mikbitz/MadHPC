@@ -64,20 +64,21 @@ private:
     void   SetFrostandFire();
     double _OrganicPool;
     double _RespiratoryCO2Pool;
-    std::vector< double > _exptdev;
-    std::vector< double > _Seasonality;
-    std::vector< double > _Breeding_Season;
-    std::vector< double >  _AET;
+    std::vector< std::vector< double > > _exptdev;
+    std::vector<std::vector< double > > _Seasonality;
+    std::vector<std::vector< double > > _Breeding_Season;
+    std::vector<std::vector< double > > _AET;
     double _Width;
     double _Height;
     double _Area;
-    double _AnnualTemperature;
-    double _SDTemperature;
-    double _TotalPrecip;
-    double _TotalAET;
+    //annual variables for the plant model - indexed by the current year from the start of the run
+    std::vector<double> _AnnualTemperature;
+    std::vector<double> _SDTemperature;
+    std::vector<double> _TotalPrecip;
+    std::vector<double> _TotalAET;
 
-    double _FractionYearFrost;
-    double _FractionYearFire;
+    std::vector<double> _FractionYearFrost;
+    std::vector<double> _FractionYearFire;
 
     
 

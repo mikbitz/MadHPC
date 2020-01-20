@@ -20,7 +20,7 @@ double CohortMerger::CalculateDistance( Cohort* cohortA, Cohort* cohortB ) {
 }
 
 int CohortMerger::MergeToReachThresholdFast( vector<Cohort*> cohorts) {
-     unsigned maxCohorts=Parameters::Get()->GetMaximumNumberOfCohorts();
+     unsigned maxCohorts=Parameters::instance()->GetMaximumNumberOfCohorts();
     // Set of lists of shortest distances in each functional group
     // set is automatically sorted - multiset allows for elements with the same distance
     std::multiset< CohortPair, CohortPair::Comparator > SortedDistances;

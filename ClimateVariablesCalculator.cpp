@@ -29,7 +29,7 @@ std::tuple< std::vector<double>, double, double > ClimateVariablesCalculator::Mo
     int RunYears = 10; //Number of years to simulate
     double SoilWaterPast = AvailableWaterCapacity; // Initialise the past soil water content to be field capacity
     std::vector<double> ActualEvapotranspiration( 12 ); // Will store monthly actual avapotranspiration (mm)
-    std::vector<double> SoilWater( 12 ); // Will store montly soil water
+    std::vector<double> SoilWater( 12 ); // Will store monthly soil water
     std::vector<double> DailyAET( 30 ); // Temporary store for daily actual evapotranspiration
     std::vector<double> DailySWC( 30 ); // Temporary store for daily soil water content
     std::vector<double> MidMonthDailyPET( 12 ); // The daily PET at the middle of each month

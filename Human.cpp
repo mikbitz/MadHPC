@@ -169,7 +169,7 @@ void Human::PushThingsIntoPackage( AgentPackage& package ) {
 void Human::step(EnvironmentCell* e,vector<Human*>& preys,vector<Stock*>& stocks,const unsigned Timestep,MadModel* m) {
     _newH=NULL;//make sure the reproduction pointer has been zeroed out
 
-    if (_CohortAbundance - Parameters::Get( )->GetExtinctionThreshold( ) <= 0)return;
+    if (_CohortAbundance - Parameters::instance()->GetExtinctionThreshold( ) <= 0)return;
     _CurrentTimeStep=Timestep;
 
     //note - passing in preys here from above ensures that new cohorts created later do not immediately get eaten.

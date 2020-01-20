@@ -31,6 +31,13 @@ public:
                   std::vector<float>,
                   std::vector<float>,
                   std::vector<float>);
+//------------------------------------------------------------------------------------------------------------
+// add a pre-existing Layer
+    void addLayer(std::string ,
+                  Layer *);
+//------------------------------------------------------------------------------------------------------------
+// return a pointer to a pre-existing layer
+    Layer* GetLayer( const std::string name);
 private:
     
 //private constructor - clients get access to this class by calling Data() above

@@ -30,6 +30,17 @@ void DataLayerSet::addLayer(std::string name,float *data,std::vector<float>lon,s
     Layers[name]=d;
 }
 //------------------------------------------------------------------------------------------------------------
+void DataLayerSet::addLayer(std::string name, Layer* d){
+    Layers[name]=d;
+}
+//------------------------------------------------------------------------------------------------------------
+Layer* DataLayerSet::GetLayer( const std::string name) {
+    
+    assert(Layers.find( name ) != Layers.end( ));
+    
+    return Layers[name];
+}
+//------------------------------------------------------------------------------------------------------------
 float DataLayerSet::GetDataAtLonLatFor( const std::string name, const double Longitude, const double Latitude ) {
     
     assert(Layers.find( name ) != Layers.end( ));

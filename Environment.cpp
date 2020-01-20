@@ -17,6 +17,7 @@
 #include "Parameters.h"
 #include "UtilityFunctions.h"
 #include "Stock.h"
+#include "DataLayerSet.h"
 
 
 Environment::Environment() {}
@@ -27,11 +28,10 @@ Environment::Environment(int minX,int maxX,int minY,int maxY) {
             _Cells[x][y]=E;
         }
     }
-
 }
 
 void Environment::update(unsigned CurrentTimeStep){
-  TimeStep::Get( )->SetMonthly( CurrentTimeStep*Parameters::Get()->MonthsPerTimeStep());
+  TimeStep::instance()->SetTime(CurrentTimeStep);
 }
 
 

@@ -24,12 +24,12 @@
         double m2Tokm2Conversion = 1000000.0;
 
         //extraction parameters
-        std::string humanNPPScenarioType= Parameters::Get( )->GetHumanNPPScenarioType();
-        double humanNPPExtractionScale  = Parameters::Get( )->GetHumanNPPExtractionScale();
-        double humanNPPScenarioDuration = Parameters::Get( )->GetHumanNPPScenarioDuration();
-        unsigned burninSteps            = Parameters::Get( )->GetBurninSteps();
-        unsigned impactSteps            = Parameters::Get( )->GetImpactSteps();
-        unsigned recoverySteps          = Parameters::Get( )->GetRecoverySteps();
+        std::string humanNPPScenarioType= Parameters::instance()->GetHumanNPPScenarioType();
+        double humanNPPExtractionScale  = Parameters::instance()->GetHumanNPPExtractionScale();
+        double humanNPPScenarioDuration = Parameters::instance()->GetHumanNPPScenarioDuration();
+        unsigned burninSteps            = Parameters::instance()->GetBurninSteps();
+        unsigned impactSteps            = Parameters::instance()->GetImpactSteps();
+        unsigned recoverySteps          = Parameters::instance()->GetRecoverySteps();
         
         //return value
         double RemovalRate=0;

@@ -112,7 +112,7 @@ int main(int argc, char **argv) {
     }
   //initialise parameters and read datafiles
   //data will be held in a singleton for later use
-  bool success = Parameters::Get()->Initialise( props );
+  bool success = Parameters::instance()->Initialise( props );
   assert(success);
   FileReader f( (props.getProperty("verbose")=="true") );
   f.ReadFiles();
@@ -122,7 +122,7 @@ int main(int argc, char **argv) {
   props.putProperty("date_time.run", time);
 
   props.putProperty("process.count", world.size());
-  props.putProperty ("code.version","10_2019_v0.23");
+  props.putProperty ("code.version","01_2020_v0.24");
   if(world.rank() == 0) std::cout << " Starting... " << std::endl;
 
   //initialize default random number generator

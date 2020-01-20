@@ -37,63 +37,77 @@ EnvironmentCell::EnvironmentCell(int x,int y):_x(x),_y(y){
     SetNPPSeasonality();
     SetBreeding();
     SetFrostandFire();
-    //make sure all time dependent fields set to the start
-
-    TimeStep::Get( )->SetMonthly( 0);
 
 }
 //------------------------------------------------------------------------------
 
 void EnvironmentCell::SetRealm( ) {
     _Realm="none";
-    if( DataLayerSet::Data( )->GetDataAtLonLatFor( "Realm", Longitude(),  Latitude() ) == 1 ) {
+    if( DataLayerSet::Data( )->GetDataAtLonLatFor( "Realm", Longitude(),  Latitude() ) < 1.5 ) {
           _Realm="marine";
-    } else if( DataLayerSet::Data( )->GetDataAtLonLatFor( "Realm", Longitude(),  Latitude() ) == 2 ) {
+    } else if( DataLayerSet::Data( )->GetDataAtLonLatFor( "Realm", Longitude(),  Latitude() ) >= 1.5) {
           _Realm="terrestrial";
     }
+    double d = DataLayerSet::Data( )->GetDataAtLonLatFor( "MarineTemp", Longitude(),  Latitude() );
+    if (d == Constants::cMissingValue && _Realm=="marine")_Realm="terrestrial";
+    d = DataLayerSet::Data( )->GetDataAtLonLatFor( "TerrestrialTemp", Longitude(),  Latitude() );
+    if (d == Constants::cMissingValue && _Realm=="terrestrial")_Realm="marine";
 }
 //------------------------------------------------------------------------------
 void EnvironmentCell::SetTotalPrecip(){
  double d = Constants::cMissingValue;
+
  if( _Realm=="terrestrial" ) {
-  d=0;
-  for( int timeIndex = 0; timeIndex < 12; timeIndex++ ) {
-    TimeStep::Get( )->SetMonthly( timeIndex );
-    d+=Precipitation();
-  }
+
+ auto precip=DataLayerSet::Data( )->GetLayer("TerrestrialPre");
+ // allow for multi-year data
+ unsigned year=0;
+ auto p=((Layer2DWithTime*)(precip))->GetYearAtLonLat( year, Longitude(),  Latitude() );
+
+ while (p.size()>0){
+    d=0;
+    for (auto& pre:p)d+=pre;
+     year++;
+     p=((Layer2DWithTime*)(precip))->GetYearAtLonLat( year, Longitude(),  Latitude() );
  }
- _TotalPrecip=d;
+ _TotalPrecip.push_back(d);
+ }
+
 }
 //------------------------------------------------------------------------------
 void EnvironmentCell::SetAVGSDTemp(){
-
- double avg = 0;
- for( int timeIndex = 0; timeIndex < 12; timeIndex++ ) {
-     double d = Constants::cMissingValue;
-    TimeStep::Get( )->SetMonthly( timeIndex );
-    d=Temperature();
-    if( d == Constants::cMissingValue ) d = 0;
-    avg += d;
- }
- 
- avg = avg / 12;
- double sota = 0, sumExp = 0;
- _exptdev.resize(12);
- for( int timeIndex = 0; timeIndex < 12; timeIndex++ ) {
-    double d = Constants::cMissingValue;
-    TimeStep::Get( )->SetMonthly( timeIndex );
-    d=Temperature();
-
-    if( d == Constants::cMissingValue )d = 0;
-    sota += ( d - avg )*( d - avg );
-    _exptdev[ timeIndex ] = exp( -( d - avg ) / 3 );
-    sumExp += _exptdev[ timeIndex ];
- }
- for( int tm = 0; tm < 12; tm++ ) {
-    _exptdev[tm] = _exptdev[tm] / sumExp;
- }
- _AnnualTemperature = avg;
- _SDTemperature=sqrt( sota / 12 );
+    Layer* Temp=nullptr;
+    if( _Realm=="marine" ) {
+        Temp=DataLayerSet::Data( )->GetLayer("MarineTemp");
+    } else if( _Realm=="terrestrial" ) {
+        Temp=DataLayerSet::Data( )->GetLayer("TerrestrialTemp");
+    }
+    assert (Temp!=nullptr);
+    unsigned year=0;
+    auto T=((Layer2DWithTime*)(Temp))->GetYearAtLonLat( year, Longitude(),  Latitude() );
+    while (T.size()>0){
+        double avg=0;
+        for (auto& t:T){
+            if( t != Constants::cMissingValue ) avg+=t;
+        }
+        avg=avg/T.size();
+        double sota = 0, sumExp = 0;
+        _exptdev.push_back(vector<double>(T.size(),0));
+        for (unsigned i=0;i<T.size();i++){
+            if( T[i] != Constants::cMissingValue ) {
+                sota += ( T[i] - avg )*( T[i] - avg );
+                _exptdev[year][i] = exp( -( T[i] - avg ) / 3 );
+                sumExp += _exptdev[year][i];
+            }
+        }
+        for( auto& e:_exptdev[year]) {
+            e = e / sumExp;
+        }
+        _AnnualTemperature.push_back(avg);
+        _SDTemperature.push_back(sqrt( sota / 12 ));
+        year++;
+        T=((Layer2DWithTime*)(Temp))->GetYearAtLonLat( year, Longitude(),  Latitude() );
+    }
 
 }
 //----------------------------------------------------------------------------------------------
@@ -102,88 +116,98 @@ void EnvironmentCell::SetAVGSDTemp(){
 then assign 1/12 for each month.
  */
 void EnvironmentCell::SetNPPSeasonality( ) {
-  _Seasonality.resize(12);
- // Loop over months and calculate total annual NPP
- double totalNPP = 0.0;
- for( int timeIndex = 0; timeIndex < 12; timeIndex++ ) {
-     TimeStep::Get( )->SetMonthly( timeIndex );
-     double N = NPP();
-     if( N != Constants::cMissingValue && N > 0 ) totalNPP += N;
- }
- if( totalNPP == 0 ) {
-     // Loop over months and calculate seasonality
-     // If there is no NPP value then assign a uniform flat seasonality
-     for( int timeIndex = 0; timeIndex < 12; timeIndex++ ) {
-        _Seasonality[ timeIndex ] = 1.0 / 12.0;
-     }
-  } else {
-     // Some NPP data exists for this grid cell so use that to infer the NPP seasonality
-     // Loop over months and calculate seasonality
-     for( int timeIndex = 0; timeIndex < 12; timeIndex++ ) {
-         TimeStep::Get( )->SetMonthly( timeIndex );
-         double N = NPP();
-         if( N != Constants::cMissingValue && N > 0 ) {
-             _Seasonality[ timeIndex ] = N / totalNPP;
-         } else {
-             _Seasonality[ timeIndex  ] = 0.0;
-         }
-     }
- }
-
+    Layer* N=nullptr;
+    if( _Realm=="marine" ) {
+        N= DataLayerSet::Data( )->GetLayer( "MarineNPP");
+    } else if( _Realm=="terrestrial" ) {
+        N= DataLayerSet::Data( )->GetLayer("TerrestrialNPP");
+    }
+    assert(N!=nullptr);
+    unsigned year=0;
+    auto NPP=((Layer2DWithTime*)(N))->GetYearAtLonLat( year, Longitude(),  Latitude() );
+    while (NPP.size()!=0){
+        _Seasonality.push_back(vector<double>(NPP.size(),0));
+        // Loop over months and calculate total annual NPP
+        
+        double totalNPP = 0.0;
+        for( auto& n:NPP ) {
+            
+            if( n != Constants::cMissingValue && n > 0 ) totalNPP += n;
+        }
+        if( totalNPP == 0 ) {
+            // Loop over months and calculate seasonality
+            // If there is no NPP value then assign a uniform flat seasonality
+            for( auto& s:_Seasonality[year]) {
+                s = 1.0 / 12.0;
+            }
+        } else {
+            // Some NPP data exists for this grid cell so use that to infer the NPP seasonality
+            // Loop over months and calculate seasonality
+            for( int i = 0; i < NPP.size(); i++ ) {
+                double n = NPP[i];
+                if( n != Constants::cMissingValue && n > 0 ) {
+                    _Seasonality[year][ i ] = n / totalNPP;
+                } else {
+                    _Seasonality[year][ i ] = 0.0;
+                }
+            }
+        }
+        year++;
+        NPP=((Layer2DWithTime*)(N))->GetYearAtLonLat( year, Longitude(),  Latitude() );
+    }
 }
 //----------------------------------------------------------------------------------------------
 void EnvironmentCell::SetBreeding( ) {
-// Designate a breeding season for this grid cell, where a month is considered to be part of the breeding season if its NPP is at
-// least 80% of the maximum NPP throughout the whole year
+    // Designate a breeding season for this grid cell, where a month is considered to be part of the breeding season if its NPP is at
+    // least 80% of the maximum NPP throughout the whole year
     double maxSeason = -1;
-    _Breeding_Season.resize(12);
-    for( int timeIndex = 0; timeIndex < 12; timeIndex++ ) {
-        maxSeason = std::max( maxSeason, _Seasonality[timeIndex]);
+    for (unsigned year=0;year<_Seasonality.size();year++){
+        _Breeding_Season.push_back(vector<double>(_Seasonality[year].size(),0));
+        for( int timeIndex = 0; timeIndex < _Seasonality[year].size(); timeIndex++ ) {
+            maxSeason = std::max( maxSeason, _Seasonality[year][timeIndex]);
+        }
+        for( int timeIndex = 0; timeIndex < _Seasonality[year].size(); timeIndex++ ) {
+            if(  _Seasonality[year][timeIndex] / maxSeason > 0.5 ) {
+                _Breeding_Season[year][timeIndex] = 1.0;
+            } else {
+                _Breeding_Season[year][timeIndex] = 0.0;
+            }
+        }
     }
-    for( int timeIndex = 0; timeIndex < 12; timeIndex++ ) {
-      if(  _Seasonality[timeIndex] / maxSeason > 0.5 ) {
-          _Breeding_Season[timeIndex] = 1.0;
-      } else {
-          _Breeding_Season[timeIndex] = 0.0;
-      }
-    }
-
 }
 //----------------------------------------------------------------------------------------------
 void EnvironmentCell::SetFrostandFire( ) {
     // Calculate other climate variables from temperature and precipitation
     // Declare an instance of the climate variables calculator
-    ClimateVariablesCalculator CVC;
-    _AET.resize(12);
-
-        // Calculate the fraction of the year that experiences frost
-        std::vector< double > FrostDays( 12 ), Temp( 12 ), Precip( 12 );
-        for( int timeIndex = 0; timeIndex < 12; timeIndex++ ) {
-
-            TimeStep::Get( )->SetMonthly( timeIndex );
-            if(_Realm=="terrestrial" ) {
-                FrostDays[timeIndex] = DataLayerSet::Data( )->GetDataAtLonLatFor( "TerrestrialFrost", Longitude(),  Latitude() );
-                Precip[timeIndex] = Precipitation();
-                Temp[timeIndex] = Temperature();
-            }
-        }
-        _FractionYearFrost = CVC.GetNDF( FrostDays, Temp, Constants::cMissingValue );
-
-        //std::vector< double > MonthDays = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
-        //not used??
-        //for( int timeIndex = 0; timeIndex < 12; timeIndex++ ) {
-        //    _FractionMonthFrost[timeIndex ] = std::min( FrostDays[timeIndex] / MonthDays[timeIndex], ( double )1.0 );
-        //}
-        double AWC = DataLayerSet::Data( )->GetDataAtLonLatFor( "TerrestrialAWC", Longitude(),  Latitude() );
+    if( _Realm=="terrestrial" ){
+        ClimateVariablesCalculator CVC;
+        auto Frost = DataLayerSet::Data( )->GetLayer("TerrestrialFrost");
+        auto pre   = DataLayerSet::Data( )->GetLayer("TerrestrialPre");
+        auto T     = DataLayerSet::Data( )->GetLayer("TerrestrialTemp");
         
-        std::tuple< std::vector< double >, double, double > TempTuple = CVC.MonthlyActualEvapotranspirationSoilMoisture( AWC, Precip, Temp );
-        _TotalAET = 0;
-        for( int timeIndex = 0; timeIndex < 12; timeIndex++ ) {
-            _AET[timeIndex ] = std::get< 0 >( TempTuple )[ timeIndex ];
-            _TotalAET += std::get< 0 >( TempTuple )[ timeIndex ];
+        double AWC = DataLayerSet::Data()->GetDataAtLonLatFor( "TerrestrialAWC", Longitude(),  Latitude() );
+        unsigned year=0;
+        auto FrostDays=((Layer2DWithTime*)(Frost))->GetYearAtLonLat( year, Longitude(),  Latitude() );
+        auto Temp     =((Layer2DWithTime*)(T    ))->GetYearAtLonLat( year, Longitude(),  Latitude() );
+        auto Precip   =((Layer2DWithTime*)(pre  ))->GetYearAtLonLat( year, Longitude(),  Latitude() );
+
+        while(Precip.size()!=0){
+            _FractionYearFrost.push_back(CVC.GetNDF( FrostDays, Temp, Constants::cMissingValue ));
+            
+            std::tuple< std::vector< double >, double, double > TempTuple = CVC.MonthlyActualEvapotranspirationSoilMoisture( AWC, Precip, Temp );
+            _TotalAET.push_back(0);
+            _AET.push_back(vector<double>(Precip.size(),0));
+            for( int timeIndex = 0; timeIndex < Precip.size(); timeIndex++ ) {
+                _AET[year][timeIndex ] = std::get< 0 >( TempTuple )[ timeIndex ];
+                _TotalAET[year] += std::get< 0 >( TempTuple )[ timeIndex ];
+            }
+            _FractionYearFire.push_back( ( std::get< 2 > ( TempTuple ) / 360 ));
+            year++;
+            FrostDays=((Layer2DWithTime*)(Frost))->GetYearAtLonLat( year, Longitude(),  Latitude() );
+            Temp     =((Layer2DWithTime*)(T    ))->GetYearAtLonLat( year, Longitude(),  Latitude() );
+            Precip   =((Layer2DWithTime*)(pre  ))->GetYearAtLonLat( year, Longitude(),  Latitude() );
         }
-        _FractionYearFire = ( std::get< 2 > ( TempTuple ) / 360 );
-    
+    }
 }
 //----------------------------------------------------------------------------------------------
 
@@ -191,16 +215,16 @@ double EnvironmentCell::Width(){return _Width;}
 double EnvironmentCell::Height(){return _Height;}
 double EnvironmentCell::Area(){return  _Area;}
 //----------------------------------------------------------------------------------------------
-double EnvironmentCell::TotalAET(){return _TotalAET;}
-double EnvironmentCell::AET(){return _AET[TimeStep::Get( )->Get(Constants::cMonthlyTimeUnitName)];}
+double EnvironmentCell::TotalAET(){return _TotalAET[TimeStep::instance()->CurrentYear()];}
+double EnvironmentCell::AET(){return _AET[TimeStep::instance()->CurrentYear()][TimeStep::instance( )->CurrentMonth()];}
 //----------------------------------------------------------------------------------------------
-double EnvironmentCell::FractionYearFrost(){return _FractionYearFrost;}
-double EnvironmentCell::FractionYearFire(){return _FractionYearFire;}
-double EnvironmentCell::Breeding_Season(){ return _Breeding_Season[TimeStep::Get( )->Get(Constants::cMonthlyTimeUnitName)];}
+double EnvironmentCell::FractionYearFrost(){return _FractionYearFrost[TimeStep::instance()->CurrentYear()];}
+double EnvironmentCell::FractionYearFire(){return _FractionYearFire[TimeStep::instance()->CurrentYear()];}
+double EnvironmentCell::Breeding_Season(){assert(TimeStep::instance( )->CurrentYear()<1);return _Breeding_Season[TimeStep::instance()->CurrentYear()][TimeStep::instance( )->CurrentMonth()];}
 //------------------------------------------------------------------------------
-double EnvironmentCell::Seasonality(){ return _Seasonality[TimeStep::Get( )->Get(Constants::cMonthlyTimeUnitName)];}
+double EnvironmentCell::Seasonality(){ return _Seasonality[TimeStep::instance()->CurrentYear()][TimeStep::instance( )->CurrentMonth()];}
 //------------------------------------------------------------------------------
-double EnvironmentCell::ExpTDevWeight(){ return _exptdev[TimeStep::Get( )->Get(Constants::cMonthlyTimeUnitName)];}
+double EnvironmentCell::ExpTDevWeight(){ return _exptdev[TimeStep::instance()->CurrentYear()][TimeStep::instance( )->CurrentMonth()];}
 //------------------------------------------------------------------------------
 double EnvironmentCell::TerrestrialHANPP(){
  double d=0;
@@ -275,11 +299,11 @@ double EnvironmentCell::Precipitation(){
     
 }
 //-----------------------------------------------------------------------------
-double EnvironmentCell::TotalPrecip(){return _TotalPrecip;}
+double EnvironmentCell::TotalPrecip(){return _TotalPrecip[TimeStep::instance()->CurrentYear()];}
 //------------------------------------------------------------------------------
-double EnvironmentCell::AnnualTemperature(){return _AnnualTemperature;}
+double EnvironmentCell::AnnualTemperature(){return _AnnualTemperature[TimeStep::instance()->CurrentYear()];}
 //------------------------------------------------------------------------------
-double EnvironmentCell::SDTemperature(){return _SDTemperature;}
+double EnvironmentCell::SDTemperature(){return _SDTemperature[TimeStep::instance()->CurrentYear()];}
 //------------------------------------------------------------------------------
 double EnvironmentCell::GetVariableFromDatasetNamed(std:: string s){
 
@@ -292,15 +316,15 @@ double EnvironmentCell::GetVariableFromDatasetNamed(std:: string s){
 }
 //------------------------------------------------------------------------------
 double EnvironmentCell::Latitude(){
-    return Parameters::Get()->GetUserLatitudeAtIndex(_y);
+    return Parameters::instance()->GetLatitudeAtIndex(_y);
 }
 //------------------------------------------------------------------------------
 double EnvironmentCell::Longitude(){
-    return Parameters::Get()->GetUserLongitudeAtIndex(_x);
+    return Parameters::instance()->GetLongitudeAtIndex(_x);
 }
 //------------------------------------------------------------------------------
 double EnvironmentCell::cellSize(){
-    return Parameters::Get()->GetGridCellSize();
+    return Parameters::instance()->GetGridCellSize();
 }
 
 

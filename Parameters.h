@@ -8,17 +8,17 @@
 class Parameters {
 public:
     ~Parameters( );
-    static Types::ParametersPointer Get( );
+    static Types::ParametersPointer instance( );
 
     bool Initialise( repast::Properties& );
     // User defined parameters
     std::string GetRootDataDirectory( ) const;
     std::string GetTimeStepUnits( ) const;
     unsigned GetLengthOfSimulationInYears( ) const;
-    int GetUserMinimumLatitude( ) const;
-    int GetUserMaximumLatitude( ) const;
-    int GetUserMinimumLongitude( ) const;
-    int GetUserMaximumLongitude( ) const;
+    int GetMinimumLatitude( ) const;
+    int GetMaximumLatitude( ) const;
+    int GetMinimumLongitude( ) const;
+    int GetMaximumLongitude( ) const;
     double GetGridCellSize( ) const;
 
     float GetExtinctionThreshold( ) const;
@@ -35,18 +35,13 @@ public:
     float MonthsPerTimeStep() const;
     float DaysPerTimeStep() const;   
     void SetRootDataDirectory( const std::string& );
-    void SetTimeStepUnits( const std::string& );
-    void SetTimeStepLength( const std::string& );
-    void SetMonthsPerTimeStep(float);
-    void SetLengthOfSimulation( const unsigned& );
-    void SetLengthOfSimulationInYears( const unsigned& );
-    void SetLengthOfSimulationInMonths( const unsigned& );
-    void SetUserMinimumLongitude( const int& );
-    void SetUserMaximumLongitude( const int& );
-    void SetUserMinimumLatitude( const int& );
-    void SetUserMaximumLatitude( const int& );
+
+    void SetMinimumLongitude( const int& );
+    void SetMaximumLongitude( const int& );
+    void SetMinimumLatitude( const int& );
+    void SetMaximumLatitude( const int& );
     void SetGridCellSize( const double& );
-    void SetDataDecriptorFileName(std::string, std::string);
+
     std::string GetDataDecriptorFileName();
     void SetExtinctionThreshold( const float& );
     void SetMaximumNumberOfCohorts( const unsigned& );
@@ -62,77 +57,70 @@ public:
     
     // Calculated parameters
     unsigned GetNumberOfGridCells( ) const;
-    unsigned GetLengthOfSimulationInMonths( ) const;
 
-    unsigned GetDataIndexOfUserMinimumLongitude( ) const;
-    unsigned GetDataIndexOfUserMaximumLongitude( ) const;
-    unsigned GetDataIndexOfUserMinimumLatitude( ) const;
-    unsigned GetDataIndexOfUserMaximumLatitude( ) const;
-    unsigned GetLengthUserLongitudeArray( ) const;
-    unsigned GetLengthUserLatitudeArray( ) const;
+    unsigned GetDataIndexOfMinimumLongitude( ) const;
+    unsigned GetDataIndexOfMaximumLongitude( ) const;
+    unsigned GetDataIndexOfMinimumLatitude( ) const;
+    unsigned GetDataIndexOfMaximumLatitude( ) const;
+    unsigned GetLengthLongitudeArray( ) const;
+    unsigned GetLengthLatitudeArray( ) const;
 
-    unsigned GetSizeOfAnnualGridDatum( ) const;
-    unsigned GetSizeOfMonthlyGridDatum( ) const;
-
-
-    float GetUserLongitudeAtIndex( const unsigned& ) const;
-    float GetUserLatitudeAtIndex( const unsigned& ) const;
+    float GetLongitudeAtIndex( const unsigned& ) const;
+    float GetLatitudeAtIndex( const unsigned& ) const;
 
     unsigned* GetTimeStepArray( ) const;
     unsigned* GetMonthlyTimeStepArray( ) const;
     unsigned* GetAnnualTimeStepArray( ) const;
+    double GetInitialDay() const;
+    double GetRepeatDay() const;
 
-    float* GetUserLongitudeArray( ) const;
-    float* GetUserLatitudeArray( ) const;
+    float* GetLongitudeArray( ) const;
+    float* GetLatitudeArray( ) const;
     
 
 private:
     Parameters( );
-    void CalculateParameters( );
+    void SetUpTimeStep(repast::Properties& props);
+    void CalculateLonLat( );
 
-    static Types::ParametersPointer mThis;
+    static Types::ParametersPointer _Instance;
 
     // User defined parameters
-    std::string mRootDataDirectory;
-    std::string mTimeStepUnits;
-    float mTimeStepLength;
-    int mUserMinimumLongitude;
-    int mUserMaximumLongitude;
-    int mUserMinimumLatitude;
-    int mUserMaximumLatitude;
-    double mGridCellSize;
+    std::string _RootDataDirectory;
+    std::string _TimeStepUnits;
+    float _TimeStepLength;
+    int _MinimumLongitude;
+    int _MaximumLongitude;
+    int _MinimumLatitude;
+    int _MaximumLatitude;
+    double _GridCellSize;
 
-    float mExtinctionThreshold;
-    unsigned mMaximumNumberOfCohorts;
-    float mPlanktonSizeThreshold;
-    bool mDrawRandomly;
+    float _ExtinctionThreshold;
+    unsigned _MaximumNumberOfCohorts;
+    float _PlanktonSizeThreshold;
+    bool _DrawRandomly;
 
-    std::string mHumanNPPScenarioType;
-    double mHumanNPPExtractionScale;
-    double mHumanNPPScenarioDuration;
-    float mMonthsPerTimeStep;
-    unsigned mBurninSteps;
-    unsigned mImpactSteps;
-    unsigned mRecoverySteps;
+    std::string _HumanNPPScenarioType;
+    double _HumanNPPExtractionScale;
+    double _HumanNPPScenarioDuration;
+
+    double _InitialDay;
+    double _DataRepeatDay;
+    unsigned _BurninSteps;
+    unsigned _ImpactSteps;
+    unsigned _RecoverySteps;
     // Calculated parameters
-    unsigned mLengthOfSimulationInMonths;
-    unsigned mLengthOfSimulationInYears;
-    unsigned mLengthOfSimulation;
-    unsigned mNumberOfGridCells;
 
-    unsigned mLengthUserLongitudeArray;
-    unsigned mLengthUserLatitudeArray;
+    unsigned _NumberOfGridCells;
 
-    unsigned* mTimeStepArray;
-    unsigned* mMonthlyTimeStepArray;
-    unsigned* mAnnualTimeStepArray;
+    unsigned _LengthLongitudeArray;
+    unsigned _LengthLatitudeArray;
 
-    float* mUserLongitudeArray;
-    float* mUserLatitudeArray;
+    float* _LongitudeArray;
+    float* _LatitudeArray;
     
     std::string _DataDescriptorFileName;
 
-    Types::CoordsIndicesVector mCoordsIndicesLookup;
 };
 
 #endif

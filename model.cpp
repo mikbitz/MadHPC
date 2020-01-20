@@ -759,19 +759,19 @@ void MadModel::asciiOutput( unsigned step ) {
     Abundout<<"nrows "<<NumLat<<endl;
     Abundout<<"xllcorner     -180.0"<<endl;
     Abundout<<"yllcorner     -65.0"<<endl;
-    Abundout<<"cellsize "<< Parameters::Get()->GetGridCellSize( )<<endl;
+    Abundout<<"cellsize "<< Parameters::instance()->GetGridCellSize( )<<endl;
     Abundout<<"NODATA_value  -9999"<<endl;
     Biomaout<<"ncols "<<NumLon<<endl;
     Biomaout<<"nrows "<<NumLat<<endl;
     Biomaout<<"xllcorner     -180.0"<<endl;
     Biomaout<<"yllcorner     -65.0"<<endl;
-    Biomaout<<"cellsize "<< Parameters::Get()->GetGridCellSize( )<<endl;
+    Biomaout<<"cellsize "<< Parameters::instance()->GetGridCellSize( )<<endl;
     Biomaout<<"NODATA_value  -9999"<<endl;
     Stockout<<"ncols "<<NumLon<<endl;
     Stockout<<"nrows "<<NumLat<<endl;
     Stockout<<"xllcorner     -180.0"<<endl;
     Stockout<<"yllcorner     -65.0"<<endl;
-    Stockout<<"cellsize "<< Parameters::Get()->GetGridCellSize( )<<endl;
+    Stockout<<"cellsize "<< Parameters::instance()->GetGridCellSize( )<<endl;
     Stockout<<"NODATA_value  -9999"<<endl;
     for (int la=NumLat-1;la>=0;la--){
      for (int lo=0;lo<NumLon;lo++){
@@ -793,8 +793,8 @@ void MadModel::setupNcOutput(){
         netCDF::NcFile cohortBreakdownFile( filePath.c_str(), netCDF::NcFile::replace ); // Creates file
         netCDF::NcDim TimeNcDim = cohortBreakdownFile.addDim( "time", _stopAt ); // Creates dimension
         netCDF::NcVar TimeNcVar = cohortBreakdownFile.addVar( "time", netCDF::ncUint, TimeNcDim ); // Creates variable
-        TimeNcVar.putVar( Parameters::Get( )->GetTimeStepArray( ) );
-        TimeNcVar.putAtt( "units", Parameters::Get()->GetTimeStepUnits() );
+        TimeNcVar.putVar( TimeStep::instance()->TimeStepArray().data() );
+        TimeNcVar.putAtt( "units", TimeStep::instance()->TimeStepUnits() );
                 
         netCDF::NcDim FGroupDim = cohortBreakdownFile.addDim("functionalGroupNumber" , _FinalCohortBreakdown.size() );
         netCDF::NcVar FGNcVar = cohortBreakdownFile.addVar( "functionalGroupNumber", netCDF::ncInt, FGroupDim );
@@ -821,17 +821,17 @@ void MadModel::setNcGridFile(std::string GridName, std::string units){
 
         netCDF::NcDim gTimeNcDim = gridFile.addDim( "time", _stopAt );                    // Creates dimension
         netCDF::NcVar gTimeNcVar = gridFile.addVar( "time", netCDF::ncUint, gTimeNcDim ); // Creates variable
-        gTimeNcVar.putVar( Parameters::Get( )->GetTimeStepArray( ) );
-        gTimeNcVar.putAtt( "units", Parameters::Get()->GetTimeStepUnits() );
+        gTimeNcVar.putVar( TimeStep::instance()->TimeStepArray().data() );
+        gTimeNcVar.putAtt( "units", TimeStep::instance()->TimeStepUnits() );
                 
-        netCDF::NcDim longitudeDim =   gridFile.addDim( "Longitude", Parameters::Get( )->GetLengthUserLongitudeArray( ) );
+        netCDF::NcDim longitudeDim =   gridFile.addDim( "Longitude", Parameters::instance()->GetLengthLongitudeArray( ) );
         netCDF::NcVar longitudeNcVar = gridFile.addVar( "Longitude", netCDF::ncFloat, longitudeDim );
-        longitudeNcVar.putVar( Parameters::Get( )->GetUserLongitudeArray( ) );
+        longitudeNcVar.putVar( Parameters::instance()->GetLongitudeArray( ) );
         longitudeNcVar.putAtt( "units", "degrees" );
 
-        netCDF::NcDim latitudeDim =   gridFile.addDim( "Latitude", Parameters::Get( )->GetLengthUserLatitudeArray( ) );
+        netCDF::NcDim latitudeDim =   gridFile.addDim( "Latitude", Parameters::instance()->GetLengthLatitudeArray( ) );
         netCDF::NcVar latitudeNcVar = gridFile.addVar( "Latitude", netCDF::ncFloat, latitudeDim );
-        latitudeNcVar.putVar( Parameters::Get( )->GetUserLatitudeArray( ) );
+        latitudeNcVar.putVar( Parameters::instance()->GetLatitudeArray( ) );
         latitudeNcVar.putAtt( "units", "degrees" );
                 
         std::vector< netCDF::NcDim > gridDimensions={gTimeNcDim,latitudeDim,longitudeDim};
@@ -870,7 +870,7 @@ void MadModel::writeNcGridFile(unsigned step, vector<double>& GridDoubleVector,s
             netCDF::NcFile gridFile( filePath.c_str(), netCDF::NcFile::write );
             netCDF::NcVar gridVar=gridFile.getVar( GridName );
 
-            vector<size_t> pos={step,0,0};vector<size_t> num={1,Parameters::Get( )->GetLengthUserLatitudeArray( ),Parameters::Get( )->GetLengthUserLongitudeArray( )};
+            vector<size_t> pos={step,0,0};vector<size_t> num={1,Parameters::instance()->GetLengthLatitudeArray( ),Parameters::instance()->GetLengthLongitudeArray( )};
             gridVar.putVar(pos, num,GridDoubleVector.data() );
                     
 
@@ -911,8 +911,8 @@ void MadModel::tests(){
     //MB main has already got the environmental data - this is stored in the background as a DataLayerSet
 
     //check values from Parameters have got correctly placed in class grid extents
-    assert(Parameters::Get()->GetLengthUserLongitudeArray( )==_maxX-_minX+1);
-    assert(Parameters::Get()->GetLengthUserLatitudeArray( )==_maxY-_minY+1);
+    assert(Parameters::instance()->GetLengthLongitudeArray( )==_maxX-_minX+1);
+    assert(Parameters::instance()->GetLengthLatitudeArray( )==_maxY-_minY+1);
     //now set up the environmental cells - note at present this uses the full grid, not just local to this thread
     //so that off-thread environment can be easily queried. Currently some duplication here, but it is not a huge amount of data.
     _Env=Environment(_minX,_maxX,_minY,_maxY);

@@ -3,26 +3,26 @@
 #include "Constants.h"
 #include "Convertor.h"
 #include "repast_hpc/Utilities.h"
+#include "TimeStep.h"
+#include "Types.h"
 #include <iostream>
 
-Types::ParametersPointer Parameters::mThis = NULL;
+Types::ParametersPointer Parameters::_Instance = NULL;
 
-Types::ParametersPointer Parameters::Get( ) {
-    if( mThis == NULL ) {
-        mThis = new Parameters( );
+Types::ParametersPointer Parameters::instance( ) {
+    if( _Instance == NULL ) {
+        _Instance = new Parameters( );
     }
-    return mThis;
+    return _Instance;
 }
 
 Parameters::~Parameters( ) {
 
-    delete[ ] mMonthlyTimeStepArray;
-    delete[ ] mAnnualTimeStepArray;
-    delete[ ] mUserLongitudeArray;
-    delete[ ] mUserLatitudeArray;
+    delete[ ] _LongitudeArray;
+    delete[ ] _LatitudeArray;
 
-    if( mThis != NULL ) {
-        delete mThis;
+    if( _Instance != NULL ) {
+        delete _Instance;
     }
 }
 
@@ -30,61 +30,41 @@ Parameters::Parameters( ) {
 }
 bool Parameters::Initialise( repast::Properties& props ) {
     bool success=false;
-    try {
-        SetTimeStepUnits             (                    props.getProperty("simulation.TimeStepUnits"));
-        SetLengthOfSimulation        (repast::strToDouble(props.getProperty("simulation.LengthOfSimulation")));
-        SetTimeStepLength            (                   (props.getProperty("simulation.TimeStepLength")));
-        SetUserMinimumLongitude      (repast::strToDouble(props.getProperty("simulation.minimumLongitude")));
-        SetUserMaximumLongitude      (repast::strToDouble(props.getProperty("simulation.maximumLongitude")));
-        SetUserMinimumLatitude       (repast::strToDouble(props.getProperty("simulation.minimumLatitude")));
-        SetUserMaximumLatitude       (repast::strToDouble(props.getProperty("simulation.maximumLatitude")));
+    try{
+                
+        SetMinimumLongitude      (repast::strToDouble(props.getProperty("simulation.minimumLongitude")));
+        SetMaximumLongitude      (repast::strToDouble(props.getProperty("simulation.maximumLongitude")));
+        SetMinimumLatitude       (repast::strToDouble(props.getProperty("simulation.minimumLatitude")));
+        SetMaximumLatitude       (repast::strToDouble(props.getProperty("simulation.maximumLatitude")));
         SetGridCellSize              (repast::strToDouble(props.getProperty("simulation.GridCellSize")));
         SetExtinctionThreshold       (repast::strToDouble(props.getProperty("simulation.ExtinctionThreshold")));
         SetMaximumNumberOfCohorts    (repast::strToDouble(props.getProperty("simulation.MaximumNumberOfCohorts")));
         SetPlanktonSizeThreshold     (repast::strToDouble(props.getProperty("simulation.PlanktonSizeThreshold")));
         SetHumanNPPExtractionScale   (repast::strToDouble(props.getProperty("simulation.HumanNPPExtractionScale")));
         SetHumanNPPScenarioDuration  (repast::strToDouble(props.getProperty("simulation.HumanNPPScenarioDuration")));
-        SetBurninSteps               (repast::strToDouble(props.getProperty("simulation.BurninSteps")));
+        SetBurninSteps               (repast::strToInt(props.getProperty("simulation.BurninSteps")));
         SetImpactSteps               (repast::strToDouble(props.getProperty("simulation.ImpactSteps")));
         SetRecoverySteps             (repast::strToDouble(props.getProperty("simulation.RecoverySteps")));
         SetDrawRandomly              (                    props.getProperty("simulation.DrawRandomly"));
         SetHumanNPPScenarioType      (                    props.getProperty("simulation.HumanNPPScenarioType"));
+
         SetRootDataDirectory         (                    props.getProperty("input.RootNcDataDirectory"));
-        SetDataDecriptorFileName     (props.getProperty("input.DataDirectory"),props.getProperty("input.EnvironmentVariablesFile"));
 
-        std::map<std::string,double>t;
-        t["second"]=1./24/3600;
-        t["minute"]=1./24/60;
-        t["hour"]=1./24;
-        t["day"]=1;
-        t["month"]=30;
-        t["year"]=12*30;
-        assert(mTimeStepUnits=="second" || mTimeStepUnits=="minute" || mTimeStepUnits=="hour" || mTimeStepUnits=="day" || mTimeStepUnits=="month" || mTimeStepUnits=="year");
-        //in Repast you can use stop.at onthe command line model.props to determine run-length of simulation 
-        if (props.getProperty("stop.at").length()==0)
-            props.putProperty("stop.at",unsigned(mLengthOfSimulation/mTimeStepLength));
-        else
-            SetLengthOfSimulation(repast::strToInt(props.getProperty("stop.at"))*mTimeStepLength);
-        
-        //legacy values needed because data reading all assumes timesteps must be months
-        SetLengthOfSimulationInYears (mLengthOfSimulation/t["year"] *t[mTimeStepUnits]);
-        SetLengthOfSimulationInMonths(mLengthOfSimulation/t["month"]*t[mTimeStepUnits]);
-
-        SetMonthsPerTimeStep(t[mTimeStepUnits]/t["month"]*mTimeStepLength);
-        
-        CalculateParameters( );
+       _DataDescriptorFileName=props.getProperty("input.DataDirectory")+"/"+props.getProperty("input.EnvironmentVariablesFile");
+       
+        CalculateLonLat( );
         //throw "Parameters.cpp: Something bad happened when trying to read or calculate input parameters: check the model.props file? Can't continue. Exiting...";
 
         //make sure the dimensions are consistent with the environmental data files
         props.putProperty("min.x",0);
         props.putProperty("min.y",0);
-        props.putProperty("max.x",GetLengthUserLongitudeArray( )-1);
-        props.putProperty("max.y",GetLengthUserLatitudeArray( )-1);
+        props.putProperty("max.x",GetLengthLongitudeArray( )-1);
+        props.putProperty("max.y",GetLengthLatitudeArray( )-1);
         //only don't wrap in longitude if set to false here 
         std::string wrap=props.getProperty("simulation.LongitudeWrap");
         assert(wrap=="false" || wrap=="true");
         props.putProperty("noLongitudeWrap",(wrap=="false"));
-
+        SetUpTimeStep(props);
   
         success = true;
     }catch(char* e){
@@ -94,249 +74,211 @@ bool Parameters::Initialise( repast::Properties& props ) {
     return success;
 }
 
+void Parameters::SetUpTimeStep(repast::Properties& props){
+    double TimeStepLength;
+    std::string TimeStepLengthStr = props.getProperty("simulation.TimeStepLength");
+    if  (TimeStepLengthStr.length()==0) TimeStepLength=1; 
+    else TimeStepLength=repast::strToDouble(TimeStepLengthStr);
+        
+    double SimulationLength=repast::strToDouble(props.getProperty("simulation.LengthOfSimulation"));
+                
+    //in Repast you can use stop.at onthe command line model.props to determine run-length of simulation 
+    if (props.getProperty("stop.at").length()==0)
+          props.putProperty("stop.at",unsigned(SimulationLength/TimeStepLength));
+    else
+          assert( (repast::strToInt(props.getProperty("stop.at")) <= unsigned(SimulationLength/TimeStepLength)) );
+    
+    std::string InitialDayStr = props.getProperty("simulation.InitialDay");
+    if   (InitialDayStr.length()==0) _InitialDay=0; 
+    else _InitialDay=repast::strToDouble(InitialDayStr);
+    
+    std::string DayStr = props.getProperty("simulation.DataRepeatDay");    
+    if   (DayStr.length()==0) _DataRepeatDay=0; 
+    else _DataRepeatDay=repast::strToDouble(DayStr);
+    
+    TimeStep::instance()->Initialise(props.getProperty("simulation.TimeStepUnits"),TimeStepLength,SimulationLength);
 
-void Parameters::CalculateParameters( ) {
+}
 
-    mTimeStepArray = new unsigned[ unsigned(mLengthOfSimulation/mTimeStepLength) ];
-    mTimeStepArray[ 0 ] = 0;
-    for( unsigned index = 1; index < mLengthOfSimulation/mTimeStepLength; ++index ) {
-        mTimeStepArray[ index ] = mTimeStepArray[ index - 1] + mTimeStepLength;
+void Parameters::CalculateLonLat( ) {
+
+    _LengthLongitudeArray = ( _MaximumLongitude - _MinimumLongitude )/_GridCellSize + 1;
+
+    _LongitudeArray = new float[ _LengthLongitudeArray ];
+    for( unsigned userLongitudeIndex = 0; userLongitudeIndex < _LengthLongitudeArray; ++userLongitudeIndex ) {
+        _LongitudeArray[ userLongitudeIndex ] = (_MinimumLongitude + ( ( float )_GridCellSize / 2 ) ) + ( userLongitudeIndex * ( float )_GridCellSize );
+
     }
-    mMonthlyTimeStepArray = new unsigned[ mLengthOfSimulationInMonths ];
-    for( unsigned monthIndex = 0; monthIndex < mLengthOfSimulationInMonths; ++monthIndex ) {
-        mMonthlyTimeStepArray[ monthIndex ] = monthIndex;
+
+    _LengthLatitudeArray = ( _MaximumLatitude - _MinimumLatitude )/_GridCellSize + 1;
+
+    _LatitudeArray = new float[ _LengthLatitudeArray ];
+    for( unsigned userLatitudeIndex = 0; userLatitudeIndex < _LengthLatitudeArray; ++userLatitudeIndex ) {
+        _LatitudeArray[ userLatitudeIndex ] = (_MinimumLatitude + ( ( float )_GridCellSize / 2 ) ) + ( userLatitudeIndex * ( float )_GridCellSize );
     }
 
-    mAnnualTimeStepArray = new unsigned[ mLengthOfSimulationInYears ];
-    for( unsigned yearIndex = 0; yearIndex < mLengthOfSimulationInYears; ++yearIndex ) {
-        mAnnualTimeStepArray[ yearIndex ] = yearIndex;
-    }
-
-    mLengthUserLongitudeArray = ( mUserMaximumLongitude - mUserMinimumLongitude )/mGridCellSize + 1;
-
-    mUserLongitudeArray = new float[ mLengthUserLongitudeArray ];
-    for( unsigned userLongitudeIndex = 0; userLongitudeIndex < mLengthUserLongitudeArray; ++userLongitudeIndex ) {
-        mUserLongitudeArray[ userLongitudeIndex ] = (mUserMinimumLongitude + ( ( float )mGridCellSize / 2 ) ) + ( userLongitudeIndex * ( float )mGridCellSize );
-
-    }
-
-    mLengthUserLatitudeArray = ( mUserMaximumLatitude - mUserMinimumLatitude )/mGridCellSize + 1;
-
-    mUserLatitudeArray = new float[ mLengthUserLatitudeArray ];
-    for( unsigned userLatitudeIndex = 0; userLatitudeIndex < mLengthUserLatitudeArray; ++userLatitudeIndex ) {
-        mUserLatitudeArray[ userLatitudeIndex ] = (mUserMinimumLatitude + ( ( float )mGridCellSize / 2 ) ) + ( userLatitudeIndex * ( float )mGridCellSize );
-    }
-
-    mNumberOfGridCells = mLengthUserLongitudeArray * mLengthUserLatitudeArray;
+    _NumberOfGridCells = _LengthLongitudeArray * _LengthLatitudeArray;
 
 
 }
-void Parameters::SetDataDecriptorFileName(std::string inputDirectory, std::string EnvironmentVariablesFile){
-    _DataDescriptorFileName=inputDirectory+"/"+EnvironmentVariablesFile;
+double Parameters::GetInitialDay() const{
+    return _InitialDay;
+}
+double Parameters::GetRepeatDay() const{
+    return _DataRepeatDay;
 }
 std::string Parameters::GetDataDecriptorFileName(){
     return _DataDescriptorFileName;
 }
-void Parameters::SetTimeStepLength( const std::string& lengthString){
-    if (lengthString.length()==0)
-        mTimeStepLength=1;
-    else
-       mTimeStepLength=repast::strToDouble(lengthString); 
-}
-void Parameters::SetMonthsPerTimeStep(float monthsPerTimeStep){
-    mMonthsPerTimeStep=monthsPerTimeStep;
-}
-float Parameters::MonthsPerTimeStep( ) const {
-    return mMonthsPerTimeStep;
-}
-float Parameters::DaysPerTimeStep() const{
-    return 30.*mMonthsPerTimeStep;
-}
+
 std::string Parameters::GetRootDataDirectory( ) const {
-    return mRootDataDirectory;
+    return _RootDataDirectory;
 }
 
-std::string Parameters::GetTimeStepUnits( ) const {
-    return mTimeStepUnits;
+int Parameters::GetMinimumLongitude( ) const {
+    return _MinimumLongitude;
 }
 
-unsigned Parameters::GetLengthOfSimulationInYears( ) const {
-    return mLengthOfSimulationInYears;
+int Parameters::GetMaximumLongitude( ) const {
+    return _MaximumLongitude;
 }
 
-int Parameters::GetUserMinimumLongitude( ) const {
-    return mUserMinimumLongitude;
+int Parameters::GetMinimumLatitude( ) const {
+    return _MinimumLatitude;
 }
 
-int Parameters::GetUserMaximumLongitude( ) const {
-    return mUserMaximumLongitude;
-}
-
-int Parameters::GetUserMinimumLatitude( ) const {
-    return mUserMinimumLatitude;
-}
-
-int Parameters::GetUserMaximumLatitude( ) const {
-    return mUserMaximumLatitude;
+int Parameters::GetMaximumLatitude( ) const {
+    return _MaximumLatitude;
 }
 
 double Parameters::GetGridCellSize( ) const {
-    return mGridCellSize;
+    return _GridCellSize;
 }
 
-
 float Parameters::GetExtinctionThreshold( ) const {
-    return mExtinctionThreshold;
+    return _ExtinctionThreshold;
 }
 
 unsigned Parameters::GetMaximumNumberOfCohorts( ) const {
-    return mMaximumNumberOfCohorts;
+    return _MaximumNumberOfCohorts;
 }
 
 float Parameters::GetPlanktonSizeThreshold( ) const {
-    return mPlanktonSizeThreshold;
+    return _PlanktonSizeThreshold;
 }
 
 bool Parameters::GetDrawRandomly( ) const {
-    return mDrawRandomly;
+    return _DrawRandomly;
 }
-
 
 std::string Parameters::GetHumanNPPScenarioType( ) const {
-    return mHumanNPPScenarioType;
+    return _HumanNPPScenarioType;
 }
 double Parameters::GetHumanNPPExtractionScale( ) const{
-    return mHumanNPPExtractionScale;
+    return _HumanNPPExtractionScale;
 }
 double Parameters::GetHumanNPPScenarioDuration( ) const{
-    return mHumanNPPScenarioDuration;
+    return _HumanNPPScenarioDuration;
 }
 unsigned Parameters::GetBurninSteps( ) const{
-    return mBurninSteps;
+
+    return _BurninSteps;
 }
 unsigned Parameters::GetImpactSteps( ) const{
-    return mImpactSteps;
+    return _ImpactSteps;
 }
 unsigned Parameters::GetRecoverySteps( ) const{
-    return mRecoverySteps;
+    return _RecoverySteps;
 }
 
 void Parameters::SetRootDataDirectory( const std::string& rootDataDirectory ) {
-    mRootDataDirectory = rootDataDirectory;
+    _RootDataDirectory = rootDataDirectory;
 }
 
-void Parameters::SetTimeStepUnits( const std::string& timeStepUnits ) {
-    mTimeStepUnits = timeStepUnits;
-}
-void Parameters::SetLengthOfSimulation( const unsigned& lengthOfSimulation ) {
-    mLengthOfSimulation = lengthOfSimulation;
-}
-void Parameters::SetLengthOfSimulationInYears( const unsigned& lengthOfSimulationInYears ) {
-    mLengthOfSimulationInYears = lengthOfSimulationInYears;
-}
-void Parameters::SetLengthOfSimulationInMonths( const unsigned& lengthOfSimulationInMonths ) {
-    mLengthOfSimulationInMonths = lengthOfSimulationInMonths;
+void Parameters::SetMinimumLongitude( const int& userMinimumLongitude ) {
+    _MinimumLongitude = userMinimumLongitude;
 }
 
-void Parameters::SetUserMinimumLongitude( const int& userMinimumLongitude ) {
-    mUserMinimumLongitude = userMinimumLongitude;
+void Parameters::SetMaximumLongitude( const int& userMaximumLongitude ) {
+    _MaximumLongitude = userMaximumLongitude;
 }
 
-void Parameters::SetUserMaximumLongitude( const int& userMaximumLongitude ) {
-    mUserMaximumLongitude = userMaximumLongitude;
+void Parameters::SetMinimumLatitude( const int& userMinimumLatitude ) {
+    _MinimumLatitude = userMinimumLatitude;
 }
 
-void Parameters::SetUserMinimumLatitude( const int& userMinimumLatitude ) {
-    mUserMinimumLatitude = userMinimumLatitude;
-}
-
-void Parameters::SetUserMaximumLatitude( const int& userMaximumLatitude ) {
-    mUserMaximumLatitude = userMaximumLatitude;
+void Parameters::SetMaximumLatitude( const int& userMaximumLatitude ) {
+    _MaximumLatitude = userMaximumLatitude;
 }
 
 void Parameters::SetGridCellSize( const double& gridCellSize ) {
-    mGridCellSize = gridCellSize;
+    _GridCellSize = gridCellSize;
 }
 
-
 void Parameters::SetExtinctionThreshold( const float& extinctionThreshold ) {
-    mExtinctionThreshold = extinctionThreshold;
+    _ExtinctionThreshold = extinctionThreshold;
 }
 
 void Parameters::SetMaximumNumberOfCohorts( const unsigned& maximumNumberOfCohorts ) {
-    mMaximumNumberOfCohorts = maximumNumberOfCohorts;
+    _MaximumNumberOfCohorts = maximumNumberOfCohorts;
 }
 
 void Parameters::SetPlanktonSizeThreshold( const float& planktonSizeThreshold ) {
-    mPlanktonSizeThreshold = planktonSizeThreshold;
+    _PlanktonSizeThreshold = planktonSizeThreshold;
 }
 
 void Parameters::SetDrawRandomly( const std::string& drawRandomlyString ) {
     if( drawRandomlyString == "yes" )
-        mDrawRandomly = true;
+        _DrawRandomly = true;
     else
-        mDrawRandomly = false;
+        _DrawRandomly = false;
 }
 
 void Parameters::SetHumanNPPScenarioType(const std::string& humanNPPScenarioType){
-    mHumanNPPScenarioType=humanNPPScenarioType;
+    _HumanNPPScenarioType=humanNPPScenarioType;
 }
 void Parameters::SetHumanNPPExtractionScale(const double& humanNPPExtractionScale ){
-    mHumanNPPExtractionScale=humanNPPExtractionScale;
+    _HumanNPPExtractionScale=humanNPPExtractionScale;
 }
 void Parameters::SetHumanNPPScenarioDuration(const double & humanNPPScenarioDuration){
-    mHumanNPPScenarioDuration=humanNPPScenarioDuration;
+    _HumanNPPScenarioDuration=humanNPPScenarioDuration;
 }
 void Parameters::SetBurninSteps(const unsigned& burninSteps){
-    mBurninSteps=burninSteps;
+
+    _BurninSteps=burninSteps;
+
 }
 void Parameters::SetImpactSteps(const unsigned& impactSteps){
-    mImpactSteps=impactSteps;
+    _ImpactSteps=impactSteps;
 }
 void Parameters::SetRecoverySteps(const unsigned& recoverySteps){
-    mRecoverySteps=recoverySteps;
+    _RecoverySteps=recoverySteps;
 }
 
 unsigned Parameters::GetNumberOfGridCells( ) const {
-    return mNumberOfGridCells;
+    return _NumberOfGridCells;
 }
 
-unsigned Parameters::GetLengthOfSimulationInMonths( ) const {
-    return mLengthOfSimulationInMonths;
+unsigned Parameters::GetLengthLongitudeArray( ) const {
+    return _LengthLongitudeArray;
 }
 
-unsigned Parameters::GetLengthUserLongitudeArray( ) const {
-    return mLengthUserLongitudeArray;
+unsigned Parameters::GetLengthLatitudeArray( ) const {
+    return _LengthLatitudeArray;
 }
 
-unsigned Parameters::GetLengthUserLatitudeArray( ) const {
-    return mLengthUserLatitudeArray;
+float Parameters::GetLongitudeAtIndex( const unsigned& index ) const {
+    return _LongitudeArray[ index ];
 }
 
-float Parameters::GetUserLongitudeAtIndex( const unsigned& index ) const {
-    return mUserLongitudeArray[ index ];
+float Parameters::GetLatitudeAtIndex( const unsigned& index ) const {
+    return _LatitudeArray[ index ];
 }
 
-float Parameters::GetUserLatitudeAtIndex( const unsigned& index ) const {
-    return mUserLatitudeArray[ index ];
+float* Parameters::GetLongitudeArray( ) const {
+    return _LongitudeArray;
 }
 
-unsigned* Parameters::GetTimeStepArray( ) const {
-    return mTimeStepArray;
-}
-
-unsigned* Parameters::GetMonthlyTimeStepArray( ) const {
-    return mMonthlyTimeStepArray;
-}
-
-unsigned* Parameters::GetAnnualTimeStepArray( ) const {
-    return mAnnualTimeStepArray;
-}
-
-float* Parameters::GetUserLongitudeArray( ) const {
-    return mUserLongitudeArray;
-}
-
-float* Parameters::GetUserLatitudeArray( ) const {
-    return mUserLatitudeArray;
+float* Parameters::GetLatitudeArray( ) const {
+    return _LatitudeArray;
 }

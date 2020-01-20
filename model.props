@@ -77,7 +77,7 @@ simulation.TimeStepUnits             =  month
 #Length of a timestep in above units - if not set this defaults to 1
 simulation.TimeStepLength            =  1
 #length of simulation in above units (e.g number of days: NB at present Environmental DATA is assumed to be monthly, irrespective of simulation timestep)
-simulation.LengthOfSimulation        =  48
+simulation.LengthOfSimulation        =  120
 #NB command line values of RepastHPC parameter stop.at can be used to change this on the command line, or here, to an explicit number of steps
 #this overrides length of simulation above.
 #stop.at = 10
@@ -85,16 +85,21 @@ simulation.LengthOfSimulation        =  48
 #NB movement will be wrapped in longitude by default unless set to false here
 simulation.LongitudeWrap=true
 #Currently max and min lat must be away from the poles (no code for cross-polar movement)
-simulation.minimumLongitude          = -10
-simulation.maximumLongitude          =  3
-simulation.minimumLatitude           =  50
-simulation.maximumLatitude           =  60
+#simulation.minimumLongitude          = -10
+#simulation.maximumLongitude          =  3
+#simulation.minimumLatitude           =  50
+#simulation.maximumLatitude           =  60
+#simulation.GridCellSize              =  0.0625
+
+simulation.minimumLongitude          = -178
+simulation.maximumLongitude          =  180
+simulation.minimumLatitude           =  -63
+simulation.maximumLatitude           =  63
 simulation.GridCellSize              =  0.5
 
-
 simulation.ExtinctionThreshold       =   1
-#max. cohorts per cell
-simulation.MaximumNumberOfCohorts    =  100
+#max. cohorts **per cell**
+simulation.MaximumNumberOfCohorts    =  10
 simulation.PlanktonSizeThreshold     =  0.01
 simulation.DrawRandomly              =  no
 simulation.HumanNPPScenarioType      =  none
@@ -103,6 +108,10 @@ simulation.HumanNPPScenarioDuration  =  0.
 simulation.BurninSteps               =  0
 simulation.ImpactSteps               =  0
 simulation.RecoverySteps             =  0
+#the starting day of the simulation (it is assumed driving time-series data is labelled with days) - if missing this is set to zero
+simulation.InitialDay                =  16
+#How many days to reach before repeating the driving data (e.g. 365 implies annual climatology) - no repeat if missing
+simulation.DataRepeatDay             =  365
 
 #running without cross-grid cell predation or herbivory, and is faster, but less accurate
 #if interaction is set to true, the size of the "haloe" area around each subsection of the grid 
