@@ -73,7 +73,7 @@ void Stock::setup(unsigned functionalGroup,EnvironmentCell* LocalEnvironment){
     } else if( _Marine && LocalEnvironment->NPP()!= Constants::cMissingValue ) {
             _TotalBiomass = 1.e12;
     }
-
+if (_TotalBiomass<0) {cout<<_Marine<<" "<<_TotalBiomass<<" "<<LocalEnvironment->Precipitation()<<" "<<LocalEnvironment->Temperature()<<endl;exit(0);}
 }
 //-------------------------------------------------------------------------------------------------------------------
 void Stock::step(double& AllBiomass,EnvironmentCell* LocalEnvironment,const unsigned CurrentTimeStep) {

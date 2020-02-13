@@ -214,7 +214,6 @@ void MadModel::init(){
 
     //set up the static (i.e. shared) parameters for the Cohorts
     Cohort::setParameters(_props);
-
     //get the definitions of stocks and cohorts
     StockDefinitions::Initialise(_props->getProperty("input.DataDirectory")+"/"+_props->getProperty("input.StockDefinitionsFileName"));
     CohortDefinitions::Initialise(_props->getProperty("input.DataDirectory")+"/"+_props->getProperty("input.CohortDefinitionsFileName"));

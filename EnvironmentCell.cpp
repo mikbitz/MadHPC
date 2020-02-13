@@ -43,15 +43,12 @@ EnvironmentCell::EnvironmentCell(int x,int y):_x(x),_y(y){
 
 void EnvironmentCell::SetRealm( ) {
     _Realm="none";
-    if( DataLayerSet::Data( )->GetDataAtLonLatFor( "Realm", Longitude(),  Latitude() ) < 1.5 ) {
+    if( DataLayerSet::Data( )->GetDataAtLonLatFor( "Realm", Longitude(),  Latitude() ) <= 1.5 ) {
           _Realm="marine";
-    } else if( DataLayerSet::Data( )->GetDataAtLonLatFor( "Realm", Longitude(),  Latitude() ) >= 1.5) {
+    } else if( DataLayerSet::Data( )->GetDataAtLonLatFor( "Realm", Longitude(),  Latitude() ) > 1.5) {
           _Realm="terrestrial";
     }
-    double d = DataLayerSet::Data( )->GetDataAtLonLatFor( "MarineTemp", Longitude(),  Latitude() );
-    if (d == Constants::cMissingValue && _Realm=="marine")_Realm="terrestrial";
-    d = DataLayerSet::Data( )->GetDataAtLonLatFor( "TerrestrialTemp", Longitude(),  Latitude() );
-    if (d == Constants::cMissingValue && _Realm=="terrestrial")_Realm="marine";
+
 }
 //------------------------------------------------------------------------------
 void EnvironmentCell::SetTotalPrecip(){
@@ -66,7 +63,7 @@ void EnvironmentCell::SetTotalPrecip(){
 
  while (p.size()>0){
     d=0;
-    for (auto& pre:p)d+=pre;
+    for (auto& pre:p)if(pre > Constants::cMissingValue)d+=pre;
      year++;
      p=((Layer2DWithTime*)(precip))->GetYearAtLonLat( year, Longitude(),  Latitude() );
  }
@@ -310,7 +307,7 @@ double EnvironmentCell::GetVariableFromDatasetNamed(std:: string s){
     double d = Constants::cMissingValue;
     d = DataLayerSet::Data( )->GetDataAtLonLatFor( s, Longitude(),  Latitude() );
     if( d == Constants::cMissingValue ) {
-      std::cout << "Warning EnvironmentCell::GetVariableFromDatasetNamed- missing values in "<<s<<" field!!"<< std::endl;
+      std::cout << "Warning EnvironmentCell::GetVariableFromDatasetNamed- missing values in "<<s<<" field!! "<<Longitude()<<" E "<<Latitude()<<" N "<< std::endl;
     }
     return d;
 }

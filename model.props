@@ -1,11 +1,11 @@
 #Lines following a # are comments and will be ignored
 
 # these *MUST* multiply to total number of MPI threads
-proc.per.x = 4
-proc.per.y = 2
+proc.per.x = 1
+proc.per.y = 1
 
 #set this value to true to just run the model unit tests, false otherwise
-run.tests=false
+run.tests=true
 
 #Extra output if verbose is set to true - mostly intended for debugging
 #on multi-core you will get extra output on every thread!
@@ -69,7 +69,7 @@ input.EnvironmentVariablesFile= EnvironmentalDataLayers.csv
 #sub-directories are currently grouped labelled by resolution (e.g. 10deg)
 #See the file above for sub-directory paths
 #Resolution need not match the model grid resolution below...
-input.RootNcDataDirectory=./MadingleyData-master/0.5deg/
+input.RootNcDataDirectory=./MadingleyData-master/2deg/
 
 #model run time
 #allowed values for TimeStepUnits are second,minute,hour,day,month or year
@@ -77,25 +77,28 @@ simulation.TimeStepUnits             =  month
 #Length of a timestep in above units - if not set this defaults to 1
 simulation.TimeStepLength            =  1
 #length of simulation in above units (e.g number of days: NB at present Environmental DATA is assumed to be monthly, irrespective of simulation timestep)
-simulation.LengthOfSimulation        =  120
+simulation.LengthOfSimulation        =  48
 #NB command line values of RepastHPC parameter stop.at can be used to change this on the command line, or here, to an explicit number of steps
 #this overrides length of simulation above.
 #stop.at = 10
 
 #NB movement will be wrapped in longitude by default unless set to false here
 simulation.LongitudeWrap=true
+#spatial interpolation of input data fields to the model grid will be assumed unless set to false here
+simulation.interpolateInputData=true
+
 #Currently max and min lat must be away from the poles (no code for cross-polar movement)
 #simulation.minimumLongitude          = -10
 #simulation.maximumLongitude          =  3
 #simulation.minimumLatitude           =  50
 #simulation.maximumLatitude           =  60
-#simulation.GridCellSize              =  0.0625
+#simulation.GridCellSize              =  1
 
 simulation.minimumLongitude          = -178
 simulation.maximumLongitude          =  180
-simulation.minimumLatitude           =  -63
-simulation.maximumLatitude           =  63
-simulation.GridCellSize              =  0.5
+simulation.minimumLatitude           =  -60
+simulation.maximumLatitude           =  60
+simulation.GridCellSize              =  2
 
 simulation.ExtinctionThreshold       =   1
 #max. cohorts **per cell**

@@ -45,6 +45,7 @@
 #include "model.h"
 #include "FileReader.h"
 #include "Parameters.h"
+#include "Layers.h"
 
 using namespace repast;
 //-----------------------------------------------------------------------------------------------------
@@ -67,7 +68,8 @@ void runModel(Properties& props, int argc, char ** argv) {
 	repast::ScheduleRunner& runner = repast::RepastProcess::instance()->getScheduleRunner();
     if (props.getProperty("run.tests")=="true"){
       model->initSchedule(runner);
-	  model->tests();
+	  //model->tests();
+      layerTester::tests();
     }else{
 	  model->init();
 	  model->initSchedule(runner);

@@ -76,7 +76,9 @@ public:
 
     float* GetLongitudeArray( ) const;
     float* GetLatitudeArray( ) const;
-    
+    bool GetNoLongitudeWrap( ) const;
+    bool GetSpatialInterpolation( ) const;
+
 
 private:
     Parameters( );
@@ -109,6 +111,8 @@ private:
     unsigned _BurninSteps;
     unsigned _ImpactSteps;
     unsigned _RecoverySteps;
+    bool _noLongitudeWrap;
+    bool _interpolateInputData;
     // Calculated parameters
 
     unsigned _NumberOfGridCells;

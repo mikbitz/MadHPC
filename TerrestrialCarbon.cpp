@@ -115,6 +115,7 @@ double TerrestrialCarbon::CalculateEquilibriumLeafMass(EnvironmentCell* LocalEnv
 
     // Convert to equilibrium leaf wet matter content
     double LeafWetMatter = ConvertToLeafWetMass( EquilibriumLeafCarbon, LocalEnvironment->Area() );
+    assert(LeafWetMatter>=0);
     return LeafWetMatter;
 }
 

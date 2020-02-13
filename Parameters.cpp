@@ -62,10 +62,19 @@ bool Parameters::Initialise( repast::Properties& props ) {
         props.putProperty("max.y",GetLengthLatitudeArray( )-1);
         //only don't wrap in longitude if set to false here 
         std::string wrap=props.getProperty("simulation.LongitudeWrap");
+        if (wrap=="")wrap="true";
         assert(wrap=="false" || wrap=="true");
         props.putProperty("noLongitudeWrap",(wrap=="false"));
+        _noLongitudeWrap=(wrap=="false");
+
+        std::string interpol=props.getProperty("simulation.interpolateInputData");
+        if (interpol=="")interpol="true";
+        assert(interpol=="false" || interpol=="true");
+        props.putProperty("interpolateInputData",(interpol=="true"));
+        _interpolateInputData=(interpol=="true");
+
         SetUpTimeStep(props);
-  
+
         success = true;
     }catch(char* e){
         std::cout<<e<<std::endl;
@@ -281,4 +290,10 @@ float* Parameters::GetLongitudeArray( ) const {
 
 float* Parameters::GetLatitudeArray( ) const {
     return _LatitudeArray;
+}
+bool Parameters::GetNoLongitudeWrap( ) const {
+    return _noLongitudeWrap;
+}
+bool Parameters::GetSpatialInterpolation( ) const {
+    return _interpolateInputData;
 }

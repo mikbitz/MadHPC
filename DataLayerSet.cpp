@@ -21,12 +21,12 @@ DataLayerSet::DataLayerSet( ) {
 }
 //------------------------------------------------------------------------------------------------------------
 void DataLayerSet::addLayer(std::string name,float *data,std::vector<float>lon,std::vector<float>lat){
-    Layer* d=new Layer2D(data,lon,lat);
+    Layer* d=new Layer2D(data,lon,lat,Parameters::instance()->GetSpatialInterpolation());
     Layers[name]=d;
 }
 //------------------------------------------------------------------------------------------------------------
 void DataLayerSet::addLayer(std::string name,float *data,std::vector<float>lon,std::vector<float>lat,std::vector<float>time){
-    Layer* d=new Layer2DWithTime(data,lon,lat,time);
+    Layer* d=new Layer2DWithTime(data,lon,lat,time,Parameters::instance()->GetSpatialInterpolation());
     Layers[name]=d;
 }
 //------------------------------------------------------------------------------------------------------------
