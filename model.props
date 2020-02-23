@@ -1,11 +1,18 @@
 #Lines following a # are comments and will be ignored
 
+#----------------------------------------------------------------------------------------------------------------------------
+#Number of cores in x and y direction
+#----------------------------------------------------------------------------------------------------------------------------
 # these *MUST* multiply to total number of MPI threads
-proc.per.x = 1
-proc.per.y = 1
+proc.per.x = 4
+proc.per.y = 2
+
+#----------------------------------------------------------------------------------------------------------------------------
+#Testing
+#----------------------------------------------------------------------------------------------------------------------------
 
 #set this value to true to just run the model unit tests, false otherwise
-run.tests=true
+run.tests=false
 
 #Extra output if verbose is set to true - mostly intended for debugging
 #on multi-core you will get extra output on every thread!
@@ -16,6 +23,28 @@ verbose=false
 #This should not be altered but will be set by main.cpp
 #code.version=0.1
 
+#----------------------------------------------------------------------------------------------------------------------------
+#Randomness
+#----------------------------------------------------------------------------------------------------------------------------
+#random seed broadcast to all threads
+global.random.seed = 85946
+
+# named random number distributions - not used at present
+#distribution.move = int_uniform, 0, 2
+
+#----------------------------------------------------------------------------------------------------------------------------
+#Initial cohort numbers etc. if model starts from scratch
+#----------------------------------------------------------------------------------------------------------------------------
+# initial number of humans per cell 
+human.count = 0
+# initial number of cohorts per functional group per cell 
+cohort.count = 10
+# stocks per cell - this will not usually need to be modified
+stock.count = 3 
+
+#----------------------------------------------------------------------------------------------------------------------------
+#Output directory naming
+#----------------------------------------------------------------------------------------------------------------------------
 #Unique name for this set of model runs, if desired
 experiment.name=limDom
 
@@ -27,29 +56,9 @@ experiment.description=Trying a non-global run
 #if this value is set (uncomment line below) oldfiles may be overwritten. Otherwise new directories will be auto-created for each run starting at 000
 #run.number=000
 
-#random seed broadcast to all threads
-global.random.seed = 85946
-
-# initial number of humans per cell 
-human.count = 0
-# initial number of cohorts per functional group per cell 
-cohort.count = 10
-# stocks per cell - this will not usually need to be modified
-stock.count = 3 
-
-# grid extents
-# actually x and y ranges are set at the moment by the longitude and latitude parameters below.
-#any values here will just get overwritten. 
-#min.x = 0
-#min.y = 0
-#max.x = 35 
-#max.y = 12 
-
-# named random number distributions - not used at present
-#distribution.move = int_uniform, 0, 2
-
-
-#Simulation control parameters
+#----------------------------------------------------------------------------------------------------------------------------
+#Input files
+#----------------------------------------------------------------------------------------------------------------------------
 
 #Local of other model input files (e.g. cohort setup parameters) 
 input.DataDirectory=./input/Model_setup
@@ -68,20 +77,58 @@ input.EnvironmentVariablesFile= EnvironmentalDataLayers.csv
 #The model expects to find netcdf data input files here
 #sub-directories are currently grouped labelled by resolution (e.g. 10deg)
 #See the file above for sub-directory paths
-#Resolution need not match the model grid resolution below...
-input.RootNcDataDirectory=./MadingleyData-master/2deg/
+#Resolution need not match the model grid resolution below...(can be interpolated)
+input.RootNcDataDirectory=./MadingleyData-master/1deg/
 
+#----------------------------------------------------------------------------------------------------------------------------
+#Restarts
+#----------------------------------------------------------------------------------------------------------------------------
+#If the model is restarting from a previous saved run set the parameters here
+#NB core 0 does all the heavy lifting of reading in in case the number of cores has changed
+#Also all parameters in this file still need to be set for the continuation of the run (could differ from the original...)
+#What *step* of the previous run was the restart saved at - this should appear in the filename
+#if not set (or zero) then no restart will be assumed, otherwise will restart from the end of this step
+#Note model step labels start at zero
+
+simulation.RestartStep=12
+
+#What step to begin the restarted run - should match the above for day of year really, but could be a different value
+#If omitted the above value will be used
+simulation.InitialStep=12
+
+#where to find the restart files. If not specified defaults to current directory (.)
+simulation.RestartDirectory=./output/experiment.limDom/run_864
+
+#file format for restarts - binary or text  - defaults to binary, but this is not guaranteed portable. Text archives are roughly double the size
+simulation.RestartFormat=binary
+
+#When to *write* restarts - in model steps - only written if present and non-zero
+#If set to n then restarts will be written at n,2n,3n etc. *at the end of the step*
+#restart files are therefore labelled with the name of the next step to be performed.
+
+simulation.RestartEvery=12
+
+#----------------------------------------------------------------------------------------------------------------------------
+#Timestepping and run length
+#----------------------------------------------------------------------------------------------------------------------------
 #model run time
 #allowed values for TimeStepUnits are second,minute,hour,day,month or year
 simulation.TimeStepUnits             =  month
 #Length of a timestep in above units - if not set this defaults to 1
 simulation.TimeStepLength            =  1
 #length of simulation in above units (e.g number of days: NB at present Environmental DATA is assumed to be monthly, irrespective of simulation timestep)
+#for restarts this will be the length following the restart time.
 simulation.LengthOfSimulation        =  48
 #NB command line values of RepastHPC parameter stop.at can be used to change this on the command line, or here, to an explicit number of steps
 #this overrides length of simulation above.
 #stop.at = 10
-
+#the starting day of the simulation (it is assumed driving time-series data is labelled with days) - if missing this is set to zero
+simulation.InitialDay                =  16
+#How many days to reach before repeating the driving data (e.g. 365 implies annual climatology) - no repeat if missing
+simulation.DataRepeatDay             =  365
+#----------------------------------------------------------------------------------------------------------------------------
+#Model domain and grid
+#----------------------------------------------------------------------------------------------------------------------------
 #NB movement will be wrapped in longitude by default unless set to false here
 simulation.LongitudeWrap=true
 #spatial interpolation of input data fields to the model grid will be assumed unless set to false here
@@ -99,24 +146,28 @@ simulation.maximumLongitude          =  180
 simulation.minimumLatitude           =  -60
 simulation.maximumLatitude           =  60
 simulation.GridCellSize              =  2
-
+#----------------------------------------------------------------------------------------------------------------------------
+#Cohort parameters
+#----------------------------------------------------------------------------------------------------------------------------
 simulation.ExtinctionThreshold       =   1
 #max. cohorts **per cell**
 simulation.MaximumNumberOfCohorts    =  10
 simulation.PlanktonSizeThreshold     =  0.01
+#is the random seed random? (why would you want this?)
 simulation.DrawRandomly              =  no
+#----------------------------------------------------------------------------------------------------------------------------
+#Human impact from prescribed input fields
+#----------------------------------------------------------------------------------------------------------------------------
 simulation.HumanNPPScenarioType      =  none
 simulation.HumanNPPExtractionScale   =  0.
 simulation.HumanNPPScenarioDuration  =  0.
 simulation.BurninSteps               =  0
 simulation.ImpactSteps               =  0
 simulation.RecoverySteps             =  0
-#the starting day of the simulation (it is assumed driving time-series data is labelled with days) - if missing this is set to zero
-simulation.InitialDay                =  16
-#How many days to reach before repeating the driving data (e.g. 365 implies annual climatology) - no repeat if missing
-simulation.DataRepeatDay             =  365
-
-#running without cross-grid cell predation or herbivory, and is faster, but less accurate
+#----------------------------------------------------------------------------------------------------------------------------
+#interaction and dispersal
+#----------------------------------------------------------------------------------------------------------------------------
+#running without cross-grid cell predation or herbivory, and is faster, but less accurate.
 #if interaction is set to true, the size of the "haloe" area around each subsection of the grid 
 #for communication across threads will be set to 2: this leads to quite a bit of extra (necessary) copying across threads 
 simulation.CrossCellInteraction      =  false
@@ -127,6 +178,22 @@ simulation.CrossCellInteraction      =  false
 #when allowing cross cell interaction, direct dispersal is required and will override probabilistic 
 simulation.DispersalSelection        = probabilistic
 
+#----------------------------------------------------------------------------------------------------------------------------
+#switches 
+#----------------------------------------------------------------------------------------------------------------------------
+#allow for various model parts to be turned off - use false to switch off - otherwise will default to true
+
+simulation.IncludeEating       = true;
+simulation.IncludeMetabolism   = true;
+simulation.IncludeReproduction = true;
+simulation.IncludeDeath        = true;
+simulation.IncludeDispersal    = true;
+simulation.IncludeMergers      = true;
+simulation.IncludeOutput       = true;
+
+#----------------------------------------------------------------------------------------------------------------------------
+#Ecological parameters
+#----------------------------------------------------------------------------------------------------------------------------
 #Shared constants for Cohorts not otherwise defined in the functional group
 #Herbivores
 

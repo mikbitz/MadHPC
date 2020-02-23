@@ -23,7 +23,7 @@ public:
     void SetTime( const unsigned& );
     void SetDay( const double& ); 
     void SetMonthly( const unsigned& );
-    void Initialise( std::string, double,double);
+    void Initialise( std::string, double,double,unsigned);
     double MonthsPerTimeStep( ) const {
        return _MonthsPerTimeStep;
     }

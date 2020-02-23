@@ -925,7 +925,6 @@ void Cohort::reproduce(EnvironmentCell* e){
     // If individual body mass after the addition of the net biomass from processes this time step will yield a body mass 
     // greater than the adult body mass for this cohort, then assign the surplus to reproductive potential
     if( ( _IndividualBodyMass + NetBiomassFromOtherEcologicalFunctionsThisTimeStep ) > _AdultMass ) {
-
         // Calculate the biomass for each individual in this cohort to be assigned to reproductive potential
         BiomassToAssignToReproductivePotential = _IndividualBodyMass + NetBiomassFromOtherEcologicalFunctionsThisTimeStep - _AdultMass;
         // Check that a positive biomass is to be assigned to reproductive potential

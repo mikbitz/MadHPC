@@ -61,7 +61,10 @@ public:
 //------------------------------------------------------------------------------------------
 class MadModel{
     
+    unsigned _startingStep;
 	int _stopAt;
+    
+    bool _verbose;
     unsigned _randomSeed;
 	repast::Properties* _props;
 	repast::SharedContext<MadAgent> _context;
@@ -81,6 +84,11 @@ class MadModel{
     map<string,string> outputUnits;
     vector<string> outputNames;
 
+    unsigned _restartInterval;
+    unsigned _restartStep;
+    std::string _restartDirectory;
+    std::string _archiveFormat;
+    
     std::string _filePrefix, _filePostfix;
     void dataSetClose();
     void addDataSet(repast::DataSet*) ;
@@ -113,16 +121,18 @@ public:
     
 	MadModel(repast::Properties& ,  boost::mpi::communicator* comm);
 	~MadModel();
-	void init();
+	void init(unsigned);
 	void moveAgents();
 	void step();
     void sync();
-	void initSchedule(repast::ScheduleRunner& runner);
+	void initSchedule(unsigned, repast::ScheduleRunner& runner);
 	void recordResults();
     wrappedSpaceType* space(){return discreteSpace;}
 
     static int _stockType, _cohortType, _humanType;
     //outputs
+    void read_restart(unsigned);
+    void write_restart();
     void setupOutputs();
     void tests();
     void setupCohortTestValues(Cohort*);

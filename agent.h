@@ -23,6 +23,7 @@ public:
 	
     //locations in *fractions of a grid cell* at a given long/lat.
     std::vector<double> _location,_destination;
+    std::vector<double> getLocation(){return _location;}
     void setLocation(double x, double y){_location={x,y};}
     void setDestination(double x, double y){_destination={x,y};}
     void setLocation(std::vector<double>d){_location=d;}

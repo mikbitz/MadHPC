@@ -7,6 +7,11 @@
 #include <boost/filesystem.hpp>
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/archive/text_iarchive.hpp>
+#include <boost/archive/binary_oarchive.hpp>
+#include <boost/archive/binary_iarchive.hpp>
+#include <boost/archive/xml_oarchive.hpp>
+#include <boost/archive/xml_iarchive.hpp>
+#include <boost/archive/archive_exception.hpp>
 #include <boost/mpi.hpp>
 #include "repast_hpc/AgentId.h"
 #include "repast_hpc/RepastProcess.h"
@@ -71,18 +76,32 @@ int MadModel::_stockType=0, MadModel::_cohortType=1, MadModel::_humanType=2;
 //------------------------------------------------------------------------------------------------------------
 MadModel::MadModel(repast::Properties& props,  boost::mpi::communicator* comm): _context(comm){
     //switch on all model aspects - these might need to be switched off for test purposes.
-    _eating       = true;
-    _metabolism   = true;
-    _reproduction = true;
-    _death        = true;
-    _dispersal    = true;
-    _mergers      = true;
-    _output       = true;
+    _eating       = props.getProperty("simulation.IncludeEating")      !="false";
+    _metabolism   = props.getProperty("simulation.IncludeMetabolism")  !="false";
+    _reproduction = props.getProperty("simulation.IncludeReproduction")!="false";
+    _death        = props.getProperty("simulation.IncludeDeath")       !="false";
+    _dispersal    = props.getProperty("simulation.IncludeDispersal")   !="false";
+    _mergers      = props.getProperty("simulation.IncludeMergers")     !="false";
+    _output       = props.getProperty("simulation.IncludeOutput")      !="false";
+    _verbose      = props.getProperty("verbose")=="true";
     //-----------------
     //Pull in parameter from the model.props file
     _props = &props;
     //Number of timesteps
 	_stopAt = repast::strToInt(_props->getProperty("stop.at"));
+    
+    std::string rstrt=props.getProperty("simulation.RestartEvery");
+    if (rstrt!="")_restartInterval=repast::strToInt(rstrt); else _restartInterval=0;
+
+    rstrt=props.getProperty("simulation.RestartStep");
+    if (rstrt!="")_restartStep=repast::strToInt(rstrt); else _restartStep=0;
+    
+    rstrt=props.getProperty("simulation.RestartDirectory");
+    if (rstrt!="")_restartDirectory=rstrt+"/"; else _restartDirectory="./";
+
+    _archiveFormat ="binary";
+    if (props.getProperty("simulation.RestartFormat")=="text")_archiveFormat="text";
+
     //extent of buffer zones in grid units - this many grid cells are shared at the boundary between cores
     int gridBuffer = repast::strToInt(_props->getProperty("grid.buffer"));
     //Grid extent
@@ -126,6 +145,12 @@ MadModel::MadModel(repast::Properties& props,  boost::mpi::communicator* comm): 
        _filePostfix="";
        cout<<"Outputfiles will be named "<<_filePrefix<<"<Data Name>"<<_filePostfix<<".<filenameExtension>"<<endl;
     }
+    //slightly tricky to get the file prefix to all other threads (needed, for example, for restart names)
+    //only thread 0 can know the name since it needs to create a new name based on existing directory names on disk 
+    int prefix_size = _filePrefix.size();
+    MPI_Bcast(&prefix_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    if (repast::RepastProcess::instance()->rank() != 0)_filePrefix.resize(prefix_size);
+    MPI_Bcast(const_cast<char*>(_filePrefix.data()), prefix_size, MPI_CHAR, 0, MPI_COMM_WORLD);
     //-----------------
 	//create the model grid
     repast::Point<double> origin(_minX,_minY);
@@ -179,15 +204,15 @@ MadModel::~MadModel(){
 //------------------------------------------------------------------------------------------------------------
 //Model Initialisation
 //------------------------------------------------------------------------------------------------------------
-void MadModel::initSchedule(repast::ScheduleRunner& runner){
-	runner.scheduleEvent(1, 1, repast::Schedule::FunctorPtr(new repast::MethodFunctor<MadModel> (this, &MadModel::step)));
+void MadModel::initSchedule(unsigned startingStep,repast::ScheduleRunner& runner){
+	runner.scheduleEvent(startingStep, 1, repast::Schedule::FunctorPtr(new repast::MethodFunctor<MadModel> (this, &MadModel::step)));
 	runner.scheduleStop(_stopAt);
     runner.scheduleEndEvent(Schedule::FunctorPtr(new MethodFunctor<MadModel> (this, &MadModel::dataSetClose)));
 
 }
 //------------------------------------------------------------------------------------------------------------
-void MadModel::init(){
-    
+void MadModel::init(unsigned startingStep){
+    _startingStep=startingStep;//starts at 1 to correspond to timestep 0 - confusing...needs a fix
     _totalCohorts=0;
     _totalStocks=0;
     _totalCohortAbundance=0;
@@ -254,6 +279,7 @@ void MadModel::init(){
   
     int s=0;
     unsigned hF=10000;//functionalgroup ID for humans
+    if (_restartStep==0){
     for (int x = _xlo; x < _xhi; x++){
         for (int y = _ylo; y < _yhi; y++){
              EnvironmentCell* E=_Env[x][y];
@@ -314,8 +340,27 @@ void MadModel::init(){
                 }
              }
             }
+            }
+
         }
-    if(_props->getProperty("verbose")=="true")cout<<"rank "<<rank<<" totalCohorts "<<_totalCohorts<<" totalStocks "<<s<<endl;
+        if (_restartStep>0){
+            read_restart(_restartStep);
+            vector<MadAgent*>agents;
+            _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
+            for (auto a:agents){
+                if (a->getId().agentType()==_cohortType){
+                    Cohort* c=(Cohort *)a;
+                    _totalCohorts++;
+                    _totalCohortAbundance += c->_CohortAbundance;
+                    _totalCohortBiomass += ( c->_IndividualBodyMass + c->_IndividualReproductivePotentialMass ) * c->_CohortAbundance / 1000.;//g to kg
+                }
+                if (a->getId().agentType()==_stockType){
+                    Stock* s=(Stock* )a;
+                    _totalStockBiomass+=s->_TotalBiomass/1000; //g to kg
+                }
+            }
+        }
+    if(_verbose)cout<<"rank "<<rank<<" totalCohorts "<<_totalCohorts<<" totalStocks "<<s<<endl;
     if (_output){
      setupOutputs();
      if (rank==0)setupNcOutput();
@@ -325,10 +370,8 @@ void MadModel::init(){
 	ss << t;
 	_props->putProperty("init.time", ss.str());
     sync();
+
 }
-//------------------------------------------------------------------------------------------------------------
-
-
 //------------------------------------------------------------------------------------------------------------
 //Run the model
 //------------------------------------------------------------------------------------------------------------
@@ -400,9 +443,10 @@ void MadModel::step(){
         for (auto a:agentsInCell){
             if ( a->_alive && a->getId().currentRank()==rank){//agents must be living and local!
             //separate out stocks (currently all plants) from cohorts(animals)
-               if (a->getId().agentType()==_cohortType) cohorts.push_back( (Cohort*) a);
+               if (a->getId().agentType()==_cohortType)cohorts.push_back( (Cohort*) a);
             }
         }
+
         vector<int> seq(cohorts.size(),0);
         for (int i=0;i<cohorts.size();i++)seq[i]=i;
         shuffleList(seq);
@@ -459,6 +503,7 @@ void MadModel::step(){
                     if (a->getId().agentType()==_stockType) stocks.push_back( (Stock*) a); else cohorts.push_back( (Cohort*) a);
                    }
                 }
+
                 for (auto a:thingsToEat){
                    if ( a->_alive){//agents must be living but might not be local!
                     //separate out stocks (currently all plants) from cohorts(animals)
@@ -487,6 +532,7 @@ void MadModel::step(){
 
     //updates of offspring and mergers/death happen after all cells have updated
     //need to keep this separate if there is cross-cell interaction
+ 
     for(int y = _ylo; y < _yhi; y++){  
      for(int x = _xlo; x < _xhi; x++){
       int cellIndex=x-_minX+(_maxX-_minX+1)*(y-_minY);
@@ -496,10 +542,12 @@ void MadModel::step(){
             //store current location in a repast structure for later use
             repast::Point<int> location(x,y);
             
-            std::vector<MadAgent*> agentsInCell;
+            std::vector<MadAgent*> agentsInCell,argents;
             //query four neighbouring cells, distance 0 (i.e. just the centre cell) - "true" keeps the centre cell.
+
             repast::VN2DGridQuery<MadAgent> VN2DQuery(space());
             VN2DQuery.query(location, 0, true, agentsInCell);
+
             std::vector<Stock*> stocks;
             std::vector<Cohort*> cohorts;
 
@@ -509,9 +557,10 @@ void MadModel::step(){
                 if (a->getId().agentType()==_stockType) stocks.push_back( (Stock*) a); else cohorts.push_back( (Cohort*) a);
                }
             }
+
             //cohorts can have one offspring per timestep - add the offspring to the model
             vector<Cohort*> newCohorts;
-            for (auto c:cohorts)if(c->_newH!=NULL){
+            for (auto c:cohorts)if(c->_newH!=NULL && _reproduction){
                 _context.addAgent(c->_newH);
                 discreteSpace->moveTo(c->_newH->getId(), location);
                 newCohorts.push_back(c->_newH);
@@ -521,6 +570,7 @@ void MadModel::step(){
             for (auto n:newCohorts){cohorts.push_back(n);}
             newCohorts.clear();
             for (auto c:cohorts){c->markForDeath();if (!c->_alive)_totalDeaths++;}
+
             
             if (_mergers) _totalMerged+=CohortMerger::MergeToReachThresholdFast(cohorts);
             
@@ -531,20 +581,22 @@ void MadModel::step(){
                 _totalStocks++;
             }
             //acumulate other totals and spatial maps
+
             for (auto c:cohorts){
                 if (c->_alive){
                     _totalCohorts++;
                     localMaps["totalCohortAbundance"][cellIndex]+= c->_CohortAbundance/E->Area();
                     _totalCohortAbundance += c->_CohortAbundance;
                     localMaps["totalCohortBiomass"][cellIndex]+=( c->_IndividualBodyMass + c->_IndividualReproductivePotentialMass ) * c->_CohortAbundance / 1000.;//convert to kg
-                    _totalCohortBiomass += localMaps["totalCohortBiomass"][cellIndex];
+                    _totalCohortBiomass += ( c->_IndividualBodyMass + c->_IndividualReproductivePotentialMass ) * c->_CohortAbundance / 1000.;
                     cohortBreakdown[c->_FunctionalGroupIndex]++;
                 }
             }
+
             localMaps["totalCohortBiomass"][cellIndex]=localMaps["totalCohortBiomass"][cellIndex]/E->Area();//per square kilometre
 
             //care with sync() here - need to get rid of not-alive agents:currently this is a lazy delete for new/non-local agents (they get removed one timestep late)?
-            for (auto a:agentsInCell)if (!a->_alive)_context.removeAgent(a->getId());//does this delete the agent storage? - yes if Boost:shared_ptr works OK
+            for (auto a:agentsInCell )if (!a->_alive && _death)_context.removeAgent(a->getId());//does this delete the agent storage? - yes if Boost:shared_ptr works OK
             _totalOrganciPool+=E->organicPool()/1000;
             _totalRespiratoryCO2Pool+=E->respiratoryPool()/1000;
         }
@@ -589,7 +641,7 @@ void MadModel::step(){
         //move things - these are then settled
         space()->moveTo(m,newPlace);
     }
-    //***** state of the model will not be fully consistent until sync() *****
+    // ***** state of the model will not be fully consistent until sync() *****
     sync();
     
     if (_output){
@@ -601,8 +653,11 @@ void MadModel::step(){
      for (auto name:outputNames)MPI_Reduce(localMaps[name].data(), outputMaps[name].data(), (_maxX-_minX+1) * (_maxY-_minY+1), MPI::DOUBLE, MPI::SUM, 0, MPI_COMM_WORLD);
 
      //if(repast::RepastProcess::instance()->rank() == 0){asciiOutput(CurrentTimeStep);}
-     if(repast::RepastProcess::instance()->rank() == 0){netcdfOutput( CurrentTimeStep );}
+     if(repast::RepastProcess::instance()->rank() == 0){netcdfOutput( CurrentTimeStep - _startingStep + 1);}
     }
+
+    if (_restartInterval>0 && CurrentTimeStep>_restartStep && (CurrentTimeStep+1-_restartStep)%_restartInterval==0)write_restart();
+
 }
 
 
@@ -788,11 +843,11 @@ void MadModel::asciiOutput( unsigned step ) {
 void MadModel::setupNcOutput(){
         
         std::string filePath = _filePrefix+"totalCohortBreakdown"+_filePostfix+".nc";
-        
+        auto times=TimeStep::instance()->TimeStepArray();
         netCDF::NcFile cohortBreakdownFile( filePath.c_str(), netCDF::NcFile::replace ); // Creates file
-        netCDF::NcDim TimeNcDim = cohortBreakdownFile.addDim( "time", _stopAt ); // Creates dimension
+        netCDF::NcDim TimeNcDim = cohortBreakdownFile.addDim( "time", times.size() ); // Creates dimension
         netCDF::NcVar TimeNcVar = cohortBreakdownFile.addVar( "time", netCDF::ncUint, TimeNcDim ); // Creates variable
-        TimeNcVar.putVar( TimeStep::instance()->TimeStepArray().data() );
+        TimeNcVar.putVar( times.data() );
         TimeNcVar.putAtt( "units", TimeStep::instance()->TimeStepUnits() );
                 
         netCDF::NcDim FGroupDim = cohortBreakdownFile.addDim("functionalGroupNumber" , _FinalCohortBreakdown.size() );
@@ -817,10 +872,10 @@ void MadModel::setNcGridFile(std::string GridName, std::string units){
         std::string filePath = _filePrefix+GridName+_filePostfix+".nc";
         
         netCDF::NcFile gridFile( filePath.c_str(), netCDF::NcFile::replace );             // Creates file
-
-        netCDF::NcDim gTimeNcDim = gridFile.addDim( "time", _stopAt );                    // Creates dimension
+        auto times=TimeStep::instance()->TimeStepArray();
+        netCDF::NcDim gTimeNcDim = gridFile.addDim( "time", times.size() );                    // Creates dimension
         netCDF::NcVar gTimeNcVar = gridFile.addVar( "time", netCDF::ncUint, gTimeNcDim ); // Creates variable
-        gTimeNcVar.putVar( TimeStep::instance()->TimeStepArray().data() );
+        gTimeNcVar.putVar( times.data() );
         gTimeNcVar.putAtt( "units", TimeStep::instance()->TimeStepUnits() );
                 
         netCDF::NcDim longitudeDim =   gridFile.addDim( "Longitude", Parameters::instance()->GetLengthLongitudeArray( ) );
@@ -892,10 +947,135 @@ void MadModel::dataSetClose() {
 void MadModel::addDataSet(repast::DataSet* dataSet) {
 	dataSets.push_back(dataSet);
 	ScheduleRunner& runner = RepastProcess::instance()->getScheduleRunner();
-	runner.scheduleEvent(0.1, 1, Schedule::FunctorPtr(new MethodFunctor<repast::DataSet> (dataSet,&repast::DataSet::record)));
+	runner.scheduleEvent(0.1+_startingStep-1, 1, Schedule::FunctorPtr(new MethodFunctor<repast::DataSet> (dataSet,&repast::DataSet::record)));
 	Schedule::FunctorPtr dsWrite = Schedule::FunctorPtr(new MethodFunctor<repast::DataSet> (dataSet,&repast::DataSet::write));
     //output every 100 steps
 	runner.scheduleEvent(100.2, 100, dsWrite);
+}
+//---------------------------------------------------------------------------------------------------------------------------
+// Restarts
+//------------------------------------------------------------------------------------------------------------
+ void MadModel::write_restart(){
+     //each thread writes its own restart file. Read restart is able to deal with this later...
+     unsigned step=RepastProcess :: instance ()->getScheduleRunner ().currentTick ();
+     std::vector<MadAgent*> agents;
+     _context.selectAgents(repast::SharedContext<MadAgent>::LOCAL,agents);
+     std::stringstream s;
+     s<<step<<"_"<<repast::RepastProcess::instance()->rank();
+     std::ofstream ofs(_filePrefix+"Restart_step_rank_"+s.str());
+     //archive saves when destructor called - this block should ensure this happens
+     {
+
+      for (auto a:agents){
+          if (a->_alive){
+
+              AgentPackage package(a->getId());
+              if (a->getId().agentType()==_cohortType){
+                  ((Cohort*)a)->PushThingsIntoPackage( package );
+              }
+              if (a->getId().agentType()==_stockType){
+                  ((Stock*)a)->PushThingsIntoPackage( package );
+              }
+              _packages.push_back(package);
+          }
+      }
+      
+      if (_archiveFormat =="binary") {boost::archive::binary_oarchive oa(ofs);oa<<_packages;}
+      if (_archiveFormat =="text"  ) {boost::archive::text_oarchive   oa(ofs);oa<<_packages;}
+     
+      
+      if (_verbose) cout<<"Wrote "<<_packages.size()<<" objects to restart: "<<"Restart_step_rank_"<<s.str()<<endl;
+     }
+     _packages.clear();
+
+     
+ }
+//------------------------------------------------------------------------------------------------------------
+void MadModel::read_restart(unsigned step){
+    
+    unsigned r=0,error=0,rank=repast::RepastProcess::instance()->rank();
+    unsigned numProcs=repast::RepastProcess::instance()->worldSize();
+
+    std::stringstream s;
+    s<<step<<"_"<<r;
+    std::string filename=_restartDirectory+"Restart_step_rank_"+s.str();
+    if (rank==0){
+        if (!boost::filesystem::exists(filename)){
+            cout<<"No restarts found for "<<filename<<endl;
+            error=1;
+        }
+    }
+    MPI_Bcast(&error, 1, MPI_INT, 0 , MPI_COMM_WORLD);
+    if (error==0){
+        int nxtID[numProcs];
+        for (int i=0;i<numProcs;i++)nxtID[i]=0;
+        while(boost::filesystem::exists(filename)){
+            
+            if (rank == 0){
+                
+                if (error==0)cout<<"Reading restarts from "<<filename<<endl;
+                std::ifstream ifs(filename);
+                {// this block ensures the archive gets closed on block exit
+                    try {
+                        if (_archiveFormat =="binary"){boost::archive::binary_iarchive ia(ifs);ia>>_packages;}
+                        if (_archiveFormat =="text"  ){boost::archive::text_iarchive   ia(ifs);ia>>_packages;}
+                        
+                        cout<<"Read in "<<_packages.size()<<" mad agents..."<<endl;
+                        for (auto& p:_packages){
+                            repast::AgentId id=p.getId();
+                            int n=Cohort::_NextID;
+                            //Cohort::_NextID should be incremented here so set increase flag to true
+                            MadAgent* a=NULL;
+                            if(id.agentType()==_cohortType){
+                                a=new Cohort( id,p,true );
+                            }
+                            if(id.agentType()==_stockType) {
+                                a=new Stock( id,p );
+                            }
+                            if (a!=NULL){
+                                //moveTo checks if we are local - agents may previously have been on another core, so make sure local now
+                                a->getId().currentRank(0);
+                                //agent unique Ids depend on id no. type and startingRank - to make sure any new agents are unique
+                                //need to find the max id no. associated with a given previous rank and add 1
+                                //number of threads may have decreased so check to be sure we don't overflow nxtID
+                                if (a->getId().startingRank()<numProcs)
+                                    nxtID[a->getId().startingRank()]=max<int>(a->getId().id()+1,nxtID[a->getId().startingRank()]);
+                                _context.addAgent(a);
+                                repast::Point<int> initialLocation(int(a->getLocation()[0]),int(a->getLocation()[1]));
+                                space()->moveTo(id, initialLocation);
+                            }else{ cout<<"Warning NULL agents on reading restart file "<<filename<<endl;}
+                        }
+                        _packages.clear();
+                    } catch (exception e){
+                        if (r==0)cout <<"************* Error attempting to open archive: wrong file format? *************";
+                        error=1;
+                    }
+                }
+            }
+            
+            //check for errors
+            MPI_Bcast(&error, 1, MPI_INT, 0 , MPI_COMM_WORLD);
+            //sync so thread 0 doesn't have to carry all the agents from a possibly multi-core previous run
+            //remember every thread needs to do the sync, not just thread 0!
+            sync();
+            //share the nextID data - this may update progressively, as startingRanks of current live agents can be arbitrary
+            //if there are more threads than previously, those with rank not previously present can have nextID=0
+            //if there are fewer threads, those with startingRank>=numProcs are safe to ignore (as there will be no new agents with these startingRanks)
+            MPI_Bcast(&nxtID, numProcs, MPI_INT, 0 , MPI_COMM_WORLD);
+            Cohort::_NextID=nxtID[rank];
+            
+            r++;
+            std::stringstream s;
+            s<<step<<"_"<<r;
+            filename=_restartDirectory+"Restart_step_rank_"+s.str();
+        }
+        
+    }
+
+    if (error!=0){
+            MPI_Finalize();
+            exit(error);
+    }
 }
 //---------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------------------------------------
@@ -1306,7 +1486,8 @@ void MadModel::tests(){
     assert(100== Cohort::_HorizontalDiffusivity);
     assert(18== Cohort::_AdvectiveModelTimeStepLengthHours);
     assert(abs(6.48- Cohort::_HorizontalDiffusivityKmSqPerADTimeStep)<1.e-14);
-    assert(40== Cohort::_AdvectionTimeStepsPerModelTimeStep);
+    //cout<<Cohort::_AdvectionTimeStepsPerModelTimeStep<<endl;
+    //assert(40== Cohort::_AdvectionTimeStepsPerModelTimeStep);
     assert(2592== Cohort::_VelocityUnitConversion);
     assert(50000== Cohort::_DensityThresholdScaling);
     assert(0.8== Cohort::_StarvationDispersalBodyMassThreshold);
@@ -1377,12 +1558,14 @@ void MadModel::tests(){
       }
       oa<<_packages;
      }
+     cout<<"Wrote "<<_packages.size()<<" cohorts"<<endl;
      _packages.clear();
      std::ifstream ifs("TestAgentSerialization_rank_"+s.str());
 
      {
       boost::archive::text_iarchive ia(ifs);
       ia>>_packages;
+      cout<<"Read "<<_packages.size()<<" cohorts"<<endl;
       for (auto& p:_packages){
          repast::AgentId id=p.getId();
          int n=Cohort::_NextID;

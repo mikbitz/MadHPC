@@ -18,21 +18,11 @@ Types::TimeStepPointer TimeStep::instance( ) {
     return _Instance;
 }
 //------------------------------------------------------------------------------------------------------------
-void TimeStep::Initialise( std::string TimeStepUnits, double TimeStepLength, double SimulationLength) {
+void TimeStep::Initialise( std::string TimeStepUnits, double TimeStepLength, double SimulationLength, unsigned startStep) {
 
-    _DayZero=Parameters::instance()->GetInitialDay();
-    _BaseStep=Parameters::instance()->GetBurninSteps();
-    _Day=_DayZero;
-    _DataAccessDay=_DayZero;
-    _DataRepeatDay=Parameters::instance()->GetRepeatDay();
-    
-    _CurrentYear=0;
-    _CurrentMonth=0;
     _SimulationLength= SimulationLength;
     _TimeStepLength= TimeStepLength;
     _TimeStepUnits = TimeStepUnits;
-    double tm=0;
-    for (unsigned i=0;i<unsigned(SimulationLength/TimeStepLength);i++){_TimeStepArray.push_back(tm);tm+=TimeStepLength;}
     
     assert(_TimeStepUnits=="second" || 
            _TimeStepUnits=="minute" || 
@@ -50,6 +40,20 @@ void TimeStep::Initialise( std::string TimeStepUnits, double TimeStepLength, dou
     _MonthsPerTimeStep =_NumberOfDaysPer[_TimeStepUnits]/_NumberOfDaysPer["month"]*_TimeStepLength;
     _DaysPerTimeStep   =_NumberOfDaysPer[_TimeStepUnits]*_TimeStepLength;
     _YearsPerTimeStep  =_NumberOfDaysPer[_TimeStepUnits] / _NumberOfDaysPer["year"];
+    
+    _DayZero=Parameters::instance()->GetInitialDay();
+    _BaseStep=Parameters::instance()->GetBurninSteps();
+    _Day=_DayZero + startStep*_DaysPerTimeStep;
+    _DataAccessDay=_DayZero + startStep*_DaysPerTimeStep;
+    _DataRepeatDay=Parameters::instance()->GetRepeatDay();
+    
+    _CurrentYear=unsigned(_DataAccessDay)/_NumberOfDaysPer["year"];
+    _CurrentMonth=unsigned(_DataAccessDay/_NumberOfDaysPer["month"]) % 12;
+
+    double tm= _Day;
+    for (unsigned i=0;i<unsigned(SimulationLength/TimeStepLength);i++){_TimeStepArray.push_back(tm);tm+=_DaysPerTimeStep;}
+    
+
 }
 //------------------------------------------------------------------------------------------------------------
 void TimeStep::SetTime( const unsigned& CurrentTimeStep ) {

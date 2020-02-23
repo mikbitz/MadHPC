@@ -66,13 +66,21 @@ void runModel(Properties& props, int argc, char ** argv) {
     timer.start();
 	MadModel* model = new MadModel(props,  &world);
 	repast::ScheduleRunner& runner = repast::RepastProcess::instance()->getScheduleRunner();
+
+    unsigned startStep=0;
+    std::string rstrt=props.getProperty("simulation.RestartStep");
+    if (rstrt!="")startStep=repast::strToInt(rstrt);
+    std::string instep=props.getProperty("simulation.InitialStep");
+    if (startStep>0 && instep!="")startStep=repast::strToInt(instep);
+    //restart values set to 0 inidcate no restart files
+    
     if (props.getProperty("run.tests")=="true"){
-      model->initSchedule(runner);
-	  //model->tests();
-      layerTester::tests();
+      model->initSchedule(startStep+1,runner);
+	  model->tests();
+      //layerTester::tests();
     }else{
-	  model->init();
-	  model->initSchedule(runner);
+	  model->init(startStep+1);
+	  model->initSchedule(startStep+1,runner);
 	  //now run things
 	  runner.run();
     }
@@ -124,7 +132,7 @@ int main(int argc, char **argv) {
   props.putProperty("date_time.run", time);
 
   props.putProperty("process.count", world.size());
-  props.putProperty ("code.version","01_2020_v0.24");
+  props.putProperty ("code.version","02_2020_v0.25");
   if(world.rank() == 0) std::cout << " Starting... " << std::endl;
 
   //initialize default random number generator

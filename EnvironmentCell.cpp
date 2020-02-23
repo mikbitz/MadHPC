@@ -53,14 +53,12 @@ void EnvironmentCell::SetRealm( ) {
 //------------------------------------------------------------------------------
 void EnvironmentCell::SetTotalPrecip(){
  double d = Constants::cMissingValue;
-
  if( _Realm=="terrestrial" ) {
 
  auto precip=DataLayerSet::Data( )->GetLayer("TerrestrialPre");
  // allow for multi-year data
  unsigned year=0;
  auto p=((Layer2DWithTime*)(precip))->GetYearAtLonLat( year, Longitude(),  Latitude() );
-
  while (p.size()>0){
     d=0;
     for (auto& pre:p)if(pre > Constants::cMissingValue)d+=pre;

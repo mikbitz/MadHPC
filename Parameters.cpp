@@ -84,6 +84,13 @@ bool Parameters::Initialise( repast::Properties& props ) {
 }
 
 void Parameters::SetUpTimeStep(repast::Properties& props){
+
+    unsigned startStep=0;
+    std::string rstrt=props.getProperty("simulation.RestartStep");
+    if (rstrt!="")startStep=repast::strToInt(rstrt);
+    std::string instep=props.getProperty("simulation.InitialStep");
+    if (startStep>0 && instep!="")startStep=repast::strToInt(instep);
+    
     double TimeStepLength;
     std::string TimeStepLengthStr = props.getProperty("simulation.TimeStepLength");
     if  (TimeStepLengthStr.length()==0) TimeStepLength=1; 
@@ -91,11 +98,12 @@ void Parameters::SetUpTimeStep(repast::Properties& props){
         
     double SimulationLength=repast::strToDouble(props.getProperty("simulation.LengthOfSimulation"));
                 
-    //in Repast you can use stop.at onthe command line model.props to determine run-length of simulation 
+    //in Repast you can use stop.at onthe command line model.props to determine run-length of simulation
+    //scheduler will begin at startStep+1, so stop.at needs to be increased accordingly
     if (props.getProperty("stop.at").length()==0)
-          props.putProperty("stop.at",unsigned(SimulationLength/TimeStepLength));
+          props.putProperty("stop.at",unsigned(SimulationLength/TimeStepLength)+startStep);
     else
-          assert( (repast::strToInt(props.getProperty("stop.at")) <= unsigned(SimulationLength/TimeStepLength)) );
+          assert( (repast::strToInt(props.getProperty("stop.at")) <= unsigned(SimulationLength/TimeStepLength)+startStep) );
     
     std::string InitialDayStr = props.getProperty("simulation.InitialDay");
     if   (InitialDayStr.length()==0) _InitialDay=0; 
@@ -105,7 +113,7 @@ void Parameters::SetUpTimeStep(repast::Properties& props){
     if   (DayStr.length()==0) _DataRepeatDay=0; 
     else _DataRepeatDay=repast::strToDouble(DayStr);
     
-    TimeStep::instance()->Initialise(props.getProperty("simulation.TimeStepUnits"),TimeStepLength,SimulationLength);
+    TimeStep::instance()->Initialise(props.getProperty("simulation.TimeStepUnits"),TimeStepLength,SimulationLength,startStep);
 
 }
 
@@ -115,7 +123,7 @@ void Parameters::CalculateLonLat( ) {
 
     _LongitudeArray = new float[ _LengthLongitudeArray ];
     for( unsigned userLongitudeIndex = 0; userLongitudeIndex < _LengthLongitudeArray; ++userLongitudeIndex ) {
-        _LongitudeArray[ userLongitudeIndex ] = (_MinimumLongitude + ( ( float )_GridCellSize / 2 ) ) + ( userLongitudeIndex * ( float )_GridCellSize );
+        _LongitudeArray[ userLongitudeIndex ] = (_MinimumLongitude  ) + ( userLongitudeIndex * ( float )_GridCellSize );
 
     }
 
@@ -123,7 +131,7 @@ void Parameters::CalculateLonLat( ) {
 
     _LatitudeArray = new float[ _LengthLatitudeArray ];
     for( unsigned userLatitudeIndex = 0; userLatitudeIndex < _LengthLatitudeArray; ++userLatitudeIndex ) {
-        _LatitudeArray[ userLatitudeIndex ] = (_MinimumLatitude + ( ( float )_GridCellSize / 2 ) ) + ( userLatitudeIndex * ( float )_GridCellSize );
+        _LatitudeArray[ userLatitudeIndex ] = (_MinimumLatitude  ) + ( userLatitudeIndex * ( float )_GridCellSize );
     }
 
     _NumberOfGridCells = _LengthLongitudeArray * _LengthLatitudeArray;

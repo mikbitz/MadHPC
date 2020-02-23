@@ -48,35 +48,35 @@
 #include "repast_hpc/AgentId.h"
 //content is a bit overspecified at the moment as it tries to cover cohorts, stocks and humans
 //however, not obvious to me how to change this! (tried with polymorphic pointers, but massive memory leaks or seg. faults)
+//NB to get boost serialize to a file to work data here has to be initialized - otherwise it crashes with an error on archive input.
 struct content {
     content(){}
 
-    unsigned _FunctionalGroupIndex;   
+    unsigned _FunctionalGroupIndex=0;   
     //needed for stocks
-    double _TotalBiomass;
-    bool _Marine;
-    bool _Deciduous;
+    double _TotalBiomass=0;
+    bool _Marine=false;
+    bool _Deciduous=false;
     //---
-    double _JuvenileMass;     
-    double _AdultMass;               
-    double _IndividualBodyMass;
-    double _MaximumAchievedBodyMass;
-    double _IndividualReproductivePotentialMass;
+    double _JuvenileMass=0;     
+    double _AdultMass=0;               
+    double _IndividualBodyMass=0;
+    double _MaximumAchievedBodyMass=0;
+    double _IndividualReproductivePotentialMass=0;
     
-    double _CohortAbundance;
-    unsigned _BirthTimeStep;            
-    unsigned _MaturityTimeStep;            
-    double _LogOptimalPreyBodySizeRatio; 
+    double _CohortAbundance=0;
+    unsigned _BirthTimeStep=0;            
+    unsigned _MaturityTimeStep=0;            
+    double _LogOptimalPreyBodySizeRatio=0; 
      
-    bool _Merged;
-    bool _alive;                     
+    bool _Merged=false;
+    bool _alive=false;                     
 
      
-    bool _IsMature;
-    
+    bool _IsMature=false;    
    
-    bool _moved;
-    std::vector<double> _location,_destination;
+    bool _moved=false;
+    std::vector<double> _location={0,0},_destination={0,0};
     
 	template<class Archive>
 	void serialize(Archive& ar, const unsigned int version) {
