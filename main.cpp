@@ -132,7 +132,7 @@ int main(int argc, char **argv) {
   props.putProperty("date_time.run", time);
 
   props.putProperty("process.count", world.size());
-  props.putProperty ("code.version","02_2020_v0.25");
+  props.putProperty ("code.version","02_2020_v0.30");
   if(world.rank() == 0) std::cout << " Starting... " << std::endl;
 
   //initialize default random number generator
