@@ -66,7 +66,7 @@ void TimeStep::SetTime( const unsigned& CurrentTimeStep ) {
         }else{
             _Day += _DaysPerTimeStep;
             _DataAccessDay += _DaysPerTimeStep;
-            if (_DataRepeatDay> 0 && _DataAccessDay  >= _DataRepeatDay)_DataAccessDay-=_DataRepeatDay;
+            if (_DataRepeatDay> 0 && _DataAccessDay  >= _DataRepeatDay)while(_DataAccessDay  >= _DataRepeatDay){_DataAccessDay-=_DataRepeatDay;}
             _CurrentYear=unsigned(_DataAccessDay)/_NumberOfDaysPer["year"];
             _CurrentMonth=unsigned(_DataAccessDay/_NumberOfDaysPer["month"]) % 12;//months run from 0 to 11
         }
@@ -76,7 +76,7 @@ void TimeStep::SetTime( const unsigned& CurrentTimeStep ) {
 void TimeStep::SetDay( const double& Day ) {
      _Day = Day;
      _DataAccessDay = Day;
-     if (_DataRepeatDay> 0 && _DataAccessDay  > _DataRepeatDay)_DataAccessDay-=_DataRepeatDay;
+     if (_DataRepeatDay> 0 && _DataAccessDay  > _DataRepeatDay)while(_DataAccessDay  >= _DataRepeatDay){_DataAccessDay-=_DataRepeatDay;}
 }
 //------------------------------------------------------------------------------------------------------------
 double TimeStep::CurrentDay(){return _Day;}

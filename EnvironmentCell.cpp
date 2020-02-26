@@ -215,7 +215,7 @@ double EnvironmentCell::AET(){return _AET[TimeStep::instance()->CurrentYear()][T
 //----------------------------------------------------------------------------------------------
 double EnvironmentCell::FractionYearFrost(){return _FractionYearFrost[TimeStep::instance()->CurrentYear()];}
 double EnvironmentCell::FractionYearFire(){return _FractionYearFire[TimeStep::instance()->CurrentYear()];}
-double EnvironmentCell::Breeding_Season(){assert(TimeStep::instance( )->CurrentYear()<1);return _Breeding_Season[TimeStep::instance()->CurrentYear()][TimeStep::instance( )->CurrentMonth()];}
+double EnvironmentCell::Breeding_Season(){return _Breeding_Season[TimeStep::instance()->CurrentYear()][TimeStep::instance( )->CurrentMonth()];}
 //------------------------------------------------------------------------------
 double EnvironmentCell::Seasonality(){ return _Seasonality[TimeStep::instance()->CurrentYear()][TimeStep::instance( )->CurrentMonth()];}
 //------------------------------------------------------------------------------
