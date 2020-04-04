@@ -222,7 +222,7 @@ void Cohort::ResetAccounts( ) {
 //------------------------------------------------------------------------------------------------------------
 void Cohort::setup(unsigned functionalGroup,unsigned numCohortsThisCell,EnvironmentCell* e,randomizer* r){
     ResetAccounts( );
-
+    _sequencer = 0;
     _FunctionalGroupIndex=functionalGroup;
     _Merged                      = false;
     _alive                       = true;
@@ -296,6 +296,7 @@ void Cohort::setPropertiesFromCohortDefinitions(unsigned functionalGroup){
 //Required by RHPC for cross-core copy - NB "Accounts" do not need to be included as they are instantaneous within a timestep
 void Cohort::PullThingsOutofPackage( const AgentPackage& package ) {
 
+    _sequencer                   = package._contents._sequencer;
     _FunctionalGroupIndex        = package._contents._FunctionalGroupIndex;
     _JuvenileMass                = package._contents._JuvenileMass;
     _AdultMass                   = package._contents._AdultMass;
@@ -321,7 +322,7 @@ void Cohort::PullThingsOutofPackage( const AgentPackage& package ) {
 //------------------------------------------------------------------------------------------------------------
 //Required by RHPC for cross-core copy
 void Cohort::PushThingsIntoPackage( AgentPackage& package ) {
-
+    package._contents._sequencer                   =  _sequencer;
     package._contents._FunctionalGroupIndex        =  _FunctionalGroupIndex;
     package._contents._JuvenileMass                =  _JuvenileMass;
     package._contents._AdultMass                   =  _AdultMass;
@@ -348,6 +349,7 @@ void Cohort::PushThingsIntoPackage( AgentPackage& package ) {
 void Cohort::setupOffspring( Cohort* actingCohort, double juvenileBodyMass, double adultBodyMass, double initialBodyMass, double initialAbundance, unsigned birthTimeStep ) {
      
      _newH=NULL;
+    _sequencer                   = 0;
     _FunctionalGroupIndex        = actingCohort->_FunctionalGroupIndex;
     _JuvenileMass                = juvenileBodyMass;
     _AdultMass                   = adultBodyMass;
@@ -404,6 +406,7 @@ void Cohort::step(EnvironmentCell* e,vector<Cohort*>& preys,vector<Stock*>& stoc
     ResetAccounts( );
     for (auto A: _Accounting)for (auto B: A.second)if(B.first!="mortality")assert(B.second==0);
     assignTimeActive(e);
+
     if (m->_eating      )eat(e,preys,stocks,m);
     if (m->_metabolism  )metabolize(e);
     if (m->_reproduction)reproduce(e);
@@ -448,7 +451,7 @@ void Cohort::moveIt(EnvironmentCell* e,MadModel* m){
             // Note that this formulation drops the delta t because we set the horizontal diffusivity to be at the same temporal scale as the time step
             
             // Calculate the distance travelled in this dispersal (not global) time step. both advective and diffusive speeds need be converted to km / advective model time step 
-            // Velcity unit conversion goes to km/month, so need to scale by fraction of a month in one advective timestep in the first term. Diffusive term already scaled.
+            // Velocity unit conversion goes to km/month, so need to scale by fraction of a month in one advective timestep in the first term. Diffusive term already scaled.
             double uSpeed = uAdvectiveSpeed * _VelocityUnitConversion * _AdvectiveModelTimeStepLengthHours /24/30 + NJ.next() * sqrt( ( 2.0 * _HorizontalDiffusivityKmSqPerADTimeStep  ) );
             double vSpeed = vAdvectiveSpeed * _VelocityUnitConversion * _AdvectiveModelTimeStepLengthHours /24/30 + NJ.next() * sqrt( ( 2.0 * _HorizontalDiffusivityKmSqPerADTimeStep  ) );
             TryToDisperse( uSpeed,vSpeed,e,m );
@@ -460,7 +463,7 @@ void Cohort::moveIt(EnvironmentCell* e,MadModel* m){
 
           //dispersalName = "responsive";
 
-            dispersalSpeed= _DispersalSpeedBodyMassScalar * pow( _AdultMass, _DispersalSpeedBodyMassExponent) * DeltaT;
+            dispersalSpeed= _DispersalSpeedBodyMassScalar * pow( _AdultMass, _DispersalSpeedBodyMassExponent) * DeltaT;//scaled for timestep in months?
 
 
           // Check for starvation-driven dispersal
@@ -531,9 +534,10 @@ void Cohort::TryToDisperse(double uSpeed, double vSpeed,EnvironmentCell* e, MadM
      //only move if realm matches and we haven't exceeded upper and lower latitude bounds (currently no movement across the pole)
      //NB last cell lies in the range _maxX<= x <_mMax+1
      int yw=floor(y+signv);
+
      if (!m->_noLongitudeWrap){
-        if (x + signu < m->_minX){x = x + (m->_maxX - m->_minX)+1;}
-        if (x + signu >= m->_maxX+1){x = x - (m->_maxX - m->_minX + 1);}
+        if (x+signu < m->_minX)    {x = x + (m->_maxX - m->_minX + 1);}
+        if (x+signu >= m->_maxX + 1){x = x - (m->_maxX - m->_minX + 1);}
      }
      int xw=floor(x+signu);
      if (yw >= m->_minY && yw <= m->_maxY){
@@ -676,18 +680,31 @@ void Cohort::assignTimeActive(EnvironmentCell* e){
     }
 } //------------------------------------------------------------------------------------------------------------
 bool Cohort::inDistance(MadAgent* a1, MadAgent* a2,MadModel* m){
+    //return 0.5;//kind of a whole-cell default...
     //simply - the number of cell widths, Manhattan style
-   // double wrappedDistX=abs(a1->_location[0]-a2->_location[0]);
-   // if (!m->_noLongitudeWrap)wrappedDistX=min(wrappedDistX,(m->_maxX - m->_minX+1)-wrappedDistX);
-   // return max(wrappedDistX,abs( a1->_location[1] - a2->_location[1]))<1;
-    
-    double dg=Parameters::instance()->GetGridCellSize(); 
+    double wrappedDistX=abs(a1->_location[0]-a2->_location[0]);
+    if (!m->_noLongitudeWrap)wrappedDistX=min(wrappedDistX,(m->_maxX - m->_minX+1)-wrappedDistX);
+    return max(wrappedDistX,abs( a1->_location[1] - a2->_location[1]))<0.25;//one quarter cell everywhere
+    //alternative using proper spherical distance.
+    double dg=Parameters::instance()->GetGridCellSize(); //in degrees
+    //get lon lat at the current location allowing for fractions of a cell
     double lon1 = Parameters::instance()->GetLongitudeAtIndex(int(a1->_location[0])) + (a1->_location[0]-int(a1->_location[0]))*dg;
     double lat1 = Parameters::instance()->GetLatitudeAtIndex (int(a1->_location[1])) + (a1->_location[1]-int(a1->_location[1]))*dg;
     double lon2 = Parameters::instance()->GetLongitudeAtIndex(int(a2->_location[0])) + (a2->_location[0]-int(a2->_location[0]))*dg;
     double lat2 = Parameters::instance()->GetLatitudeAtIndex (int(a2->_location[1])) + (a2->_location[1]-int(a2->_location[1]))*dg;
     UtilityFunctions u;
-    return u.HaversineDistance(lon1,lat1,lon2,lat2)<=u.HaversineDistance(0,Parameters::instance()->GetMaximumLatitude( ),dg,Parameters::instance()->GetMaximumLatitude( ));
+    return u.HaversineDistanceInDegrees(lon1,lat1,lon2,lat2)<=0.25*dg;//one quarter cell at the equator, more at the poles, at least in longitude
+    //Interaction distance - how should this be set, given that the distance of a longitude cell varies with latitude?
+    //one choice would be the max lat cell size - but then this varies with the latitudinal range (and could be zero!).
+    //Alternatively maybe one could use the latitude mid way inbetween equator and max. lat - the danger is that near-cell-edge cohorts get longitude truncated interaction sets
+    //nearer to the pole.
+    //or one could use the average of lat 1 and lat 2, but then polar cohorts really do get less interaction (at least when near cell edges) - although this is already true given
+    //lat-long based grid cells (equatorial cohorts have a greater effective interaction range!).
+    //so this version more or less mimics the within-cell-only case
+    //preferably the interaction would span the same range at all latitudes, but if this is done near poles then more than one-cell-range may be needed for interaction
+    //implying more cross-process copying. This is really true in any case - a switch to equal area cells of some kind is needed really - e.g. buckyball or hex.
+    //However. given that we use grid cell size/4 it should be OK to use the full equatorial distance right out to latitude 60 (where cos lat=0.5), 
+    //beyond which there will be some artefacts if cohorts don't eat all biomass that they can see...
 
 }
 //------------------------------------------------------------------------------------------------------------
@@ -717,13 +734,11 @@ void Cohort::eat(EnvironmentCell* e,vector<Cohort*>& preys,vector<Stock*>& stock
        }
        IndividualHerbivoryRate               = _HerbivoryRateConstant    * pow( _IndividualBodyMass, ( _HerbivoryRateMassExponent ) );
        for (auto& stock: stocks){
-        if (inDistance(this,stock,m)){
          if( stock->_TotalBiomass > 0.0 ) {
            PotentialBiomassEaten  = IndividualHerbivoryRate   * pow( (stock->_TotalBiomass*edibleFraction) / CellAreaHectares, AttackRateExponent ); // could store this to avoid second calc.?
            HandlingTimeScaled     = HandlingTimeScalar        * pow( ( _ReferenceMass / _IndividualBodyMass ), HandlingTimeExponent );
            HandlingTime          += PotentialBiomassEaten* HandlingTimeScaled; 
          }
-        }
        }
 
     }
@@ -808,7 +823,6 @@ void Cohort::eat(EnvironmentCell* e,vector<Cohort*>& preys,vector<Stock*>& stock
     if (_Herbivore || _Omnivore){
        //accumulate eaten
        for (auto& stock: stocks){
-           if (inDistance(this,stock,m)){
             double InstantFractionEaten = 0.0;
             double EdibleMass=0;
             if( stock->_TotalBiomass > 0.0 ) {
@@ -825,7 +839,7 @@ void Cohort::eat(EnvironmentCell* e,vector<Cohort*>& preys,vector<Stock*>& stock
 
    
            _Accounting["organicpool"]["herbivory"] += BiomassesEaten * ( 1 - _AssimilationEfficiency_H );
-          }
+
        }
     }
     if (_Carnivore || _Omnivore){

@@ -83,7 +83,7 @@ class MadModel{
     map< string,vector<double> > outputMaps;
     map<string,string> outputUnits;
     vector<string> outputNames;
-    vector<int> _cellSelector;
+    vector<int> _cellIndices;
     bool _crossCell;
     unsigned _restartInterval;
     unsigned _restartStep;

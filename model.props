@@ -46,12 +46,12 @@ stock.count = 3
 #Output directory naming
 #----------------------------------------------------------------------------------------------------------------------------
 #Unique name for this set of model runs, if desired
-experiment.name=limDom
+experiment.name=testInteraction
 
 #location for the output files - subdirectory will be created called experiment.<name>
 experiment.output.directory=./output
 #short text to outline experiment purpose
-experiment.description=Trying a non-global run
+experiment.description=Testing cross-grid-cells interaction
 #run number - allows runs with above name to be grouped into sets (experiments!)
 #if this value is set (uncomment line below) oldfiles may be overwritten. Otherwise new directories will be auto-created for each run starting at 000
 #run.number=000
@@ -90,7 +90,7 @@ input.RootNcDataDirectory=./MadingleyData-master/1deg/
 #if not set (or zero) then no restart will be assumed, otherwise will restart from the end of this step
 #Note model step labels start at zero
 
-simulation.RestartStep=12
+simulation.RestartStep=0
 
 #What step to begin the restarted run - should match the above for day of year really, but could be a different value
 #If omitted the above value will be used
@@ -118,7 +118,7 @@ simulation.TimeStepUnits             =  month
 simulation.TimeStepLength            =  1
 #length of simulation in above units (e.g number of days: NB at present Environmental DATA is assumed to be monthly, irrespective of simulation timestep)
 #for restarts this will be the length following the restart time.
-simulation.LengthOfSimulation        =  48
+simulation.LengthOfSimulation        =  10
 #NB command line values of RepastHPC parameter stop.at can be used to change this on the command line, or here, to an explicit number of steps
 #this overrides length of simulation above.
 #stop.at = 10
@@ -141,17 +141,17 @@ simulation.interpolateInputData=true
 #simulation.maximumLatitude           =  60
 #simulation.GridCellSize              =  1
 
-simulation.minimumLongitude          = -178
+simulation.minimumLongitude          = -179
 simulation.maximumLongitude          =  180
 simulation.minimumLatitude           =  -60
 simulation.maximumLatitude           =  60
-simulation.GridCellSize              =  2
+simulation.GridCellSize              =  1
 #----------------------------------------------------------------------------------------------------------------------------
 #Cohort parameters
 #----------------------------------------------------------------------------------------------------------------------------
 simulation.ExtinctionThreshold       =   1
 #max. cohorts **per cell**
-simulation.MaximumNumberOfCohorts    =  10
+simulation.MaximumNumberOfCohorts    =  40
 simulation.PlanktonSizeThreshold     =  0.01
 #is the random seed random? (why would you want this?)
 simulation.DrawRandomly              =  no
@@ -169,8 +169,8 @@ simulation.RecoverySteps             =  0
 #----------------------------------------------------------------------------------------------------------------------------
 #running without cross-grid cell predation or herbivory, and is faster, but less accurate.
 #if interaction is set to true, the size of the "haloe" area around each subsection of the grid 
-#for communication across threads will be set to 2: this leads to quite a bit of extra (necessary) copying across threads 
-simulation.CrossCellInteraction      =  false
+#for communication across threads will be set to 1: this leads to quite a bit of extra (necessary) copying across threads 
+simulation.CrossCellInteraction      = false
 
 #useful values here are direct or probabilistic - other values will lead to no dispersal
 #direct dispersal allows cohorts to move arbitrary fractions of a cell
@@ -183,13 +183,14 @@ simulation.DispersalSelection        = probabilistic
 #----------------------------------------------------------------------------------------------------------------------------
 #allow for various model parts to be turned off - use false to switch off - otherwise will default to true
 
-simulation.IncludeEating       = true;
-simulation.IncludeMetabolism   = true;
-simulation.IncludeReproduction = true;
-simulation.IncludeDeath        = true;
-simulation.IncludeDispersal    = true;
-simulation.IncludeMergers      = true;
-simulation.IncludeOutput       = true;
+simulation.IncludeEating       = true
+simulation.IncludeMetabolism   = true
+simulation.IncludeReproduction = true
+simulation.IncludeDeath        = true
+simulation.IncludeDispersal    = true
+simulation.IncludeMergers      = true
+
+simulation.IncludeOutput       = true
 
 #----------------------------------------------------------------------------------------------------------------------------
 #Ecological parameters
@@ -222,7 +223,7 @@ simulation.IncludeOutput       = true;
     CohortParameters.DispersalSpeedBodyMassExponent     = 0.48 
 #advective dispersal
     CohortParameters.HorizontalDiffusivity                       = 100 
-    CohortParameters.AdvectiveModelTimeStepLengthHours           = 18 
+    CohortParameters.AdvectiveModelTimeStepLengthHours           = 6 
 
 #responsive dispersal
     CohortParameters.DensityThresholdScaling                     = 50000 

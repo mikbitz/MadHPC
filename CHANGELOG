@@ -1,3 +1,9 @@
+04/04/2020
+Updated model.cpp to allow multiple passes across cohorts when doing cross-cell updates. Cohorts are now batched into nine subsets corresponding to cells in a Moore neighbourhood so that aysnchronous updates can be made self-consistent acroos cores
+using a buffer width of 2 and shared random sequences. This works provided the cross-cell interaction range is less than about a quarter cell. Plant model updates are done separately, and cohorts access the plants within theor own cell, as the plant
+model looks at present more like a field than an individual-based model.
+28/02/2020
+BUGFIX: on restarts the Timestep year was not being calcuate correctly.
 24/02/2020
 BUGFIX: In the global outputs the total cohort biomass was incorrectly calculated from the accumulating spatial map. Now fixed.
 modesl.props file updated and commented. switches included so that dynamics can be turned off in sections.

@@ -51,7 +51,7 @@
 //NB to get boost serialize to a file to work data here has to be initialized - otherwise it crashes with an error on archive input.
 struct content {
     content(){}
-
+    int _sequencer=0;
     unsigned _FunctionalGroupIndex=0;   
     //needed for stocks
     double _TotalBiomass=0;
@@ -80,6 +80,7 @@ struct content {
     
 	template<class Archive>
 	void serialize(Archive& ar, const unsigned int version) {
+        ar & _sequencer;
         ar & _FunctionalGroupIndex;   
         ar & _TotalBiomass;
         ar & _Marine;

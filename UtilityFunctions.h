@@ -68,7 +68,15 @@ public:
     @param latitude The latitude of the bottom-left corner of the grid cell
     @return The length of a degree of longitude in kilometres MB ?? This is not consistent with cellarea in the original code */
     double CalculateLengthOfDegreeLongitude( float latitude );
+    
+    /** \brief Calculate the approximate distance between two points on a sphere but report result in degrees
+    @param lon1 The longitude of the first point
+    @param lat1 The latitude of the first point
+    @param lon2 The longitude of the second point
+    @param lat2 The latitude of the second point
+    @return The distance between two points in kilometres */
 
+    double HaversineDistanceInDegrees(double lon1,double lat1,double lon2,double lat2);
     /** \brief Calculate the approximate distance between two points on a sphere
     @param lon1 The longitude of the first point
     @param lat1 The latitude of the first point

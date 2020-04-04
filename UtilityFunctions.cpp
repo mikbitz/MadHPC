@@ -115,6 +115,18 @@ double UtilityFunctions::CalculateLengthOfDegreeLongitude( float latitude ) {
     // Length of longitude (km)
     return PI / 180 * cos( latitudeRad ) * NPhi / 1000;
 }
+double UtilityFunctions::HaversineDistanceInDegrees(double lon1,double lat1,double lon2,double lat2){
+    //inputs in degrees.
+    //approximate distance between two points
+    //more accurate version would use something like Vincenty's method
+    double phi1=DegreesToRadians( lat1 );
+    double phi2=DegreesToRadians( lat2 );
+    double lam1=DegreesToRadians( lon1 );
+    double lam2=DegreesToRadians( lon2 );
+    double r=180./acos(-1.); //180 over pi to convert radians to degrees
+    //use min function to ensure sqrt argument doesn't try to exceed 1
+    return 2 * r * asin( sqrt( min( 1., ( pow( sin( (phi2-phi1)/2 ), 2 ) + cos(phi1) * cos(phi2) * pow( sin( (lam2-lam1)/2 ),2 ) ) ) ) );
+}
 double UtilityFunctions::HaversineDistance(double lon1,double lat1,double lon2,double lat2){
     //inputs in degrees.
     //approximate distance between two points
