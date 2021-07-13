@@ -11,26 +11,26 @@ fig.set_size_inches(8.5, 3.5, forward=True)
 plt.subplots_adjust(left=0.1, right=0.9, bottom=0., top=1.0)
 plt.show()
 base_dir="/home/moke/working/"
-varName="totalCohortBiomass"
-runNumber="317"
-experiment="experiment.testInteraction"
+varName="totalInfected"
+runNumber="119"
+experiment="experiment.testCovidUK"
 #fp="/home/moke/working/repastHPC/mad_modified/MadingleyData-master/0.5deg/Marine/Observed/eastwards_velocity.nc4"
 #fp1="/home/moke/working/repastHPC/mad_modified/output/experiment.testingv0.22/run_013/totalCohortBiomass.nc"
 
 #fp1="/home/mb425/repastHPC/mad_modified/output/experiment.testingv0.2withoutInteraction/run_002/"+varName+".nc"
-fp1=base_dir+"repastHPC/mad_modified/output/"+experiment+"/run_"+runNumber+"/"+varName+".nc"
+fp1=base_dir+"covid-master/output/"+experiment+"/run_"+runNumber+"/"+varName+".nc"
 
 #fp2="/home/moke/working/Madingley/Madv89/MadingleyCPP/output/2019-03-12_15-24-51/MonthlyGridOutputs.nc"
 nc1 = netCDF4.Dataset(fp1)
 #nc2 = netCDF4.Dataset(fp2)
 #fig, (ax1,ax2)=plt.subplots(2,1)
-t =9
+t =399
 n=1
 k=nc1[varName][0,:,:]
 v=np.mean(nc1[varName][t*n,:,:])*2;
 im=np.flipud(k)
 
-img=plt.imshow(im,vmin=0,vmax=1.e6,cmap='viridis')
+img=plt.imshow(im,vmin=0,vmax=2,cmap='viridis')
 def animate(i):
     print(i)
     k=nc1[varName][i*n,:,:]

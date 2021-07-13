@@ -5,13 +5,13 @@ import netCDF4
 import pandas as pd
 import numpy as np
 base_dir="/home/moke/working/"
-varName="totalCohortBiomass"
-runNumber="318"
-experiment="experiment.testInteraction"
+varName="totalInfected"
+runNumber="000"
+experiment="experiment.testCovidUK"
 
-fp1=base_dir+"repastHPC/mad_modified/output/"+experiment+"/run_"+runNumber+"/"+varName+".nc"
+fp1=base_dir+"repastHPC/covid/output/"+experiment+"/run_"+runNumber+"/"+varName+".nc"
 nc1 = netCDF4.Dataset(fp1)
-k=nc1['totalCohortBiomass'][1,:,:]/1000#/60/1000 # divide by 1000 converts to tonnes
+k=nc1['totalInfected'][1,:,:]
 print(np.mean(k))
 k=np.roll(k,0,axis=1)
 #annual average over last two years (for 12 year run)
@@ -25,7 +25,7 @@ ax=fig.add_axes()
 
 plt.subplots_adjust(left=0.1, right=0.9, bottom=0., top=1.0)
 
-p=plt.imshow(k,origin='lower',vmin=0,vmax=1500,cmap='bwr')#,extent=[-180,180,-65,65])
+p=plt.imshow(k,origin='lower',vmin=0,vmax=0.001,cmap='bwr')#,extent=[-180,180,-65,65])
 
 
 #x=np.arange(-180,180,2)
